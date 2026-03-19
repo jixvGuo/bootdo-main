@@ -1,0 +1,487 @@
+﻿<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
+<meta charset="utf-8">
+<head th:include="include :: header">
+
+    <!-- 引入必要的CSS -->
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        .file-item { margin-bottom: 5px; padding: 3px; }
+        .btn-xs { margin-right: 5px; }
+        .ibox-content { padding: 20px; }
+    </style>
+</head>
+
+<div th:include="include :: footer"></div>
+<body class="gray-bg">
+<input type="hidden" id="isReadonly" th:value="${readonly}">
+<input type="hidden" id="proId" th:value="${proId}" />
+<input type="hidden" th:value="${projectInfo.proStat}" id="proStat">
+<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
+
+<div class="wrapper wrapper-content">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5>QC申报材料上传列表</h5>
+                </div>
+                <div class="ibox-content">
+                    <table class="table table-striped table-bordered table-hover">
+                        <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>材料名称</th>
+                            <th>已上传文件</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <!-- 1. QC小组成果材料 -->
+                        <tr>
+                            <td>1</td>
+                            <td>成果材料（可编辑）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'result_source'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="result_source"
+                                        onclick="showUpload('result_source','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                          onclick="deleteAllFiles('result_source')">
+                                      <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- 2. 石油工程建设优秀QC小组申报表(附件1) -->
+                        <tr>
+                            <td>2</td>
+                            <td>成果材料（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'apply_table'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="apply_table"
+                                        onclick="showUpload('apply_table','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('apply_table')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- 3. 石油工程建设优秀QC小组报告单 -->
+                        <tr>
+                            <td>3</td>
+                            <td>小组申报表（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'report_paper'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="report_paper"
+                                        onclick="showUpload('report_paper','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('report_paper')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+
+                        </tr>
+                        <!-- 3. 石油工程建设优秀QC小组报告单 -->
+                        <tr>
+                            <td>4</td>
+                            <td>小组申报表（可编辑版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'report_paper2'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="report_paper2"
+                                        onclick="showUpload('report_paper2','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('report_paper2')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+
+                        </tr>
+
+                        <!-- 4. 石油工程建设优秀QC小组活动现场评价表(附件4) -->
+                        <tr>
+                            <td>5</td>
+                            <td>小组报告单（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'act_recommend'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="act_recommend"
+                                        onclick="showUpload('act_recommend','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('act_recommend')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+
+                        </tr>
+
+                        <!-- 5. 石油工程建设优秀QC小组活动成果评价表 -->
+                        <tr>
+                            <td>6</td>
+                            <td>现场评价表（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'result_recommend'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="result_recommend"
+                                        onclick="showUpload('result_recommend','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('result_recommend')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+
+                        </tr>
+
+                        <!-- 6. 石油工程建设优秀QC小组活动成果实际价值评价表(附件7) -->
+                        <tr>
+                            <td>7</td>
+                            <td>成果评价表（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'result_real_recommend'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="result_real_recommend"
+                                        onclick="showUpload('result_real_recommend','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('result_real_recommend')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- 7. 石油工程建设优秀QC小组成员表(附件8) -->
+                        <tr>
+                            <td>8</td>
+                            <td>实际价值评价表（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'group_member'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="group_member"
+                                        onclick="showUpload('group_member','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('group_member')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+
+                        </tr>
+
+                        <!-- 8. 质量管理小组概况统计表(附件9,每单位一份) -->
+                        <tr>
+                            <td>9</td>
+                            <td>概况统计表（PDF版）</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'survey_statistic'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="survey_statistic"
+                                        onclick="showUpload('survey_statistic','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('survey_statistic')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+
+                        </tr>
+
+                        <!-- 9. 相关证书(附件9,每单位一份) -->
+                        <tr>
+                            <td>10</td>
+                            <td>评价组长资格证书</td>
+                            <td>
+                                <div class="row">
+                                    <div class="col-sm-12">
+                                        <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'certificate'" th:attr="data-file-type=${doc.fileType}, data-file-id=${doc.fileId}"  class="file-box">
+                                            <a href="javascript:void(0)" th:onclick= "'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                <span th:text="${doc.fileName}"/>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <button class="btn btn-primary btn-xs" fileType="certificate"
+                                        onclick="showUpload('certificate','b')">
+                                    <i class="fa fa-upload"></i> 上传
+                                </button>
+                                <button class="btn btn-danger btn-xs"
+                                        onclick="deleteAllFiles('certificate')">
+                                    <i class="fa fa-upload"></i> 删除
+                                </button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/layui.js"></script>
+<script type="text/javascript" src="/js/appjs/cpe/qc/qc_enclosure_upload.js"></script>
+<script type="text/javascript" src="/js/appjs/cpe/common/pro_stat.js"></script>
+<script type="text/javascript" src="/js/appjs/cpe/qc/qc_file_common.js"></script>
+<script type="text/javascript" src="/js/appjs/cpe/common/readonly.js"></script>
+<script type="text/javascript">
+
+
+    // 全局变量：获取页面隐藏域参数
+ var proId = $("#proId").val();
+ var taskId = $("#taskId").val();
+ var isReadonly = $("#isReadonly").val() === "true" || $("#isReadonly").val() === "1";
+ var proStat = $("#proStat").val();
+
+ // 初始化：页面加载后禁用只读状态的按钮
+  $(function() {
+     // 初始化layui上传组件（按需配置）
+     layui.use(['upload', 'layer'], function() {
+         window.upload = layui.upload;
+         window.layer = layui.layer;
+     });
+
+    actionInReadonly()
+ });
+ /**
+  * 只读模式下，修改表格中操作
+  */
+function actionInReadonly() {
+    if ($("#isReadonly").val() == 1) {
+        $("a").each(function () {
+             $(this).css("pointer-events", "all");
+        });
+    }
+}
+
+
+
+
+
+/**
+ * 删除指定类型的全部文件
+ * @param fileType 文件类型标识
+ */
+function deleteAllFiles(fileType) {
+     var fileIds = [];
+     var fileElements = [];
+    $('div.file-box[data-file-type="' + fileType + '"]').each(function() {
+        fileIds.push($(this).data('file-id'));
+        fileElements.push(this);
+    });
+    console.log(fileIds);
+    // 确认是否删除
+    layer.confirm('确定要删除该类型的所有文件吗？', {
+        btn: ['确定', '取消']
+    }, function () {
+        // 调用后端接口删除文件
+           if (fileIds.length > 0) {
+                // 循环调用delUploadDoc函数删除每个文件
+                var deleteCount = 0;
+                for (var i = 0; i < fileIds.length; i++) {
+                    delUploadDoc(fileElements[i], fileIds[i], function() {
+                        deleteCount++;
+                        // 当所有文件都删除完成后刷新页面
+                        if (deleteCount === fileIds.length) {
+                            setTimeout(function() {
+                                layer.msg("删除完成", { icon: 1 });
+                                window.location.reload();
+                            }, 500);
+                        }
+                    });
+                }
+            } else {
+                layer.msg("没有文件需要删除", { icon: 0 });
+            }
+        });
+}
+
+// 修改delUploadDoc函数以支持回调
+function delUploadDoc(that, id, callback) {
+    $.ajax({
+        cache: true,
+        type: "POST",
+        url: "/petroleumEngineering/removeQualityFile/desc",
+        data: {
+            id: id
+        },
+        async: false,
+        error: function (request) {
+            parent.layer.alert("Connection error");
+        },
+        success: function (data) {
+            if (data.code == 0) {
+                $(that).remove();
+            }
+            if (callback) {
+                callback();
+            }
+        }
+    });
+}
+
+
+ /**
+  * 重构showUpload：适配table页面的上传逻辑（打开上传弹窗）
+  * @param fileType  文件类型（原upId：result_source/apply_table等）
+  * @param cssType   预留参数（原cssType，暂保留兼容调用）
+  */
+ function showUpload(fileType, cssType) {
+     console.log("触发上传：fileType=", fileType, "proId=", proId, "taskId=", taskId);
+
+
+     if (isReadonly) {
+         layer.msg("只读状态禁止上传", {icon: 2});
+         return;
+     }
+
+     // 打开layer上传弹窗（核心逻辑：替换原div显隐）
+     parent.layer.open({
+         type: 2,
+         title: "上传", // 显示材料名称
+         maxmin: true,
+         shadeClose: false,
+         area: ['600px', '400px'],
+         // 上传页面路径（替换为你实际的上传页面URL，传递必要参数）
+       //   content: "/cpe/qc/uploadPage?fileType=" + fileType + "&proId=" + proId + "&taskId=" + taskId,
+        content:  prefix +  '/to_uploadsmall?proId='+$("#proId").val()+'&fileType='+fileType, // iframe的url
+         // 弹窗关闭后刷新当前页面（更新已上传文件列表）
+         end: function() {
+             window.location.reload();
+         }
+     });
+ }
+
+
+
+
+ /**
+  * 辅助方法：根据fileType获取材料名称（优化弹窗标题）
+  * @param fileType 文件类型标识
+  * @returns {string} 材料名称
+  */
+ function getFileTypeDesc(fileType) {
+     var descMap = {
+         "result_source": "QC小组成果材料",
+         "apply_table": "石油工程建设优秀QC小组申报表(附件1)",
+         "apply_table2": "石油工程建设优秀QC小组申报表(可编辑)",
+         "report_paper": "石油工程建设优秀QC小组报告单",
+         "act_recommend": "石油工程建设优秀QC小组活动现场评价表(附件4)",
+         "result_recommend": "石油工程建设优秀QC小组活动成果评价表",
+         "result_real_recommend": "石油工程建设优秀QC小组活动成果实际价值评价表(附件7)",
+         "group_member": "石油工程建设优秀QC小组成员表(附件8)",
+         "survey_statistic": "质量管理小组概况统计表(附件9)",
+         "certificate": "相关证书(附件9)"
+     };
+     return descMap[fileType] || "未知材料";
+ }
+
+
+</script>
+
+</body>
+
+
+<!-- Mirrored from www.zi-han.net/theme/hplus/file_manager.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Jan 2016 14:19:44 GMT -->
+</html>

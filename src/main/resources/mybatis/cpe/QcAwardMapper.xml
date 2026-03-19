@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bootdo.cpe.dao.QcAwardDao">
+
+    <!-- 1. 定义可复用的 Join 关联逻辑 -->
+    <sql id="proJoins">
+        from ass_qc_group_apply_info qa
+        join ass_award_publish_task pt on qa.task_id = pt.id
+        join ass_award_enterprise_project pro ON qa.pro_id = pro.id
+        <if test="scoreSpecialistUid != null">
+            join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and pro.pro_stat = 'score' and si.deleted = 0
+        </if>
+        <if test="ass_assign_uid != null">
+            join ass_award_assign_project asignPro on asignPro.pro_id = pro.id and asignPro.uid = #{ass_assign_uid}
+            <if test="pro_assign_uid != null">
+                and asignPro.assign_uid = #{pro_assign_uid}
+            </if>
+        </if>
+        <if test="scoreAccount != null and scoreAccount != ''">
+            join ass_award_project_score sr on pro.id = sr.pro_id
+            join add_special_info sai on sr.score_uid = sai.user_id
+            and sai.login_account = #{scoreAccount} and sai.deleted = 0
+        </if>
+    </sql>
+
+    <!-- 2. 定义可复用的 Where 过滤逻辑（包含 NOT_SUBMITTED 处理） -->
+    <sql id="proWhere">
+        <where>
+            <if test="id != null and id != ''"> and qa.id = #{id} </if>
+            <if test="optUid != null and optUid != ''"> and qa.opt_uid = #{optUid} </if>
+            <if test="proId != null and proId != ''"> and qa.pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and qa.task_id = #{taskId} </if>
+
+            <if test="keyWord != null and keyWord != ''">
+                <choose>
+                    <!-- 【修正点】因为后台可能自动加了 %，所以用 contains 来判断 -->
+                    <when test="keyWord.contains('NOT_SUBMITTED')">
+                        and (pro.pro_stat IS NULL or pro.pro_stat = '' or pro.pro_stat = '申请中')
+                    </when>
+                    <otherwise>
+                        and (
+                        qa.id like concat('%', #{keyWord}, '%') or
+                        qa.apply_id like concat('%', #{keyWord}, '%') or
+                        topic_name like concat('%', #{keyWord}, '%') or
+                        group_name like concat('%', #{keyWord}, '%') or
+                        pro.pro_stat like concat('%', #{keyWord}, '%') or
+                        exists(
+                        SELECT sd.name FROM sys_dept sd
+                        join sys_user su on sd.dept_id = su.dept_id
+                        where su.user_id = qa.opt_uid and sd.name like concat('%', #{keyWord}, '%')
+                        )
+                        )
+                    </otherwise>
+                </choose>
+            </if>
+
+            <if test="associationUserId != null">
+                and pt.association_userid = #{associationUserId}
+            </if>
+            <if test="enterpriseUid != null">
+                and qa.opt_uid = #{enterpriseUid}
+            </if>
+
+            <!-- 各列筛选条件 -->
+            <if test="filterId != null and filterId != ''">
+                and qa.id = #{filterId}
+            </if>
+            <if test="filterProCode != null and filterProCode != ''">
+                and qa.apply_id like concat('%', #{filterProCode}, '%')
+            </if>
+            <if test="filterTopicName != null and filterTopicName != ''">
+                and qa.topic_name like concat('%', #{filterTopicName}, '%')
+            </if>
+            <if test="filterGroupName != null and filterGroupName != ''">
+                and qa.group_name like concat('%', #{filterGroupName}, '%')
+            </if>
+            <if test="filterGroupMember != null and filterGroupMember != ''">
+                and exists(
+                select 1 from ass_qc_apply_member qcm
+                where qcm.proid = qa.pro_id
+                and (qcm.membername like concat('%', #{filterGroupMember}, '%')
+                or qcm.mailing_address like concat('%', #{filterGroupMember}, '%'))
+                )
+            </if>
+            <if test="filterCompanyName != null and filterCompanyName != ''">
+                and exists(
+                SELECT sd.name FROM sys_dept sd
+                join sys_user su on sd.dept_id = su.dept_id
+                where su.user_id = qa.opt_uid and sd.name like concat('%', #{filterCompanyName}, '%')
+                )
+            </if>
+            <if test="filterTopicType != null and filterTopicType != ''">
+                and qa.topic_type = #{filterTopicType}
+            </if>
+            <if test="filterProfessionalScope != null and filterProfessionalScope != ''">
+                and qa.professional_scope = #{filterProfessionalScope}
+            </if>
+            <if test="filterQcGroupName != null and filterQcGroupName != ''">
+                and pro.qc_group_name like concat('%', #{filterQcGroupName}, '%')
+            </if>
+            <if test="filterApplyStat != null and filterApplyStat != ''">
+                <choose>
+                    <when test="filterApplyStat == '未提交'">
+                        and (pro.pro_stat IS NULL or pro.pro_stat = '' or pro.pro_stat = '申请中')
+                    </when>
+                    <when test="filterApplyStat == '审核中'">
+                        and pro.pro_stat = 'check'
+                    </when>
+                    <when test="filterApplyStat == '已驳回'">
+                        and pro.pro_stat = 'reject'
+                    </when>
+                </choose>
+            </if>
+        </where>
+    </sql>
+
+<!--    &lt;!&ndash; 3. 获取项目数据列表 &ndash;&gt;-->
+<!--    <select id="getProDataList" resultType="com.bootdo.cpe.dto.QcProDataDto">-->
+<!--        select-->
+<!--        qa.`id`, qa.`opt_uid`, qa.`pro_id`, qa.`task_id`, qa.`apply_id`,-->
+<!--        qa.`group_name`, qa.`topic_name`, qa.`topic_type`, qa.`contacts`,-->
+<!--        qa.`phone`, qa.`professional_scope`, qa.`group_desc`, qa.`sel_topic_reason`,-->
+<!--        qa.`act_desc`, qa.`main_result`, qa.`recommend_action`,-->
+<!--        qa.`created`, qa.`updated`, qa.`deleted`,-->
+<!--        (SELECT sd.name FROM sys_dept sd join sys_user su on sd.dept_id = su.dept_id where su.user_id = qa.opt_uid limit 1) company_name,-->
+<!--        (select username from sys_user where user_id = qa.opt_uid limit 1) apply_account,-->
+<!--        pt.apply_start_date, pt.apply_end_date, pt.expert_start_time, pt.expert_end_time,-->
+<!--        pt.expert_start_time_second, pt.expert_end_time_second, pt.check_start_time, pt.check_end_time,-->
+<!--        pt.task_stat,-->
+<!--        pro.pro_stat,-->
+<!--        pro.qc_group_name as qcGroupName,-->
+<!--        (SELECT rr.review_result-->
+<!--        FROM ass_qc_review_result_record rr-->
+<!--        WHERE rr.pro_id = qa.pro_id-->
+<!--        ORDER BY rr.created DESC-->
+<!--        LIMIT 1) AS latestReviewResult,-->
+
+<!--        (SELECT rr.opinion_desc-->
+<!--        FROM ass_qc_review_result_record rr-->
+<!--        WHERE rr.pro_id = qa.pro_id-->
+<!--        ORDER BY rr.created DESC-->
+<!--        LIMIT 1) AS latestReviewComment,-->
+
+<!--        (SELECT DATE_FORMAT(rr.created, '%Y-%m-%d %H:%i:%s')-->
+<!--        FROM ass_qc_review_result_record rr-->
+<!--        WHERE rr.pro_id = qa.pro_id-->
+<!--        ORDER BY rr.created DESC-->
+<!--        LIMIT 1) AS latestReviewTime,-->
+<!--        qa.apply_id as proCode, &lt;!&ndash; 使用 qa 的 apply_id 作为成果编号 &ndash;&gt;-->
+<!--        (SELECT username FROM sys_user where user_id = qa.opt_uid limit 1) opt_account-->
+
+<!--        <include refid="proJoins" />-->
+<!--        <include refid="proWhere" />-->
+
+<!--        <choose>-->
+<!--            <when test="sort != null and sort.trim() != ''">-->
+<!--                order by ${sort} ${order}-->
+<!--            </when>-->
+<!--            <otherwise>-->
+<!--                order by qa.id desc-->
+<!--            </otherwise>-->
+<!--        </choose>-->
+<!--        <if test="offset != null and limit != null">-->
+<!--            limit #{offset}, #{limit}-->
+<!--        </if>-->
+<!--    </select>-->
+    <!-- 3. 获取项目数据列表 -->
+<!--    <select id="getProDataList" resultType="com.bootdo.cpe.dto.QcProDataDto">-->
+<!--        select-->
+<!--        qa.`id`, qa.`opt_uid`, qa.`pro_id`, qa.`task_id`, qa.`apply_id`,-->
+<!--        qa.`group_name`, qa.`topic_name`,-->
+<!--        CASE qa.`topic_type`-->
+<!--        WHEN 'solving' THEN '问题解决型'-->
+<!--        WHEN 'innovate' THEN '创新型'-->
+<!--        ELSE qa.`topic_type`-->
+<!--        END topic_type,-->
+<!--        qa.`contacts`,-->
+<!--        qa.`phone`,-->
+<!--        CASE qa.`professional_scope`-->
+<!--        WHEN 'design' THEN '勘察设计'-->
+<!--        WHEN 'supervision' THEN '监理与管理'-->
+<!--        WHEN 'construction' THEN '施工'-->
+<!--        ELSE qa.`professional_scope`-->
+<!--        END professional_scope,-->
+<!--        qa.`group_desc`, qa.`sel_topic_reason`,-->
+<!--        qa.`act_desc`, qa.`main_result`, qa.`recommend_action`,-->
+<!--        qa.`created`, qa.`updated`, qa.`deleted`,-->
+<!--        (SELECT sd.name FROM sys_dept sd join sys_user su on sd.dept_id = su.dept_id where su.user_id = qa.opt_uid limit 1) company_name,-->
+<!--        (select username from sys_user where user_id = qa.opt_uid limit 1) apply_account,-->
+<!--        pt.apply_start_date, pt.apply_end_date, pt.expert_start_time, pt.expert_end_time,-->
+<!--        pt.expert_start_time_second, pt.expert_end_time_second, pt.check_start_time, pt.check_end_time,-->
+<!--        pt.task_stat,-->
+<!--        pro.pro_stat,-->
+<!--        pro.qc_group_name as qcGroupName,-->
+<!--        (SELECT rr.review_result-->
+<!--        FROM ass_qc_review_result_record rr-->
+<!--        WHERE rr.pro_id = qa.pro_id-->
+<!--        ORDER BY rr.created DESC-->
+<!--        LIMIT 1) AS latestReviewResult,-->
+
+<!--        (SELECT rr.opinion_desc-->
+<!--        FROM ass_qc_review_result_record rr-->
+<!--        WHERE rr.pro_id = qa.pro_id-->
+<!--        ORDER BY rr.created DESC-->
+<!--        LIMIT 1) AS latestReviewComment,-->
+
+<!--        (SELECT DATE_FORMAT(rr.created, '%Y-%m-%d %H:%i:%s')-->
+<!--        FROM ass_qc_review_result_record rr-->
+<!--        WHERE rr.pro_id = qa.pro_id-->
+<!--        ORDER BY rr.created DESC-->
+<!--        LIMIT 1) AS latestReviewTime,-->
+<!--        qa.apply_id as proCode, &lt;!&ndash; 使用 qa 的 apply_id 作为成果编号 &ndash;&gt;-->
+<!--        (SELECT username FROM sys_user where user_id = qa.opt_uid limit 1) opt_account-->
+
+<!--        <include refid="proJoins" />-->
+<!--        <include refid="proWhere" />-->
+
+<!--        <choose>-->
+<!--            <when test="sort != null and sort.trim() != ''">-->
+<!--                order by ${sort} ${order}-->
+<!--            </when>-->
+<!--            <otherwise>-->
+<!--                order by qa.id desc-->
+<!--            </otherwise>-->
+<!--        </choose>-->
+<!--        <if test="offset != null and limit != null">-->
+<!--            limit #{offset}, #{limit}-->
+<!--        </if>-->
+<!--    </select>-->
+    <select id="getProDataList" resultType="com.bootdo.cpe.dto.QcProDataDto">
+        select
+        qa.`id`, qa.`opt_uid`, qa.`pro_id`, qa.`task_id`, qa.`apply_id`,
+        qa.`group_name`, qa.`topic_name`,
+        CASE qa.`topic_type`
+        WHEN 'solving' THEN '问题解决型'
+        WHEN 'innovate' THEN '创新型'
+        ELSE qa.`topic_type`
+        END topic_type,
+        qa.`contacts`,
+        qa.`phone`,
+        CASE qa.`professional_scope`
+        WHEN 'design' THEN '勘察设计'
+        WHEN 'supervision' THEN '监理与管理'
+        WHEN 'construction' THEN '施工'
+        ELSE qa.`professional_scope`
+        END professional_scope,
+        qa.`group_desc`, qa.`sel_topic_reason`,
+        qa.`act_desc`, qa.`main_result`, qa.`recommend_action`,
+        qa.`created`, qa.`updated`, qa.`deleted`,
+        (SELECT sd.name FROM sys_dept sd join sys_user su on sd.dept_id = su.dept_id where su.user_id = qa.opt_uid limit 1) company_name,
+        (select username from sys_user where user_id = qa.opt_uid limit 1) apply_account,
+        pt.apply_start_date, pt.apply_end_date, pt.expert_start_time, pt.expert_end_time,
+        pt.expert_start_time_second, pt.expert_end_time_second, pt.check_start_time, pt.check_end_time,
+        pt.task_stat,
+        pro.pro_stat,
+        pro.qc_group_name as qcGroupName,
+        (SELECT rr.review_result
+        FROM ass_qc_review_result_record rr
+        WHERE rr.pro_id = qa.pro_id
+        ORDER BY rr.created DESC
+        LIMIT 1) AS latestReviewResult,
+
+        (SELECT rr.opinion_desc
+        FROM ass_qc_review_result_record rr
+        WHERE rr.pro_id = qa.pro_id
+        ORDER BY rr.created DESC
+        LIMIT 1) AS latestReviewComment,
+
+        (SELECT DATE_FORMAT(rr.created, '%Y-%m-%d %H:%i:%s')
+        FROM ass_qc_review_result_record rr
+        WHERE rr.pro_id = qa.pro_id
+        ORDER BY rr.created DESC
+        LIMIT 1) AS latestReviewTime,
+        qa.apply_id as proCode,
+        (SELECT username FROM sys_user where user_id = qa.opt_uid limit 1) opt_account,
+        qa.group_desc as completeUnit,
+        (SELECT qcm.mailing_address
+        FROM ass_qc_apply_member qcm
+        WHERE qcm.proid = qa.pro_id
+        LIMIT 1) AS firstMemberContact
+
+        <include refid="proJoins" />
+        <include refid="proWhere" />
+
+        <choose>
+            <when test="sort != null and sort.trim() != ''">
+                order by ${sort} ${order}
+            </when>
+            <otherwise>
+                order by qa.id desc
+            </otherwise>
+        </choose>
+        <if test="offset != null and limit != null">
+            limit #{offset}, #{limit}
+        </if>
+    </select>
+
+    <!-- 4. 获取数据总数（必须与列表共享逻辑） -->
+    <select id="countProData" resultType="java.lang.Integer">
+        select count(*)
+        <include refid="proJoins" />
+        <include refid="proWhere" />
+    </select>
+
+    <!-- 5. 更新项目状态 -->
+    <update id="updateProStat">
+        update ass_award_enterprise_project set pro_stat = #{proStat} where id = #{proId}
+    </update>
+
+</mapper>

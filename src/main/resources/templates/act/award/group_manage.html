@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<meta charset="utf-8">
+<head th:include="include :: header"></head>
+<body class="gray-bg">
+<div class="wrapper wrapper-content ">
+    <input type="hidden" id="taskId" th:value="${taskId}"/>
+    <div class="col-sm-12">
+        <div class="ibox">
+            <div class="ibox-body">
+                <div class="fixed-table-toolbar">
+                    <div class="columns pull-left">
+                        <button type="button" class="btn btn-primary" onclick="add()">
+                            <i class="fa fa-plus"></i> 新增分组
+                        </button>
+<!--                        <button type="button" class="btn btn-danger" onclick="batchRemove()">-->
+<!--                            <i class="fa fa-trash"></i> 批量删除-->
+<!--                        </button>-->
+
+                    </div>
+                </div>
+                <table id="exampleTable" data-mobile-responsive="true">
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<div th:include="include :: footer"></div>
+<script type="text/javascript" src="/js/appjs/act/award/group_manage.js"></script>
+</body>
+</html>
