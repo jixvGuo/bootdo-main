@@ -66,7 +66,11 @@ public class DictServiceImpl implements DictService {
         Map<String, Object> param = new HashMap<String, Object>(16);
         param.put("type", type);
         param.put("value", value);
-        String rString = dictDao.list(param).get(0).getName();
+        List<DictDO> dictList = dictDao.list(param);
+        if (dictList == null || dictList.isEmpty()) {
+            return "";
+        }
+        String rString = dictList.get(0).getName();
         return rString;
     }
 

@@ -236,15 +236,16 @@
         WHEN 'solving' THEN '问题解决型'
         WHEN 'innovate' THEN '创新型'
         ELSE qa.`topic_type`
-        END topic_type,
+        END AS 'topic_type',
         qa.`contacts`,
         qa.`phone`,
         CASE qa.`professional_scope`
         WHEN 'design' THEN '勘察设计'
         WHEN 'supervision' THEN '监理与管理'
         WHEN 'construction' THEN '施工'
+        WHEN 'other' THEN '其它'
         ELSE qa.`professional_scope`
-        END professional_scope,
+        END AS 'professional_scope',
         qa.`group_desc`, qa.`sel_topic_reason`,
         qa.`act_desc`, qa.`main_result`, qa.`recommend_action`,
         qa.`created`, qa.`updated`, qa.`deleted`,

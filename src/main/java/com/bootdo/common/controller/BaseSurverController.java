@@ -53,6 +53,10 @@ public class BaseSurverController extends BaseController {
 
     @Override
     public void packageAwardTaskId(ModelMap map, Map<String, Object> params) {
+        System.out.println(
+                "taskId:" + params.get("taskId") +
+                ",proId:" + params.get("proId")
+        );
         Object paramsTaskIdObj = params.get("taskId");
         Object proIdObj = params.get("proId");
         int proId = proIdObj != null ? Integer.parseInt(proIdObj.toString()) : 0;
@@ -76,7 +80,8 @@ public class BaseSurverController extends BaseController {
         map.put("taskId", taskId);
         map.put("apply_type",  "qc");
         //QC奖项目类型,默认只有小组奖项
-        params.put("proType", EnumProjectType.SURVER_PRO.getProType());
+//        params.put("proType", EnumProjectType.SURVER_PRO.getProType());
+        params.put("proType", EnumProjectType.SURVER_PRO);
         packageApplyParam(map, params);
     }
 

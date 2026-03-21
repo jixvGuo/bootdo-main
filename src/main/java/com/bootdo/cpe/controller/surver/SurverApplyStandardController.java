@@ -65,7 +65,8 @@ public class SurverApplyStandardController extends BaseSurverController {
     @RequestMapping("/toApply")
     public String toApplyStandard(ModelMap map, @RequestParam Map<String, Object> params) {
         params.put("proSubType", "standard");
-        packageAwardTaskId(map, params);
+//        packageAwardTaskId(map, params);
+        applyParams(map, params);
         return prefix + "/apply/apply_standard_award_main";
     }
 

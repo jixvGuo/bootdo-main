@@ -64,6 +64,14 @@ public class SurverApplyController extends BaseSurverController {
     @Autowired
     private SurverAwardService surverAwardService;
 
+    @Autowired
+    private SurverSoftApplyTableInfoService surverSoftApplyTableInfoService;
+    @Autowired
+    private SurverStandardApplyTableInfoService surverStandardApplyTableInfoService;
+    @Autowired
+    private SurverConsultApplyTableInfoService surverConsultApplyTableInfoService;
+
+
 
 
     @Autowired
@@ -74,7 +82,8 @@ public class SurverApplyController extends BaseSurverController {
     @RequestMapping("/toApplyDesign")
     public String toApplyDesign(ModelMap map, @RequestParam Map<String, Object> params) {
         params.put("proSubType", "design");
-        packageAwardTaskId(map, params);
+//        packageAwardTaskId(map, params);
+        applyParams(map, params);
         return prefix + "/apply/apply_design_award_main";
     }
 
@@ -125,6 +134,8 @@ public class SurverApplyController extends BaseSurverController {
         map.put("proUseInfoDO", new SurverDesignCommonProUseInfoDO());
         return prefix + "/apply/apply_design_common_pro_use_add";
     }
+
+
 
     @RequestMapping("/toProDescAdd")
     public String toProDescAdd(ModelMap map, @RequestParam Map<String, Object> params) {
@@ -297,6 +308,108 @@ public class SurverApplyController extends BaseSurverController {
     }
 
 
+    // 在 SurverApplyController 中添加
+    @RequestMapping("/toApplyDesignForm")
+    public String toApplyDesignForm(ModelMap map, @RequestParam Map<String, Object> params) {
+        packageAwardTaskId(map, params);
+
+        // 检查是否已有项目记录
+        List<SurverDesignApplyTableInfoDO> existList = surverDesignApplyTableInfoService.list(params);
+        if (existList.isEmpty()) {
+            // 创建新项目
+            long uid = getUserId();
+            EnterpriseProjectInfoDo projectInfoDo = awardEnterpriseProjectService.initOneProjectByProSubType(
+                    map.get("taskId").toString(),
+                    uid,
+                    EnumProjectType.SURVER_PRO,
+                    "design"
+            );
+            map.put("proId", projectInfoDo.getId());  // ✅ 传递新生成的 proId
+        } else {
+            map.put("proId", existList.get(0).getProId());
+        }
+
+        return prefix + "/apply/apply_design_award_main";
+    }
+
+
+    /**
+     * 咨询奖申报前创建项目
+     */
+    @RequestMapping("/toApplyConsultingForm")
+    public String toApplyConsultingForm(ModelMap map, @RequestParam Map<String, Object> params) {
+        params.put("proSubType", "consulting");
+        packageAwardTaskId(map, params);
+
+        List<SurverConsultApplyTableInfoDO> tableInfoDOList = surverConsultApplyTableInfoService.list(params);
+        if (tableInfoDOList.isEmpty()) {
+            long uid = getUserId();
+            String taskId = map.get("taskId").toString();
+            EnterpriseProjectInfoDo projectInfoDo = awardEnterpriseProjectService.initOneProjectByProSubType(
+                    taskId,
+                    uid,
+                    EnumProjectType.SURVER_PRO,
+                    "consulting"
+            );
+            map.put("proId", projectInfoDo.getId());
+        } else {
+            map.put("proId", tableInfoDOList.get(0).getProId());
+        }
+
+        return prefix + "/apply/apply_consulting_award_main";
+    }
+
+    /**
+     * 软件奖申报前创建项目
+     */
+    @RequestMapping("/toApplySoftwareForm")
+    public String toApplySoftwareForm(ModelMap map, @RequestParam Map<String, Object> params) {
+        params.put("proSubType", "software");
+        packageAwardTaskId(map, params);
+
+        List<SurverSoftApplyTableInfoDO> tableInfoDOList = surverSoftApplyTableInfoService.list(params);
+        if (tableInfoDOList.isEmpty()) {
+            long uid = getUserId();
+            String taskId = map.get("taskId").toString();
+            EnterpriseProjectInfoDo projectInfoDo = awardEnterpriseProjectService.initOneProjectByProSubType(
+                    taskId,
+                    uid,
+                    EnumProjectType.SURVER_PRO,
+                    "software"
+            );
+            map.put("proId", projectInfoDo.getId());
+        } else {
+            map.put("proId", tableInfoDOList.get(0).getProId());
+        }
+
+        return prefix + "/apply/apply_software_award_main";
+    }
+
+    /**
+     * 标准奖申报前创建项目
+     */
+    @RequestMapping("/toApplyStandardForm")
+    public String toApplyStandardForm(ModelMap map, @RequestParam Map<String, Object> params) {
+        params.put("proSubType", "standard");
+        packageAwardTaskId(map, params);
+
+        List<SurverStandardApplyTableInfoDO> tableInfoDOList = surverStandardApplyTableInfoService.list(params);
+        if (tableInfoDOList.isEmpty()) {
+            long uid = getUserId();
+            String taskId = map.get("taskId").toString();
+            EnterpriseProjectInfoDo projectInfoDo = awardEnterpriseProjectService.initOneProjectByProSubType(
+                    taskId,
+                    uid,
+                    EnumProjectType.SURVER_PRO,
+                    "standard"
+            );
+            map.put("proId", projectInfoDo.getId());
+        } else {
+            map.put("proId", tableInfoDOList.get(0).getProId());
+        }
+
+        return prefix + "/apply/apply_standard_award_main";
+    }
 
     /**
      * 打印 记录

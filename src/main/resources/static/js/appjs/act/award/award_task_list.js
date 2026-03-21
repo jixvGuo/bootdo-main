@@ -192,10 +192,15 @@ function resolveQcManagerTaskOps(stageCode) {
     } else if (stageCode === "APPLYING") {
         ops.showEdit = true;
         ops.showDelete = true;
-        ops.showAssign = true;
+        ops.showAssign = false;
         ops.showGroup = true;
 		ops.showView = true;
-    } else if (stageCode === "CHECKING" ) {
+    }else if (stageCode === "APPLY_CLOSED") {
+		// 申报结束阶段，显示查看和编辑按钮
+		ops.showView = true;
+		ops.showEdit = true;
+		ops.showDelete = true;
+	}else if (stageCode === "CHECKING" ) {
         ops.showView = true;
         ops.showEdit = true;
         ops.showDelete = true;

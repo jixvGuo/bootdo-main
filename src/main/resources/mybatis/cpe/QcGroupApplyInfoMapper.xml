@@ -3,47 +3,149 @@
 
 <mapper namespace="com.bootdo.cpe.dao.QcGroupApplyInfoDao">
 
+<!--	<select id="get" resultType="com.bootdo.cpe.domain.QcGroupApplyInfoDO">-->
+<!--		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`group_name`,`topic_name`,`topic_type`,`contacts`,`phone`,`professional_scope`,`group_desc`,`sel_topic_reason`,`act_desc`,`main_result`,`recommend_action`,`created`,`updated`,`deleted`,`unit_name` from ass_qc_group_apply_info where id = #{value}-->
+<!--	</select>-->
+
+<!--	<select id="list" resultType="com.bootdo.cpe.domain.QcGroupApplyInfoDO">-->
+<!--		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`group_name`,`topic_name`,`topic_type`,`contacts`,`phone`,`professional_scope`,`group_desc`,`sel_topic_reason`,`act_desc`,`main_result`,`recommend_action`,`created`,`updated`,`deleted`,`unit_name` from ass_qc_group_apply_info-->
+<!--        <where>  -->
+<!--		  		  <if test="id != null and id != ''"> and id = #{id} </if>-->
+<!--		  		  <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>-->
+<!--		  		  <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>-->
+<!--		  		  <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>-->
+<!--		  		  <if test="applyId != null and applyId != ''"> and apply_id = #{applyId} </if>-->
+<!--		  		  <if test="groupName != null and groupName != ''"> and group_name = #{groupName} </if>-->
+<!--		  		  <if test="topicName != null and topicName != ''"> and topic_name = #{topicName} </if>-->
+<!--		  		  <if test="topicType != null and topicType != ''"> and topic_type = #{topicType} </if>-->
+<!--		  		  <if test="contacts != null and contacts != ''"> and contacts = #{contacts} </if>-->
+<!--		  		  <if test="phone != null and phone != ''"> and phone = #{phone} </if>-->
+<!--		  		  <if test="professionalScope != null and professionalScope != ''"> and professional_scope = #{professionalScope} </if>-->
+<!--		  		  <if test="groupDesc != null and groupDesc != ''"> and group_desc = #{groupDesc} </if>-->
+<!--		  		  <if test="selTopicReason != null and selTopicReason != ''"> and sel_topic_reason = #{selTopicReason} </if>-->
+<!--		  		  <if test="actDesc != null and actDesc != ''"> and act_desc = #{actDesc} </if>-->
+<!--		  		  <if test="mainResult != null and mainResult != ''"> and main_result = #{mainResult} </if>-->
+<!--		  		  <if test="recommendAction != null and recommendAction != ''"> and recommend_action = #{recommendAction} </if>-->
+<!--		  		  <if test="created != null and created != ''"> and created = #{created} </if>-->
+<!--		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>-->
+<!--		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>-->
+<!--		  		  <if test="unitName != null and unitName != ''"> and unit_name = #{unitName} </if>-->
+<!--		  		</where>-->
+<!--        <choose>-->
+<!--            <when test="sort != null and sort.trim() != ''">-->
+<!--                order by ${sort} ${order}-->
+<!--            </when>-->
+<!--			<otherwise>-->
+<!--                order by id desc-->
+<!--			</otherwise>-->
+<!--        </choose>-->
+<!--		<if test="offset != null and limit != null">-->
+<!--			limit #{offset}, #{limit}-->
+<!--		</if>-->
+<!--	</select>-->
 	<select id="get" resultType="com.bootdo.cpe.domain.QcGroupApplyInfoDO">
-		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`group_name`,`topic_name`,`topic_type`,`contacts`,`phone`,`professional_scope`,`group_desc`,`sel_topic_reason`,`act_desc`,`main_result`,`recommend_action`,`created`,`updated`,`deleted`,`unit_name` from ass_qc_group_apply_info where id = #{value}
+		select
+			`id`,
+			`opt_uid` AS optUid,
+			`pro_id` AS proId,
+			`task_id` AS taskId,
+			`apply_id` AS applyId,
+			`group_name` AS groupName,
+			`topic_name` AS topicName,
+			CASE `topic_type`
+				WHEN 'innovate' THEN '创新型'
+				WHEN 'solving' THEN '问题解决型'
+				ELSE `topic_type`
+				END AS `topicType`,
+			`contacts`,
+			`phone`,
+			CASE `professional_scope`
+				WHEN 'design' THEN '勘察设计'
+				WHEN 'supervision' THEN '监理与管理'
+				WHEN 'construction' THEN '施工'
+				WHEN 'other' THEN '其它'
+				ELSE `professional_scope`
+				END AS `professionalScope`,
+			`group_desc` AS groupDesc,
+			`sel_topic_reason` AS selTopicReason,
+			`act_desc` AS actDesc,
+			`main_result` AS mainResult,
+			`recommend_action` AS recommendAction,
+			`created`,
+			`updated`,
+			`deleted`,
+			`unit_name` AS unitName
+		from ass_qc_group_apply_info
+		where id = #{value}
 	</select>
 
 	<select id="list" resultType="com.bootdo.cpe.domain.QcGroupApplyInfoDO">
-		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`group_name`,`topic_name`,`topic_type`,`contacts`,`phone`,`professional_scope`,`group_desc`,`sel_topic_reason`,`act_desc`,`main_result`,`recommend_action`,`created`,`updated`,`deleted`,`unit_name` from ass_qc_group_apply_info
-        <where>  
-		  		  <if test="id != null and id != ''"> and id = #{id} </if>
-		  		  <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
-		  		  <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
-		  		  <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
-		  		  <if test="applyId != null and applyId != ''"> and apply_id = #{applyId} </if>
-		  		  <if test="groupName != null and groupName != ''"> and group_name = #{groupName} </if>
-		  		  <if test="topicName != null and topicName != ''"> and topic_name = #{topicName} </if>
-		  		  <if test="topicType != null and topicType != ''"> and topic_type = #{topicType} </if>
-		  		  <if test="contacts != null and contacts != ''"> and contacts = #{contacts} </if>
-		  		  <if test="phone != null and phone != ''"> and phone = #{phone} </if>
-		  		  <if test="professionalScope != null and professionalScope != ''"> and professional_scope = #{professionalScope} </if>
-		  		  <if test="groupDesc != null and groupDesc != ''"> and group_desc = #{groupDesc} </if>
-		  		  <if test="selTopicReason != null and selTopicReason != ''"> and sel_topic_reason = #{selTopicReason} </if>
-		  		  <if test="actDesc != null and actDesc != ''"> and act_desc = #{actDesc} </if>
-		  		  <if test="mainResult != null and mainResult != ''"> and main_result = #{mainResult} </if>
-		  		  <if test="recommendAction != null and recommendAction != ''"> and recommend_action = #{recommendAction} </if>
-		  		  <if test="created != null and created != ''"> and created = #{created} </if>
-		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
-		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
-		  		  <if test="unitName != null and unitName != ''"> and unit_name = #{unitName} </if>
-		  		</where>
-        <choose>
-            <when test="sort != null and sort.trim() != ''">
-                order by ${sort} ${order}
-            </when>
+		select
+		`id`,
+		`opt_uid` AS optUid,
+		`pro_id` AS proId,
+		`task_id` AS taskId,
+		`apply_id` AS applyId,
+		`group_name` AS groupName,
+		`topic_name` AS topicName,
+		CASE `topic_type`
+		WHEN 'innovate' THEN '创新型'
+		WHEN 'solving' THEN '问题解决型'
+		ELSE `topic_type`
+		END AS `topicType`,
+		`contacts`,
+		`phone`,
+		CASE `professional_scope`
+		WHEN 'design' THEN '勘察设计'
+		WHEN 'supervision' THEN '监理与管理'
+		WHEN 'construction' THEN '施工'
+		WHEN 'other' THEN '其它'
+		ELSE `professional_scope`
+		END AS `professionalScope`,
+		`group_desc` AS groupDesc,
+		`sel_topic_reason` AS selTopicReason,
+		`act_desc` AS actDesc,
+		`main_result` AS mainResult,
+		`recommend_action` AS recommendAction,
+		`created`,
+		`updated`,
+		`deleted`,
+		`unit_name` AS unitName
+		from ass_qc_group_apply_info
+		<where>
+			<if test="id != null and id != ''"> and id = #{id} </if>
+			<if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
+			<if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
+			<if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+			<if test="applyId != null and applyId != ''"> and apply_id = #{applyId} </if>
+			<if test="groupName != null and groupName != ''"> and group_name = #{groupName} </if>
+			<if test="topicName != null and topicName != ''"> and topic_name = #{topicName} </if>
+			<if test="topicType != null and topicType != ''"> and topic_type = #{topicType} </if>
+			<if test="contacts != null and contacts != ''"> and contacts = #{contacts} </if>
+			<if test="phone != null and phone != ''"> and phone = #{phone} </if>
+			<if test="professionalScope != null and professionalScope != ''"> and professional_scope = #{professionalScope} </if>
+			<if test="groupDesc != null and groupDesc != ''"> and group_desc = #{groupDesc} </if>
+			<if test="selTopicReason != null and selTopicReason != ''"> and sel_topic_reason = #{selTopicReason} </if>
+			<if test="actDesc != null and actDesc != ''"> and act_desc = #{actDesc} </if>
+			<if test="mainResult != null and mainResult != ''"> and main_result = #{mainResult} </if>
+			<if test="recommendAction != null and recommendAction != ''"> and recommend_action = #{recommendAction} </if>
+			<if test="created != null and created != ''"> and created = #{created} </if>
+			<if test="updated != null and updated != ''"> and updated = #{updated} </if>
+			<if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
+			<if test="unitName != null and unitName != ''"> and unit_name = #{unitName} </if>
+		</where>
+		<choose>
+			<when test="sort != null and sort.trim() != ''">
+				order by ${sort} ${order}
+			</when>
 			<otherwise>
-                order by id desc
+				order by id desc
 			</otherwise>
-        </choose>
+		</choose>
 		<if test="offset != null and limit != null">
 			limit #{offset}, #{limit}
 		</if>
 	</select>
-	
  	<select id="count" resultType="int">
 		select count(*) from ass_qc_group_apply_info
 		 <where>  

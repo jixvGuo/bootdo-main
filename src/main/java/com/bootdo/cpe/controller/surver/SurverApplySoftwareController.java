@@ -64,7 +64,8 @@ public class SurverApplySoftwareController  extends BaseSurverController {
     @RequestMapping("/toApplySoftware")
     public String toApplyDesign(ModelMap map, @RequestParam Map<String, Object> params) {
         params.put("proSubType", "software");
-        packageAwardTaskId(map, params);
+//        packageAwardTaskId(map, params);
+        applyParams(map, params);
         return prefix + "/apply/apply_software_main";
     }
 

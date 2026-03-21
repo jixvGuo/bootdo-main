@@ -124,10 +124,16 @@
             </if>
             pro.qc_group_name,
             IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) proCode,
+            IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) proCode,
+            <if test="awardType == 'qc_group'">
+                qg.apply_id applyAccount,
+            </if>
+
             CASE pro.major
                 WHEN 'design' THEN '勘察设计'
                 WHEN 'supervision' THEN '监理与管理'
                 WHEN 'construction' THEN '施工'
+                WHEN 'other' THEN '其它'
                 ELSE pro.major
             END major,
             sd.`name` enterprise_name,

@@ -65,7 +65,8 @@ public class SurverApplyConsultingController extends BaseSurverController {
     @RequestMapping("/toApply")
     public String toApplyDesign(ModelMap map, @RequestParam Map<String, Object> params) {
         params.put("proSubType", "consulting");
-        packageAwardTaskId(map, params);
+//        packageAwardTaskId(map, params);
+        applyParams(map, params);
         return prefix + "/apply/apply_consulting_award_main";
     }
 

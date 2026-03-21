@@ -51,7 +51,8 @@ public class SurverApplyBaseExlentController extends BaseSurverController {
     @RequestMapping("/toApply")
     public String toApplyDesign(ModelMap map, @RequestParam Map<String, Object> params) {
         params.put("proSubType", "contribution");
-        packageAwardTaskId(map, params);
+//        packageAwardTaskId(map, params);
+        applyParams(map, params);
         return prefix + "/apply/apply_base_excellent_award_main";
     }
 

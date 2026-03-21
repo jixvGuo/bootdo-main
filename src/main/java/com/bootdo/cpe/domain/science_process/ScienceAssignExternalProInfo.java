@@ -21,6 +21,7 @@ public class ScienceAssignExternalProInfo {
     private String enterpriseName;
 
     private String qcGroupname;
+    private String applyAccount;
 
 
 
@@ -28,6 +29,14 @@ public class ScienceAssignExternalProInfo {
      * 外聘人员用户id
      */
     private long extUserId;
+
+    public String getApplyAccount() {
+        return applyAccount;
+    }
+
+    public void setApplyAccount(String applyAccount) {
+        this.applyAccount = applyAccount;
+    }
 
     public int getId() {
         return id;

@@ -304,6 +304,30 @@ function view(proId, proType) {
     page(url, title, 20220328, true);
 }
 
+// function edit(proId, proType) {
+//     let url = '';
+//     let title = '';
+//     if (proType == 'design') {
+//         url = '/surverApply/toApplyDesign?proId=' + proId;
+//         title = '勘察设计奖编辑';
+//     } else if (proType == 'software') {
+//         url = '/surverSoftwareApply/toApplySoftware?proId=' + proId;
+//         title = '计算机软件奖编辑';
+//     } else if (proType == 'consulting') {
+//         url = '/surverConsultingApply/toApply?proId=' + proId;
+//         title = '咨询奖编辑';
+//     } else if (proType == 'standard') {
+//         url = '/surverStandardApply/toApply?proId=' + proId;
+//         title = '标准设计奖编辑';
+//     } else if (proType == 'contribution') {
+//         url = '/surverBaseExlentApply/toApply?proId=' + proId;
+//         title = '优秀勘察奖';
+//     }
+//     page(url, title, 20220328, true);
+// }
+
+// ... existing code ...
+
 function edit(proId, proType) {
     let url = '';
     let title = '';
@@ -325,6 +349,9 @@ function edit(proId, proType) {
     }
     page(url, title, 20220328, true);
 }
+
+
+
 
 function reviewUploadDoc(id, proId, proSubType) {
     let url = '';

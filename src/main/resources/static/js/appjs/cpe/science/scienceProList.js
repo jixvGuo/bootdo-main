@@ -308,7 +308,7 @@ function edit(proId, proType) {
     let url = '';
     let title = '';
     if (proType == 'design') {
-        url = '/surverApply/toApplyDesign?proId=' + proId;
+        url = '/surverApply/toApplyDesignForm?proId=' + proId;
         title = '勘察设计奖编辑';
     } else if (proType == 'software') {
         url = '/surverSoftwareApply/toApplySoftware?proId=' + proId;
@@ -320,7 +320,7 @@ function edit(proId, proType) {
         url = '/surverStandardApply/toApply?proId=' + proId;
         title = '标准设计奖编辑';
     } else if (proType == 'contribution') {
-        url = '/surverBaseExlentApply/toApply?proId=' + proId;
+        url = '/surverExlentApply/toApplyExcellentForm?proId=' + proId
         title = '优秀勘察奖';
     }
     page(url, title, 20220328, true);

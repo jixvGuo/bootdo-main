@@ -256,6 +256,14 @@ public class RoleAwardParamData {
                 paramData.setType("3");
                 return paramData;
             }
+            // 新增：协会领导可以查看所有 QC 奖任务
+            if (roleList.contains(ROLE_ASSOCIATION_LEADER)) {
+                paramData.setIsAssociation(true);
+                paramData.setAwardId(awardIdInt);
+                paramData.setRoleId(ROLE_ASSOCIATION_LEADER);
+                paramData.setType("3");
+                return paramData;
+            }
         }
 
         // 优质工程奖 (awardId=4)

@@ -373,7 +373,7 @@ public class ScienceBaseProjectInfoDO {
             // 申报时间结束但形审还未开始的状态
             this.isReviewResult = false;
             this.isCancelReview = false; // 不允许回收
-            this.isEdit = false; // 不允许编辑
+            this.isEdit = true; // 不允许编辑
             this.isSubCheck = 0; // 不允许提交审核
             // 此时企业用户可以查看申报列表，但不能进行任何操作
             return;

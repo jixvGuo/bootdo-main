@@ -31,7 +31,7 @@
                 <div class="ui field">
                     <label>课题类型</label>
                     <input type="text" th:if="${readonly} eq 1"
-                           th:value="${@dictServiceImpl.getName('projectType',groupInfo.topicType)}" name=""
+                           th:value="${groupInfo.topicType}" name=""
                            placeholder="">
                     <div th:if="${readonly} ne 1" class="ui selection dropdown">
                         <input type="hidden" name="topicType" th:value="${groupInfo.topicType}">
@@ -48,10 +48,10 @@
                     <label>小组名称</label>
                     <input type="text" th:value="${groupInfo.groupName}" name="groupName" placeholder="小组名称">
                 </div>
-<!--                <div class="ui field">-->
-<!--                    <label>小组人数</label>-->
-<!--                    <input type="text" th:value="${groupInfo.actDesc}" name="actDesc" placeholder="小组人数">-->
-<!--                </div>-->
+                <!--                <div class="ui field">-->
+                <!--                    <label>小组人数</label>-->
+                <!--                    <input type="text" th:value="${groupInfo.actDesc}" name="actDesc" placeholder="小组人数">-->
+                <!--                </div>-->
                 <div class="ui field">
                     <label>申报单位</label>
                     <input th:value="${groupInfo.unitName}" type="text" name="unitName" placeholder="申报单位">
@@ -62,7 +62,7 @@
                 <div class="ui field">
                     <label>分类</label>
                     <input type="text" th:if="${readonly} eq 1"
-                           th:value="${@dictServiceImpl.getName('classification',groupInfo.professionalScope)}" name=""
+                           th:value="${groupInfo.professionalScope}" name=""
                            placeholder="">
                     <div th:if="${readonly} ne 1" class="ui selection  dropdown">
                         <input type="hidden" name="professionalScope" th:value="${groupInfo.professionalScope}">

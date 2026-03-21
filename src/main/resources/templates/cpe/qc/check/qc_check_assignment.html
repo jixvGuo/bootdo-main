@@ -52,7 +52,8 @@
                             </div>
                         </th>
                         <th>编号</th>
-                        <th>项目编号</th>
+<!--                        <th>项目编号</th>-->
+                        <th>申报账号</th>
                         <th>名称</th>
                         <th>企业名称</th>
                         <th>专业</th>
@@ -68,7 +69,8 @@
                             </div>
                         </td>
                         <td th:text="${externalList.id}"></td>
-                        <td th:text="${externalList.proCode}"></td>
+<!--                        <td th:text="${externalList.proCode}"></td>-->
+                        <td th:text="${externalList.applyAccount}"></td>
                         <td th:text="${externalList.taskName}"></td>
                         <td th:text="${externalList.enterpriseName}"></td>
                         <td th:text="${externalList.major}"></td>
@@ -102,7 +104,8 @@
                             </div>
                         </th>
                         <th>编号</th>
-                        <th>项目编号</th>
+<!--                        <th>项目编号</th>-->
+                        <th>申报账号</th>
                         <th>名称</th>
                         <th>企业名称</th>
                         <th>专业</th>
@@ -120,7 +123,8 @@
                             </div>
                         </td>
                         <td id="external" th:text="${externalList.serNum}"></td>
-                        <td th:text="${externalList.proCode}"></td>
+<!--                        <td th:text="${externalList.proCode}"></td>-->
+                        <td th:text="${externalList.applyAccount}"></td>
                         <td th:text="${externalList.taskName}"></td>
                         <td th:text="${externalList.enterpriseName}"></td>
                         <td th:text="${externalList.major}"></td>
@@ -249,6 +253,7 @@
         var trStr = "";
         for (var i = 0; i < proList.length; i++) {
             var obj = proList[i];
+            console.log("==initSelContion===>obj=", obj);
             trStr += "<tr data-pro-id='" + obj.id + "'> " +
                 "                        <td name=\"option\"> " +
                 "                            <div class=\"ui fitted checkbox\"> " +
@@ -257,7 +262,8 @@
                 "                            </div> " +
                 "                        </td> " +
                 "                        <td>" + obj.serNum + "</td> " +
-                "                        <td>" + obj.proCode + "</td> " +
+                // "                        <td>" + obj.proCode + "</td> " +
+                "                        <td>" + (obj.applyAccount || '') + "</td> " +
                 "                        <td>" + obj.taskName + "</td> " +
                 "                        <td>" + obj.enterpriseName + "</td> " +
                 "                        <td>" + obj.major + "</td> " +
