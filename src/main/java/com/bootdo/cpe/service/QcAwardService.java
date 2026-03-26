@@ -37,6 +37,11 @@ public interface QcAwardService {
     public int updateProResultCode(int proId, String resultCode);
 
     /**
+     * 更新项目申报账号
+     */
+    public int updateProDeclareAccount(int proId, String declareAccount);
+
+    /**
      * 更新项目状态
      * @param params
      * @return

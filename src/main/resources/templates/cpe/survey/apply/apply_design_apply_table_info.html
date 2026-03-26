@@ -97,14 +97,6 @@
                     <td contenteditable="true" id="fax" th:text="${table.fax}"></td>
                 </tr>
                 <tr>
-                    <td colspan="4"> 附件目录</td>
-                </tr>
-                <tr style="height: 300px;">
-                    <td colspan="4">
-                        <textarea id="accessoriesCatalog" autofocus name="accessoriesCatalog" th:text="${table.accessoriesCatalog}"></textarea>
-                    </td>
-                </tr>
-                <tr>
                     <td colspan="4"> 工程概况、工程设计的难点及先进性</td>
                 </tr>
                 <tr style="height: 300px;">
@@ -122,12 +114,6 @@
                     <td>申报单位意见</td>
                     <td colspan="3">
                         <textarea id="unitOpinions" autofocus name="unitOpinions" th:text="${table.unitOpinions}"></textarea>
-                    </td>
-                </tr>
-                <tr style="height: 300px;">
-                    <td>上级主管部门 （或建设单位） 推荐意见 </td>
-                    <td colspan="3">
-                        <textarea id="opinionsHigherAuthorities" autofocus name="opinionsHigherAuthorities" th:text="${table.opinionsHigherAuthorities}"></textarea>
                     </td>
                 </tr>
             </table>
@@ -153,12 +139,6 @@
         };
 
         var accessoriesCatalog = new Simditor({
-            textarea: $("#accessoriesCatalog"),
-            defaultImage: "/img/p3.jpg",
-            upload : uploadObj,
-            pasteImage: true
-        })
-        var accessoriesCatalog = new Simditor({
             textarea: $("#proDesc"),
             defaultImage: "/img/p3.jpg",
             upload : uploadObj,
@@ -172,12 +152,6 @@
         })
         var accessoriesCatalog = new Simditor({
             textarea: $("#unitOpinions"),
-            defaultImage: "/img/p3.jpg",
-            upload : uploadObj,
-            pasteImage: true
-        })
-        var accessoriesCatalog = new Simditor({
-            textarea: $("#opinionsHigherAuthorities"),
             defaultImage: "/img/p3.jpg",
             upload : uploadObj,
             pasteImage: true

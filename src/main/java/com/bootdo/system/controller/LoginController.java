@@ -327,6 +327,17 @@ public class LoginController extends BaseController {
             awardIds = new ArrayList<>(uniqueAwardIds);
             System.out.println("去重后的角色IDs: " + awardIds.toString());
         }
+
+        // 校验手机号是否已注册（手机号作为登录账号 username）
+        String mobile = companyInfoVO.getCompany_concat_phone();
+        if (StringUtils.isBlank(mobile)) {
+            return R.error("手机号不能为空");
+        }
+        List<Long> userIds = userService.getUidByLoginUserName(mobile);
+        if (userIds != null && !userIds.isEmpty()) {
+            return R.error("手机号已注册");
+        }
+
         // 根据公司名称查询deptId
         String companyName = companyInfoVO.getCompany_name();
         Map<String, Object> queryMap = new HashMap<>();

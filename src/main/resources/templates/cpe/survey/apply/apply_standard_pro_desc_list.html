@@ -12,7 +12,7 @@
     <div class="ui bottom attached segment">
         <table class="ui table">
             <thead>
-                <th>项目编号</th>
+                <th>申报账号</th>
                 <th>申报单位</th>
                 <th>奖项类别</th>
                 <th>项目名称</th>
@@ -27,8 +27,8 @@
                     <td th:text="${data.projectName}"></td>
                     <td th:text="${data.recommendedGrade}"></td>
                     <td>
-                        <a th:href="@{'/surverConsultingApply/toProDescView?id='+${data.id}+'&proId='+${proId}+'&taskId='+${taskId} + '&readonly=' + ${readonly}+'&tagName=查看'}" class="ui teal mini basic button">查看</a>
-                        <a th:if="${readonly} eq null or ${readonly} ne 1" th:href="@{'/surverConsultingApply/toProDescView?id='+${data.id}+'&proId='+${proId}+'&taskId='+${taskId}+'&tagName=修改'}" class="ui teal mini basic button">修改</a>
+                        <a th:href="@{'/surverStandardApply/toProDescView?id='+${data.id}+'&proId='+${proId}+'&taskId='+${taskId} + '&readonly=' + ${readonly}+'&tagName=查看'}" class="ui teal mini basic button">查看</a>
+                        <a th:if="${readonly} eq null or ${readonly} ne 1" th:href="@{'/surverStandardApply/toProDescView?id='+${data.id}+'&proId='+${proId}+'&taskId='+${taskId}+'&tagName=修改'}" class="ui teal mini basic button">修改</a>
                         <a th:if="${readonly} eq null or ${readonly} ne 1" class="ui teal mini basic button" href="#" th:onclick="'javascript:delItem(\''+${data.id}+'\')'">删除</a>
                     </td>
                 </tr>
@@ -36,8 +36,8 @@
             <tfoot>
                 <th colspan="11 ">
                     <div class="ui pagination mini menu">
-                        <a th:href="@{'/surverConsultingApply/toProDesc?pageType=up&pageNum='+${pageNum}+'&proId='+${proId}+'&taskId='+${taskId}}" class="icon item">上一页</a>
-                        <a th:href="@{'/surverConsultingApply/toProDesc?pageType=down&pageNum='+${pageNum}+'&proId='+${proId}+'&taskId='+${taskId}}" class="icon item">下一页</a>
+                        <a th:href="@{'/surverStandardApply/toProDesc?pageType=up&pageNum='+${pageNum}+'&proId='+${proId}+'&taskId='+${taskId}}" class="icon item">上一页</a>
+                        <a th:href="@{'/surverStandardApply/toProDesc?pageType=down&pageNum='+${pageNum}+'&proId='+${proId}+'&taskId='+${taskId}}" class="icon item">下一页</a>
                     </div>
                 </th>
             </tfoot>
@@ -52,7 +52,7 @@
                 $.ajax({
                     cache: true,
                     type: "POST",
-                    url: "/cpe/surverConsultApplyProjectProfile/remove",
+                    url: "/surverStandardApply/removeProDesc",
                     data: {
                         id: id,
                         proId: "${proId}",

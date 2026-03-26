@@ -8,6 +8,7 @@ import com.bootdo.common.service.FileService;
 import com.bootdo.common.utils.DateUtils;
 import com.bootdo.common.utils.PageUtils;
 import com.bootdo.common.utils.Query;
+import com.bootdo.common.utils.R;
 import com.bootdo.cpe.domain.*;
 import com.bootdo.cpe.service.*;
 import com.bootdo.cpe.utils.PathUtil;
@@ -20,8 +21,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.bootdo.common.config.BootdoConfig;
 import javax.servlet.http.HttpServletResponse;
@@ -123,9 +126,13 @@ public class SurverApplyController extends BaseSurverController {
     public String toProDesc(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
         Query query = new Query(params);
+        query.put("sort", "id");
+        query.put("order", "desc");
+        query.put("offset", 0);
+        query.put("limit", 1);
         List<SurverDesignApplyProjectProfileDO> projectProfileDOList = surverDesignApplyProjectProfileService.list(query);
-        map.put("list", projectProfileDOList);
-        return prefix + "/apply/apply_design_pro_desc_list";
+        map.put("proDescDO", projectProfileDOList.size() > 0 ? projectProfileDOList.get(0) : new SurverDesignApplyProjectProfileDO());
+        return prefix + "/apply/apply_design_pro_desc_add";
     }
 
     @RequestMapping("/toApplyCommonProUseAdd")
@@ -142,6 +149,43 @@ public class SurverApplyController extends BaseSurverController {
         packageAwardTaskId(map, params);
         map.put("proDescDO", new SurverDesignApplyProjectProfileDO());
         return prefix + "/apply/apply_design_pro_desc_add";
+    }
+
+    @RequestMapping("/toProDescView")
+    public String toProDescView(ModelMap map, @RequestParam Map<String, Object> params) {
+        packageAwardTaskId(map, params);
+        int id = Integer.parseInt(params.get("id").toString());
+        SurverDesignApplyProjectProfileDO proDescDO = surverDesignApplyProjectProfileService.get(id);
+        map.put("proDescDO", proDescDO);
+        return prefix + "/apply/apply_design_pro_desc_add";
+    }
+
+    @ResponseBody
+    @PostMapping("/saveProDesc")
+    public R saveProDesc(SurverDesignApplyProjectProfileDO surverDesignApplyProjectProfile) {
+        Long optUid = getUserId();
+        surverDesignApplyProjectProfile.setOptUid(optUid.intValue());
+        surverDesignApplyProjectProfile.setDeleted(0);
+        Integer id = surverDesignApplyProjectProfile.getId();
+        if (id != null && id > 0) {
+            int rst = surverDesignApplyProjectProfileService.update(surverDesignApplyProjectProfile);
+            return rst > 0 ? R.ok() : R.error();
+        }
+        if (surverDesignApplyProjectProfileService.save(surverDesignApplyProjectProfile) > 0) {
+            R r = R.ok();
+            r.put("id", surverDesignApplyProjectProfile.getId());
+            return r;
+        }
+        return R.error();
+    }
+
+    @ResponseBody
+    @PostMapping("/removeProDesc")
+    public R removeProDesc(Integer id) {
+        if (surverDesignApplyProjectProfileService.remove(id) > 0) {
+            return R.ok();
+        }
+        return R.error();
     }
 
      @RequestMapping("/toApplyCommonProUseView")

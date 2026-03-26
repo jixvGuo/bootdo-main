@@ -5,23 +5,11 @@ import com.bootdo.common.controller.BaseSurverController;
 import com.bootdo.common.domain.FileDO;
 import com.bootdo.common.utils.*;
 import com.bootdo.cpe.domain.*;
-import com.bootdo.cpe.petroleum_engineering_award.domain.OilAwardApplyInfoDO;
-import com.bootdo.cpe.petroleum_engineering_award.domain.OilProApplyInfoDO;
-import com.bootdo.cpe.petroleum_engineering_award.domain.OilQualityConfirmFileDO;
-import com.bootdo.cpe.petroleum_engineering_award.domain.OilQualityProSituationDO;
-import com.bootdo.cpe.service.AwardEnterpriseProjectCommonService;
-import com.bootdo.cpe.service.QcAwardService;
-import com.bootdo.cpe.service.SurverAwardService;
+import com.bootdo.cpe.service.*;
 import com.bootdo.cpe.utils.AwardSurverSubTypeEnum;
-import com.bootdo.cpe.utils.PathUtil;
-import com.bootdo.cpe.utils.PoiWordQCProUtils;
-import com.bootdo.system.config.ConstantCommonData;
 import com.bootdo.system.domain.UserDO;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.RandomStringUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,8 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletResponse;
-import java.io.*;
-import java.net.URLEncoder;
+import java.io.File;
 import java.util.*;
 
 import static com.bootdo.common.config.Constant.*;
@@ -135,11 +122,20 @@ public class SurverProController extends BaseSurverController {
     @RequestMapping("/saveCode")
     @ResponseBody
     @RequiresPermissions("cpe:surverApplyInfo:saveCode")
-    public R updateProResultCode(int proId, String resultCode) {
-        if(StringUtils.isBlank(resultCode)) {
-            return R.error("编号不能为空");
+    public R updateProResultCode(int proId, String resultCode, String declareAccount) {
+        boolean hasResultCode = StringUtils.isNotBlank(resultCode);
+        boolean hasDeclareAccount = declareAccount != null;
+        if(!hasResultCode && !hasDeclareAccount) {
+            return R.error("请填写要保存的内容");
         }
-        int rst = qcAwardService.updateProResultCode(proId, resultCode);
+
+        int rst = 0;
+        if(hasResultCode) {
+            rst += qcAwardService.updateProResultCode(proId, resultCode);
+        }
+        if(hasDeclareAccount) {
+            rst += qcAwardService.updateProDeclareAccount(proId, declareAccount == null ? null : declareAccount.trim());
+        }
         return  rst > 0 ? R.ok("保存成功") : R.error("保存失败");
     }
 
@@ -197,5 +193,60 @@ public class SurverProController extends BaseSurverController {
         R result = R.ok();
         result.put("zipUrl", zipUrl);
         return result;
+    }
+
+    /**
+     * 勘察奖项目列表导出Excel（项目列表列 + 对应申报表字段）
+     */
+    @RequestMapping("/exportExcel")
+    public void exportExcel(HttpServletResponse response, @RequestParam Map<String, Object> params, ModelMap map) {
+        packageAwardTaskId(map, params);
+        UserDO user = getUser();
+        Long uid = getUserId();
+        List<Long> roleIdList = user.getRoleIds();
+        if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
+            params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
+        } else if (roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID)) {
+            params.put("enterpriseUid", uid);
+        } else if (roleIdList.contains(ROLE_SURVER_SPECALIST_ID)) {
+            params.put("scoreSpecialistUid", uid);
+        } else {
+            params.put("ass_assign_uid", uid);
+        }
+        getProListParamsByRole(params);
+
+        params.remove("offset");
+        params.remove("limit");
+        List<SurverProjectInfo> proList = surverAwardService.listProInfo(params);
+
+        String[] header = {
+                "序号", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单", "申报账号", "申报联系方式", "状态"
+        };
+
+        List<Map<String, String>> rows = new ArrayList<>();
+        for (SurverProjectInfo pro : proList) {
+            Map<String, String> row = new LinkedHashMap<>();
+            row.put("序号", safe(pro.getId()));
+            row.put("项目编号", safe(pro.getProCode()));
+            row.put("项目类别", safe(pro.getProSubTypeStr()));
+            row.put("项目名称", safe(pro.getProName()));
+            row.put("申报单位", safe(pro.getApplyCompany()));
+            row.put("专业", safe(pro.getMajor()));
+            row.put("人员名单", safe(pro.getMemberList()));
+            row.put("申报账号", safe(pro.getDeclareAccount()));
+            row.put("申报联系方式", safe(pro.getApplyAccount()));
+            row.put("状态", safe(pro.getApplyStat()));
+            rows.add(row);
+        }
+
+        try {
+            PoiWordUtils.downSurveyAwardExcel(header, rows, response);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String safe(Object val) {
+        return val == null ? "" : val.toString();
     }
 }

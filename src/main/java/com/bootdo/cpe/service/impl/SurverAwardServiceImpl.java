@@ -58,4 +58,6 @@ public class SurverAwardServiceImpl implements SurverAwardService {
     public List<FileDO> getUploadFileList(Map<String, Object> params) {
         return surverAwardDao.getUploadFileList(params);
     }
+
+
 }

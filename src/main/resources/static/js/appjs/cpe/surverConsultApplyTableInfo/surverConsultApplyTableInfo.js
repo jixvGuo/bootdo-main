@@ -128,8 +128,8 @@ function load() {
 									title : '申报单位意见' 
 								},
 																{
-									field : 'upRecommendation', 
-									title : '上级主管部门 （或建设单位） 推荐意见' 
+									field : 'upRecommendation',
+									title : '上级主管部门 （或建设单位） 推荐意见'
 								},
 																{
 									field : 'optUid', 

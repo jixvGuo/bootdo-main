@@ -9,10 +9,10 @@ import com.bootdo.common.service.FileService;
 import com.bootdo.common.utils.DateUtils;
 import com.bootdo.common.utils.PageUtils;
 import com.bootdo.common.utils.Query;
+import com.bootdo.common.utils.R;
 import com.bootdo.cpe.domain.*;
 import com.bootdo.cpe.service.*;
 import com.bootdo.cpe.utils.PathUtil;
-import com.bootdo.cpe.utils.PoiWordSurveyConsultProUtils;
 import com.bootdo.cpe.utils.PoiWordSurveyExlentProUtils;
 import com.bootdo.system.config.ConstantCommonData;
 import com.bootdo.system.domain.SurverExcellentApplyTableInfoDO;
@@ -23,8 +23,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
@@ -98,6 +100,43 @@ public class SurverExlentApplyController extends BaseSurverController {
         return prefix + "/apply/apply_base_excellent_pro_desc_add";
     }
 
+    @RequestMapping("/toProDescView")
+    public String toProDescView(ModelMap map, @RequestParam Map<String, Object> params) {
+        packageAwardTaskId(map, params);
+        int id = Integer.parseInt(params.get("id").toString());
+        SurverExcellentApplyProjectProfileDO proDescDO = surverExcellentApplyProjectProfileService.get(id);
+        map.put("proDescDO", proDescDO);
+        return prefix + "/apply/apply_base_excellent_pro_desc_add";
+    }
+
+    @ResponseBody
+    @PostMapping("/saveProDesc")
+    public R saveProDesc(SurverExcellentApplyProjectProfileDO surverExcellentApplyProjectProfile) {
+        Long optUid = getUserId();
+        surverExcellentApplyProjectProfile.setOptUid(optUid.intValue());
+        surverExcellentApplyProjectProfile.setDeleted(0);
+        Integer id = surverExcellentApplyProjectProfile.getId();
+        if (id != null && id > 0) {
+            int rst = surverExcellentApplyProjectProfileService.update(surverExcellentApplyProjectProfile);
+            return rst > 0 ? R.ok() : R.error();
+        }
+        if (surverExcellentApplyProjectProfileService.save(surverExcellentApplyProjectProfile) > 0) {
+            R r = R.ok();
+            r.put("id", surverExcellentApplyProjectProfile.getId());
+            return r;
+        }
+        return R.error();
+    }
+
+    @ResponseBody
+    @PostMapping("/removeProDesc")
+    public R removeProDesc(Integer id) {
+        if (surverExcellentApplyProjectProfileService.remove(id) > 0) {
+            return R.ok();
+        }
+        return R.error();
+    }
+
     @RequestMapping("/toApplyCommonProUseList")
     public String toApplyCommonProUseList(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
@@ -126,9 +165,13 @@ public class SurverExlentApplyController extends BaseSurverController {
     public String toProDesc(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
         Query query = new Query(params);
+        query.put("sort", "id");
+        query.put("order", "desc");
+        query.put("offset", 0);
+        query.put("limit", 1);
         List<SurverExcellentApplyProjectProfileDO> projectProfileDOList = surverExcellentApplyProjectProfileService.list(query);
-        map.put("list", projectProfileDOList);
-        return prefix + "/apply/apply_base_excellent_pro_desc_list";
+        map.put("proDescDO", projectProfileDOList.size() > 0 ? projectProfileDOList.get(0) : new SurverExcellentApplyProjectProfileDO());
+        return prefix + "/apply/apply_base_excellent_pro_desc_add";
     }
 
     @RequestMapping("/toApplyProQualityList")//页面

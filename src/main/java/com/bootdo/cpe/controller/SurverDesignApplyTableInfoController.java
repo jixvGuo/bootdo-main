@@ -78,7 +78,6 @@ public class SurverDesignApplyTableInfoController extends BaseSurverController {
 	 */
 	@ResponseBody
 	@PostMapping("/save")
-	@RequiresPermissions("cpe:surverDesignApplyTableInfo:add")
 	public R save( SurverDesignApplyTableInfoDO surverDesignApplyTableInfo){
 
 		AwardEnterpriseProjectDO projectDO = new AwardEnterpriseProjectDO();

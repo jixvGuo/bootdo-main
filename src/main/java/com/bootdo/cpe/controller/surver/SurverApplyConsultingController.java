@@ -8,6 +8,7 @@ import com.bootdo.common.controller.BaseSurverController;
 import com.bootdo.common.service.FileService;
 import com.bootdo.common.utils.DateUtils;
 import com.bootdo.common.utils.Query;
+import com.bootdo.common.utils.R;
 import com.bootdo.cpe.domain.*;
 import com.bootdo.cpe.service.SurverAwardService;
 import com.bootdo.cpe.service.SurverConsultApplyProjectProfileService;
@@ -24,8 +25,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
@@ -125,6 +128,28 @@ public class SurverApplyConsultingController extends BaseSurverController {
          map.put("proDescDO", proUseInfoDO);
         return prefix + "/apply/apply_consulting_pro_desc_add";
     }
+
+    /**
+     * 保存项目简介
+     */
+    @ResponseBody
+    @PostMapping("/saveProDesc")
+    public R saveProDesc(SurverConsultApplyProjectProfileDO surverConsultApplyProjectProfile){
+        Long optUid = getUserId();
+        surverConsultApplyProjectProfile.setOptUid(optUid.intValue());
+        Integer id = surverConsultApplyProjectProfile.getId();
+        if(id != null && id > 0) {
+            int rst = surverConsultApplyProjectProfileService.update(surverConsultApplyProjectProfile);
+            return rst > 0 ? R.ok() : R.error();
+        }
+        if(surverConsultApplyProjectProfileService.save(surverConsultApplyProjectProfile)>0){
+            R r= R.ok();
+            r.put("id", surverConsultApplyProjectProfile.getId());
+            return r;
+        }
+        return R.error();
+    }
+
 
     /**
      * 打印 记录

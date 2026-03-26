@@ -46,6 +46,16 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
      */
     private String major;
 
+    /**
+     * 申报账号（项目独立字段）
+     */
+    private String declareAccount;
+
+    /**
+     * 人员名单（贡献主要人员逗号拼接）
+     */
+    private String memberList;
+
     public int getId() {
         return id;
     }
@@ -126,6 +136,22 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
 
     public void setMajor(String major) {
         this.major = major;
+    }
+
+    public String getDeclareAccount() {
+        return declareAccount;
+    }
+
+    public void setDeclareAccount(String declareAccount) {
+        this.declareAccount = declareAccount;
+    }
+
+    public String getMemberList() {
+        return memberList;
+    }
+
+    public void setMemberList(String memberList) {
+        this.memberList = memberList;
     }
 
 }

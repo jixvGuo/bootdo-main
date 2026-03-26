@@ -6,8 +6,7 @@
 
 <body>
     <div class="ui top attached tabular menu">
-        <a th:href="@{/surverSoftwareApply/toProDesc(proId=${proId},taskId=${taskId})}" class="item">列表</a>
-        <a th:if="${readonly} eq null or ${readonly} ne 1" href="#" class="active item">新增</a>
+        <a href="#" class="item active">项目简介</a>
     </div>
 
     <div class="ui bottom attached segment">
@@ -18,7 +17,7 @@
                 <input id="proId" name="proId" th:value="${proId}"  type="hidden">
                 <input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
                 <tr>
-                    <td style="width: 14%;">项目编号</td>
+                    <td style="width: 14%;">申报账号</td>
                     <td style="width: 30%;">申报单位</td>
                     <td style="width: 14%;">奖项类别</td>
                     <td style="width: 14%;">项目名称</td>
@@ -48,7 +47,7 @@
             <br> &emsp;&emsp;1. 项目简介用于专业组初评和大评委终评，向非主审专家介绍项目概况；
             <br> &emsp;&emsp;2. 项目简介内容主要包括项目概况及规模、概预算完成情况，并能够突出项目难点和先进性；
             <br> &emsp;&emsp;3. 项目简介要重点突出，力求简洁，字数控制在500在以内。
-            <br> &emsp;&emsp;4. 项目编号、奖项类别、初评专业组栏目由评审组填写，申报单位可不填。
+            <br> &emsp;&emsp;4. 申报单位、奖项类别、项目名称、推荐等级为必填项，初评专业组可不填。
         </p>
 
     </div>

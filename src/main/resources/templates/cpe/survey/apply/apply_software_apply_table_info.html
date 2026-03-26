@@ -209,11 +209,6 @@
                 </div>
 
 
-                <h4 class="ui red horizontal divider header">附件目录 </h4>
-                <div class="ui field">
-                    <textarea id="accessoriesCatalog" autofocus name="accessoriesCatalog" th:text="${table.accessoriesCatalog}"></textarea>
-                </div>
-
 
                 <h4 class="ui red horizontal divider header">获奖情况 </h4>
                 <div class="ui field">
@@ -226,11 +221,6 @@
                     <textarea id="rportingOpinion" autofocus name="rportingOpinion" th:text="${table.rportingOpinion}"></textarea>
                 </div>
 
-
-                <h4 class="ui red horizontal divider header">上级主管部门（或建设单位）推荐意见 </h4>
-                <div class="ui field">
-                    <textarea id="upRecommendation" autofocus name="upRecommendation" th:text="${table.upRecommendation}"></textarea>
-                </div>
 
 
                 <div class="ui error message"></div>
@@ -273,12 +263,6 @@
             upload : uploadObj,
             pasteImage: true
         })
-        var accessoriesCatalog = new Simditor({
-            textarea: $("#accessoriesCatalog"),
-            defaultImage: "/img/p3.jpg",
-            upload : uploadObj,
-            pasteImage: true
-        })
         var awards = new Simditor({
             textarea: $("#awards"),
             defaultImage: "/img/p3.jpg",
@@ -287,12 +271,6 @@
         })
         var rportingOpinion = new Simditor({
             textarea: $("#rportingOpinion"),
-            defaultImage: "/img/p3.jpg",
-            upload : uploadObj,
-            pasteImage: true
-        })
-        var upRecommendation = new Simditor({
-            textarea: $("#upRecommendation"),
             defaultImage: "/img/p3.jpg",
             upload : uploadObj,
             pasteImage: true
@@ -491,13 +469,6 @@
                         prompt: '请填写该软件的经济与社会效益'
                     }]
                 },
-                accessoriesCatalog: {
-                    identifier: 'accessoriesCatalog',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写附件目录'
-                    }]
-                },
                 awards: {
                     identifier: 'awards',
                     rules: [{
@@ -512,13 +483,6 @@
                         prompt: '请填写申报单位意见'
                     }]
                 },
-                upRecommendation: {
-                    identifier: 'upRecommendation',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写上级主管部门（或建设单位）推荐意见'
-                    }]
-                }
             }
         });
     </script>

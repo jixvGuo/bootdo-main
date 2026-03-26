@@ -77,7 +77,6 @@ public class SurverConsultApplyTableInfoController extends BaseSurverController 
 	 */
 	@ResponseBody
 	@PostMapping("/save")
-	@RequiresPermissions("cpe:surverConsultApplyTableInfo:add")
 	public R save( SurverConsultApplyTableInfoDO surverConsultApplyTableInfo){
 		AwardEnterpriseProjectDO projectDO = new AwardEnterpriseProjectDO();
 		projectDO.setId(surverConsultApplyTableInfo.getProId());

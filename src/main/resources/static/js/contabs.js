@@ -172,6 +172,25 @@ $(function () {
 
     $('.J_menuItem').on('click', menuItem);
 
+    // 刷新当前激活tab中的iframe（如果页面定义了 reLoad 方法）
+    function refreshActiveIframeIfPossible() {
+        try {
+            var activeId = $('.J_menuTab.active').data('id');
+            if (!activeId) {
+                return;
+            }
+            var $iframe = $('.J_mainContent .J_iframe[data-id="' + activeId + '"]');
+            if ($iframe && $iframe.length > 0) {
+                var win = $iframe[0].contentWindow;
+                if (win && typeof win.reLoad === 'function') {
+                    win.reLoad();
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
     // 关闭选项卡菜单
     function closeTab() {
         var closeTabId = $(this).parents('.J_menuTab').data('id');
@@ -192,6 +211,7 @@ $(function () {
                         return false;
                     }
                 });
+                refreshActiveIframeIfPossible();
 
                 var marginLeftVal = parseInt($('.page-tabs-content').css('margin-left'));
                 if (marginLeftVal < 0) {
@@ -222,6 +242,7 @@ $(function () {
                         return false;
                     }
                 });
+                refreshActiveIframeIfPossible();
 
                 //  移除当前选项卡
                 $(this).parents('.J_menuTab').remove();
@@ -284,6 +305,7 @@ $(function () {
             });
             $(this).addClass('active').siblings('.J_menuTab').removeClass('active');
             scrollToTab(this);
+            refreshActiveIframeIfPossible();
         }
     }
 

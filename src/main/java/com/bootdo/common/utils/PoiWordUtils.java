@@ -1796,6 +1796,39 @@ public class PoiWordUtils {
 
 
 
+    public static void downSurveyAwardExcel(String[] header, List<Map<String, String>> rowList, HttpServletResponse response) throws IOException {
+        HSSFWorkbook workbook = new HSSFWorkbook();
+        HSSFSheet sheet = workbook.createSheet("勘察奖项目列表");
+        sheet.setDefaultColumnWidth(20);
+
+        HSSFCellStyle headerStyle = workbook.createCellStyle();
+        headerStyle.setFillForegroundColor(IndexedColors.YELLOW.index);
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        HSSFRow headrow = sheet.createRow(0);
+        for (int i = 0; i < header.length; i++) {
+            HSSFCell cell = headrow.createCell(i);
+            HSSFRichTextString text = new HSSFRichTextString(header[i]);
+            cell.setCellValue(text);
+            cell.setCellStyle(headerStyle);
+        }
+
+        for (int i = 0; i < rowList.size(); i++) {
+            HSSFRow row = sheet.createRow(i + 1);
+            Map<String, String> data = rowList.get(i);
+            for (int j = 0; j < header.length; j++) {
+                String key = header[j];
+                String val = data.get(key);
+                row.createCell(j).setCellValue(new HSSFRichTextString(val == null ? "" : val));
+            }
+        }
+
+        response.setContentType("application/octet-stream");
+        response.setHeader("Content-disposition", "attachment;filename=勘察奖项目列表.xls");
+        response.flushBuffer();
+        workbook.write(response.getOutputStream());
+    }
+
     public static void main(String[] args) throws IOException {
         List<EnterpriPersonalInfoWorkHistoryDO> historyDOs = new ArrayList<>();
         EnterpriPersonalInfoWorkHistoryDO one = new EnterpriPersonalInfoWorkHistoryDO();

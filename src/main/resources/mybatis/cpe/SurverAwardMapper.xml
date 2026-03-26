@@ -23,7 +23,31 @@
                pt.check_end_time,
                pt.task_stat,
                pro.pro_stat,
-               pro.pro_result_code proCode
+               pro.pro_result_code proCode,
+               pro.declare_account declareAccount,
+               case
+                   when pro.pro_sub_type = 'design' then (
+                       select group_concat(sdu.username separator '、')
+                       from ass_surver_desigin_contribute_user_info sdu
+                       where sdu.pro_id = pro.id and ifnull(sdu.deleted,0) = 0
+                   )
+                   when pro.pro_sub_type = 'software' then (
+                       select group_concat(sdu.username separator '、')
+                       from ass_surver_desigin_contribute_user_info sdu
+                       where sdu.pro_id = pro.id and ifnull(sdu.deleted,0) = 0
+                   )
+                   when pro.pro_sub_type = 'standard' then (
+                       select group_concat(sdu.username separator '、')
+                       from ass_surver_desigin_contribute_user_info sdu
+                       where sdu.pro_id = pro.id and ifnull(sdu.deleted,0) = 0
+                   )
+                   when pro.pro_sub_type = 'contribution' then (
+                       select group_concat(sdu.username separator '、')
+                       from ass_surver_desigin_contribute_user_info sdu
+                       where sdu.pro_id = pro.id and ifnull(sdu.deleted,0) = 0
+                   )
+                   else ''
+               end memberList
                from
                 boot_do.ass_award_enterprise_project pro
                    JOIN

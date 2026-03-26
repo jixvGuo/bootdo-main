@@ -147,12 +147,12 @@ function resolveQcApplyBtnState(row) {
 		state.enableBtn = true;
 	} else if (stageCode === "APPLY_CLOSED") {
 		// 新增：申报结束、形审未开始，隐藏申报按钮，只保留查看列表
-		state.showBtn = false;
-		state.enableBtn = false;
+		state.showBtn = true;
+		state.enableBtn = true;
 	} else if (stageCode === "CHECKING") {
 		if (applyClosed) {
-			state.showBtn = false;
-			state.enableBtn = false;
+			state.showBtn = true;
+			state.enableBtn = true;
 		} else {
 			state.showBtn = true;
 			state.enableBtn = true;
@@ -492,7 +492,7 @@ function load() {
 								'  <option value="design">石油工程建设优秀设计奖</option>' +
 								'  <option value="software">石油工程建设优秀勘察设计计算机软件奖</option>' +
 								'  <option value="standard">石油工程建设优秀标准设计奖</option>' +
-								'  <option value="consulting">石油工程建设优秀咨询奖</option>' +
+								// '  <option value="consulting">石油工程建设优秀咨询奖</option>' +
 								'</select>';
 
 							// var surverEnterListBtn = '<a class="btn btn-success btn-sm ' + s_surver_enterprise_list_btn + '" href="#" title="企业列表"  mce_href="#" onclick="toEnterpriseList(\''

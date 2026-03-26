@@ -37,6 +37,14 @@
          WHERE
              id = #{proId}
      </update>
+
+     <update id="updateProDeclareAccount">
+         UPDATE ass_award_enterprise_project
+         SET
+             declare_account = #{declareAccount}
+         WHERE
+             id = #{proId}
+     </update>
     <update id="updateProGroupName">
         UPDATE ass_award_enterprise_project
         SET

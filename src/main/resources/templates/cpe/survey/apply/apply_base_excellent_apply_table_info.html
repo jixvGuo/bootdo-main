@@ -100,14 +100,6 @@
                 <td contenteditable="true" id="contactFox" name="contactFox" th:text="${table.contactFox}" ></td>
             </tr>
             <tr>
-                <td colspan="4"> 附件目录</td>
-            </tr>
-            <tr style="height: 300px;">
-                <td colspan="4">
-                    <textarea id="accessoriesCatalog" autofocus name="accessoriesCatalog" th:text="${table.accessoriesCatalog}"></textarea>
-                </td>
-            </tr>
-            <tr>
                 <td colspan="4"> 工程勘查项目概况、工程勘察的难点及先进性</td>
             </tr>
             <tr style="height: 300px;">
@@ -125,12 +117,6 @@
                 <td>申报单位意见</td>
                 <td colspan="3">
                     <textarea id="reportingUnitOpinion" autofocus name="reportingUnitOpinion" th:text="${table.reportingUnitOpinion}"></textarea>
-                </td>
-            </tr>
-            <tr style="height: 300px;">
-                <td>上级主管部门 （或建设单位） 推荐意见 </td>
-                <td colspan="3">
-                    <textarea id="upRecommendation" autofocus name="upRecommendation" th:text="${table.upRecommendation}"></textarea>
                 </td>
             </tr>
         </table>
@@ -154,12 +140,6 @@
             leaveConfirm: '正在上传文件'
         };
 
-        var accessoriesCatalog = new Simditor({
-            textarea: $("#accessoriesCatalog"),
-            defaultImage: "/img/p3.jpg",
-            upload : uploadObj,
-            pasteImage: true
-        })
         var generalAdvancedExploration = new Simditor({
             textarea: $("#generalAdvancedExploration"),
             defaultImage: "/img/p3.jpg",
@@ -174,12 +154,6 @@
         })
         var reportingUnitOpinion = new Simditor({
             textarea: $("#reportingUnitOpinion"),
-            defaultImage: "/img/p3.jpg",
-            upload : uploadObj,
-            pasteImage: true
-        })
-        var upRecommendation = new Simditor({
-            textarea: $("#upRecommendation"),
             defaultImage: "/img/p3.jpg",
             upload : uploadObj,
             pasteImage: true

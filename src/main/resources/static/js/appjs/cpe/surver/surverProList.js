@@ -73,8 +73,16 @@ function load() {
                     },
 
                     {
-                        field: 'applyAccount',
+                        field: 'memberList',
+                        title: '人员名单'
+                    },
+                    {
+                        field: 'declareAccount',
                         title: '申报账号'
+                    },
+                    {
+                        field: 'applyAccount',
+                        title: '申报联系方式'
                     },
                     {
                         field: 'applyStat',
@@ -188,6 +196,14 @@ function load() {
                         })
                     }
 
+                    if (field === "declareAccount") {
+                        $element.attr('contenteditable', true);
+                        $element.blur(function () {
+                            let tdValue = $element.html();
+                            setDeclareAccount(tdValue);
+                        })
+                    }
+
                 }
 
             });
@@ -231,14 +247,9 @@ function subCheck(proId) {
 
 // 状态点击事件
 function printExcelPro() {
-    layer.open({
-        type: 2,
-        title: '打印QC项目申报奖',
-        maxmin: true,
-        shadeClose: false, // 点击遮罩关闭层
-        area: ['800px', '520px'],
-        content: prefix + "/qc/printExcel" // iframe的url
-    });
+    var taskId = $("#taskId").val();
+    var proSubType = $("#proSubType").val();
+    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId) + "&proSubType=" + encodeURIComponent(proSubType);
 }
 
 
@@ -485,6 +496,7 @@ function print(proId, protype) {
 }
 
 let saveValue = "";
+let declareAccountSaveValue = "";
 
 /**
  * 设置成果编码
@@ -492,6 +504,10 @@ let saveValue = "";
  */
 function setCode(code) {
     saveValue = code;
+}
+
+function setDeclareAccount(account) {
+    declareAccountSaveValue = account;
 }
 
 function downloadData(proId, fileType) {
@@ -548,10 +564,10 @@ function remove(id, proId) {
 }
 
 function saveProResultCode(proId) {
-    if (saveValue == "") {
+    if (saveValue === "" && declareAccountSaveValue === "") {
         return;
     }
-    layer.confirm('确定要更新成果编号？', {
+    layer.confirm('确定要更新成果编号/申报账号？', {
         btn: ['确定', '取消']
     }, function () {
         $.ajax({
@@ -559,11 +575,14 @@ function saveProResultCode(proId) {
             type: "post",
             data: {
                 'resultCode': saveValue,
+                'declareAccount': declareAccountSaveValue,
                 'proId': proId
             },
             success: function (r) {
                 if (r.code == 0) {
                     layer.msg(r.msg);
+                    saveValue = "";
+                    declareAccountSaveValue = "";
                     reLoad();
                 } else {
                     layer.msg(r.msg);

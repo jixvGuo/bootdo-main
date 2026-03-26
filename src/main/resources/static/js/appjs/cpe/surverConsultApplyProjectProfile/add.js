@@ -38,7 +38,7 @@ function save() {
 		success : function(data) {
 			if (data.code == 0) {
 			    let id = data.id;
-			    $("id").val(id);
+			    $("#id").val(id);
 				parent.layer.msg("操作成功");
 			} else {
 				parent.layer.alert(data.msg)
