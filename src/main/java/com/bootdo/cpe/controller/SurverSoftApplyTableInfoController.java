@@ -1,5 +1,6 @@
 package com.bootdo.cpe.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.bootdo.cpe.domain.SurverSoftApplyProjectProfileDO;
 import com.bootdo.cpe.domain.SurverSoftApplyTableInfoDO;
+import com.bootdo.cpe.service.SurverSoftApplyProjectProfileService;
 import com.bootdo.cpe.service.SurverSoftApplyTableInfoService;
 import com.bootdo.common.utils.PageUtils;
 import com.bootdo.common.utils.Query;
@@ -39,6 +42,8 @@ public class SurverSoftApplyTableInfoController extends BaseSurverController {
 	private SurverSoftApplyTableInfoService surverSoftApplyTableInfoService;
 	@Autowired
 	private AwardEnterpriseProjectCommonService awardEnterpriseProjectCommonService;
+	@Autowired
+	private SurverSoftApplyProjectProfileService surverSoftApplyProjectProfileService;
 
 	@GetMapping()
 	@RequiresPermissions("cpe:surverSoftApplyTableInfo:surverSoftApplyTableInfo")
@@ -90,9 +95,14 @@ public class SurverSoftApplyTableInfoController extends BaseSurverController {
 		Integer id = surverSoftApplyTableInfo.getId();
 		if(id != null && id > 0) {
 			int rst = surverSoftApplyTableInfoService.update(surverSoftApplyTableInfo);
-			return rst > 0 ? R.ok() : R.error();
+			if (rst > 0) {
+				syncSoftProDesc(surverSoftApplyTableInfo);
+				return R.ok();
+			}
+			return R.error();
 		}
 		if(surverSoftApplyTableInfoService.save(surverSoftApplyTableInfo)>0){
+			syncSoftProDesc(surverSoftApplyTableInfo);
 			R r = R.ok();
 			r.put("id", surverSoftApplyTableInfo.getId());
 			return r;
@@ -132,6 +142,44 @@ public class SurverSoftApplyTableInfoController extends BaseSurverController {
 	public R remove(@RequestParam("ids[]") Integer[] ids){
 		surverSoftApplyTableInfoService.batchRemove(ids);
 		return R.ok();
+	}
+
+	private void syncSoftProDesc(SurverSoftApplyTableInfoDO tableInfo) {
+		if (tableInfo == null || tableInfo.getProId() == null || tableInfo.getTaskId() == null) {
+			return;
+		}
+		Map<String, Object> query = new HashMap<>();
+		query.put("proId", tableInfo.getProId());
+		query.put("taskId", tableInfo.getTaskId());
+		query.put("sort", "id");
+		query.put("order", "desc");
+		query.put("offset", 0);
+		query.put("limit", 1);
+		List<SurverSoftApplyProjectProfileDO> list = surverSoftApplyProjectProfileService.list(query);
+		SurverSoftApplyProjectProfileDO proDesc = list.size() > 0 ? list.get(0) : new SurverSoftApplyProjectProfileDO();
+		proDesc.setProId(tableInfo.getProId());
+		proDesc.setTaskId(tableInfo.getTaskId());
+		proDesc.setOptUid(getUserId().intValue());
+		proDesc.setDeleted(0);
+		proDesc.setReportingUnit(joinUnit(tableInfo.getEditorChief(), tableInfo.getCooperationUnit()));
+		proDesc.setAwardCategory("计算机软件奖");
+		proDesc.setProjectName(tableInfo.getSoftName());
+		if (proDesc.getId() != null && proDesc.getId() > 0) {
+			surverSoftApplyProjectProfileService.update(proDesc);
+		} else {
+			surverSoftApplyProjectProfileService.save(proDesc);
+		}
+	}
+
+	private String joinUnit(String mainUnit, String cooperationUnit) {
+		StringBuilder sb = new StringBuilder();
+		if (mainUnit != null && mainUnit.trim().length() > 0) {
+			sb.append(mainUnit.trim());
+		}
+		if (cooperationUnit != null && cooperationUnit.trim().length() > 0) {
+			sb.append(cooperationUnit.trim());
+		}
+		return sb.toString();
 	}
 
 }

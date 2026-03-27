@@ -50,10 +50,7 @@ function load() {
                     },
                     {
                         field: 'proCode',
-
                         title: '项目编号',
-
-
                     },
                     {
                         field: 'proSubTypeStr',
@@ -197,11 +194,14 @@ function load() {
                     }
 
                     if (field === "declareAccount") {
-                        $element.attr('contenteditable', true);
-                        $element.blur(function () {
-                            let tdValue = $element.html();
-                            setDeclareAccount(tdValue);
-                        })
+                        // 仅有保存权限的用户允许编辑申报联系方式
+                        if (s_save_code_h !== 'hidden') {
+                            $element.attr('contenteditable', true);
+                            $element.blur(function () {
+                                let tdValue = $element.html();
+                                setDeclareAccount(tdValue);
+                            })
+                        }
                     }
 
                 }

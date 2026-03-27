@@ -166,6 +166,18 @@ public class SurverApplyController extends BaseSurverController {
         Long optUid = getUserId();
         surverDesignApplyProjectProfile.setOptUid(optUid.intValue());
         surverDesignApplyProjectProfile.setDeleted(0);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("proId", surverDesignApplyProjectProfile.getProId());
+        params.put("taskId", surverDesignApplyProjectProfile.getTaskId());
+        List<SurverDesignApplyTableInfoDO> tableInfoDOList = surverDesignApplyTableInfoService.list(params);
+        if (tableInfoDOList.size() > 0) {
+            SurverDesignApplyTableInfoDO tableInfo = tableInfoDOList.get(0);
+            surverDesignApplyProjectProfile.setReportingUnit(joinUnit(tableInfo.getMainDesignCompany(), tableInfo.getCooperationUnit()));
+            surverDesignApplyProjectProfile.setAwardCategory("优秀设计奖");
+            surverDesignApplyProjectProfile.setProjectName(tableInfo.getProName());
+        }
+
         Integer id = surverDesignApplyProjectProfile.getId();
         if (id != null && id > 0) {
             int rst = surverDesignApplyProjectProfileService.update(surverDesignApplyProjectProfile);
@@ -177,6 +189,20 @@ public class SurverApplyController extends BaseSurverController {
             return r;
         }
         return R.error();
+    }
+
+    private String joinUnit(String mainUnit, String cooperationUnit) {
+        StringBuilder sb = new StringBuilder();
+        if (mainUnit != null && mainUnit.trim().length() > 0) {
+            sb.append(mainUnit.trim());
+        }
+        if (cooperationUnit != null && cooperationUnit.trim().length() > 0) {
+            if (sb.length() > 0) {
+                sb.append("+");
+            }
+            sb.append(cooperationUnit.trim());
+        }
+        return sb.toString();
     }
 
     @ResponseBody

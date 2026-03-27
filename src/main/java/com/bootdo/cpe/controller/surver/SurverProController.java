@@ -196,6 +196,20 @@ public class SurverProController extends BaseSurverController {
     }
 
     /**
+     * 删除项目
+     */
+    @RequestMapping("/remove/groupInfo")
+    @ResponseBody
+    @RequiresPermissions("cpe:surverDesiginMajorMaterialsUseInfo:remove")
+    public R removeGroupInfo(Integer id, Integer proId) {
+        if (proId == null) {
+            return R.error("缺少项目ID");
+        }
+        int rst = awardEnterpriseProjectCommonService.remove(proId);
+        return rst > 0 ? R.ok("删除成功") : R.error("删除失败");
+    }
+
+    /**
      * 勘察奖项目列表导出Excel（项目列表列 + 对应申报表字段）
      */
     @RequestMapping("/exportExcel")

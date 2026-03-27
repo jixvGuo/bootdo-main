@@ -1,5 +1,6 @@
 package com.bootdo.cpe.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -18,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.bootdo.cpe.domain.SurverDesignApplyProjectProfileDO;
 import com.bootdo.cpe.domain.SurverDesignApplyTableInfoDO;
+import com.bootdo.cpe.service.SurverDesignApplyProjectProfileService;
 import com.bootdo.cpe.service.SurverDesignApplyTableInfoService;
 import com.bootdo.common.utils.PageUtils;
 import com.bootdo.common.utils.Query;
@@ -40,6 +43,8 @@ public class SurverDesignApplyTableInfoController extends BaseSurverController {
 
 	@Autowired
 	private AwardEnterpriseProjectCommonService awardEnterpriseProjectCommonService;
+	@Autowired
+	private SurverDesignApplyProjectProfileService surverDesignApplyProjectProfileService;
 
 	@GetMapping()
 	@RequiresPermissions("cpe:surverDesignApplyTableInfo:surverDesignApplyTableInfo")
@@ -92,9 +97,14 @@ public class SurverDesignApplyTableInfoController extends BaseSurverController {
 		Integer id = surverDesignApplyTableInfo.getId();
 		if(id != null && id > 0) {
 			int rst = surverDesignApplyTableInfoService.update(surverDesignApplyTableInfo);
-			return rst > 0 ? R.ok() : R.error();
+			if (rst > 0) {
+				syncDesignProDesc(surverDesignApplyTableInfo);
+				return R.ok();
+			}
+			return R.error();
 		}
 		if(surverDesignApplyTableInfoService.save(surverDesignApplyTableInfo)>0){
+			syncDesignProDesc(surverDesignApplyTableInfo);
 		    R r = R.ok();
 		    r.put("id", surverDesignApplyTableInfo.getId());
 			return r;
@@ -134,6 +144,44 @@ public class SurverDesignApplyTableInfoController extends BaseSurverController {
 	public R remove(@RequestParam("ids[]") Integer[] ids){
 		surverDesignApplyTableInfoService.batchRemove(ids);
 		return R.ok();
+	}
+
+	private void syncDesignProDesc(SurverDesignApplyTableInfoDO tableInfo) {
+		if (tableInfo == null || tableInfo.getProId() == null || tableInfo.getTaskId() == null) {
+			return;
+		}
+		Map<String, Object> query = new HashMap<>();
+		query.put("proId", tableInfo.getProId());
+		query.put("taskId", tableInfo.getTaskId());
+		query.put("sort", "id");
+		query.put("order", "desc");
+		query.put("offset", 0);
+		query.put("limit", 1);
+		List<SurverDesignApplyProjectProfileDO> list = surverDesignApplyProjectProfileService.list(query);
+		SurverDesignApplyProjectProfileDO proDesc = list.size() > 0 ? list.get(0) : new SurverDesignApplyProjectProfileDO();
+		proDesc.setProId(tableInfo.getProId());
+		proDesc.setTaskId(tableInfo.getTaskId());
+		proDesc.setOptUid(getUserId().intValue());
+		proDesc.setDeleted(0);
+		proDesc.setReportingUnit(joinUnit(tableInfo.getMainDesignCompany(), tableInfo.getCooperationUnit()));
+		proDesc.setAwardCategory("优秀设计奖");
+		proDesc.setProjectName(tableInfo.getProName());
+		if (proDesc.getId() != null && proDesc.getId() > 0) {
+			surverDesignApplyProjectProfileService.update(proDesc);
+		} else {
+			surverDesignApplyProjectProfileService.save(proDesc);
+		}
+	}
+
+	private String joinUnit(String mainUnit, String cooperationUnit) {
+		StringBuilder sb = new StringBuilder();
+		if (mainUnit != null && mainUnit.trim().length() > 0) {
+			sb.append(mainUnit.trim());
+		}
+		if (cooperationUnit != null && cooperationUnit.trim().length() > 0) {
+			sb.append(cooperationUnit.trim());
+		}
+		return sb.toString();
 	}
 
 }

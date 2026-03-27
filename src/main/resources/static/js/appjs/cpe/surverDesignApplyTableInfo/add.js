@@ -44,6 +44,13 @@ function save() {
 				let id = data.id;
 				$("#id").val(id);
 				parent.layer.msg("操作成功");
+				if (parent && parent.$) {
+					var $iframe = parent.$("#proDesc");
+					if ($iframe && $iframe.length) {
+						var src = $iframe.attr("src");
+						$iframe.attr("src", src);
+					}
+				}
 			} else {
 				parent.layer.alert(data.msg)
 			}
