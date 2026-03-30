@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+
+<head th:include="include :: header_lu"></head>
+
+<body>
+    <!--
+    <div class="ui container">
+        <div class="ui bottom attached segment">
+            <form action="" class="ui basic form" id="scoreForm">
+                <input type="hidden" id="proId" name="proId" th:value="${proId}" />
+                <input type="hidden" id="taskId" name="taskId" th:value="${taskId}" />
+                <input type="hidden" id="expertUid" name="expertUid" th:value="${expertUid}" />
+
+                <h4 class="ui red horizontal divider header">基本信息</h4>
+                <div class="ui two fields">
+                    <div class="ui field">
+                        <label>项目编号</label>
+                        <input type="text" name="procode" placeholder="项目编号" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.proCode : ''}" />
+                    </div>
+                    <div class="ui field">
+                        <label>课题名称</label>
+                        <input type="text" name="topicname" placeholder="课题名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.topicName : ''}" />
+                    </div>
+                </div>
+                <div class="ui two fields">
+                    <div class="ui field">
+                        <label>小组名称</label>
+                        <input type="text" name="groupname" placeholder="小组名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.groupName : ''}" />
+                    </div>
+                    <div class="ui field">
+                        <label>单位名称</label>
+                        <input type="text" name="companyname" placeholder="单位名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.companyName : ''}" />
+                    </div>
+                </div>
+                <div class="ui two fields">
+                    <div class="ui field">
+                        <label>课题类型</label>
+                        <input type="text" name="grouptype" placeholder="课题类型" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.topicType : ''}" />
+                    </div>
+                    <div class="ui field">
+                        <label>专业范围</label>
+                        <input type="text" name="majorrange" placeholder="专业范围" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.professionalScope : ''}" />
+                    </div>
+                </div>
+
+                <h4 class="ui red horizontal divider header">评审项目</h4>
+                <div class="ui two fields">
+                    <div class="ui field">
+                        <label>质量管理小组活动的组织(满分15)</label>
+                        <input type="number" id="organizationScore" name="organizationScore" max="15" min="0"
+                               th:value="${scoreInfo != null ? scoreInfo.organizationScore : ''}" />
+                    </div>
+                    <div class="ui field">
+                        <label>活动情况与活动记录(满分30)</label>
+                        <input type="number" id="activeDescScore" name="activeDescScore" max="30" min="0"
+                               th:value="${scoreInfo != null ? scoreInfo.activeDescScore : ''}" />
+                    </div>
+                </div>
+                <div class="ui two fields">
+                    <div class="ui field">
+                        <label>活动真实性与有效性(满分25)</label>
+                        <input type="number" id="activeRealScore" name="activeRealScore" max="25" min="0"
+                               th:value="${scoreInfo != null ? scoreInfo.activeRealScore : ''}" />
+                    </div>
+                    <div class="ui field">
+                        <label>成果的维持与巩固(满分20)</label>
+                        <input type="number" id="resultMaintainScore" name="resultMaintainScore" max="20" min="0"
+                               th:value="${scoreInfo != null ? scoreInfo.resultMaintainScore : ''}" />
+                    </div>
+                </div>
+                <div class="ui two fields">
+                    <div class="ui field">
+                        <label>质量管理小组教育(满分10)</label>
+                        <input type="number" id="groupEducationScore" name="groupEducationScore" max="10" min="0"
+                               th:value="${scoreInfo != null ? scoreInfo.groupEducationScore : ''}" />
+                    </div>
+                </div>
+                <div class="ui field disabled">
+                    <label>总分</label>
+                    <input type="number" id="totalScore" name="totalScore" placeholder="总分" readonly="readonly"
+                           th:value="${scoreInfo != null ? scoreInfo.totalScore : ''}" />
+                </div>
+                <div class="ui field">
+                    <label>总体评价</label>
+                    <textarea id="sumRecommend" name="sumRecommend" rows="3"
+                              th:text="${scoreInfo != null ? scoreInfo.sumRecommend : ''}"></textarea>
+                </div>
+                <div class="ui error message"></div>
+                <div class="ui basic center aligned segment">
+                    <div class="ui blue button" onclick="saveScore()">保存</div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div th:include="include :: footer_lu"></div>
+
+    <script>
+        $('.ui.dropdown').dropdown();
+
+        // 自动计算总分
+        $("input[type='number']").on('keyup change', function () {
+            var total = 0;
+            var scoreFields = ['organizationScore', 'activeDescScore', 'activeRealScore', 'resultMaintainScore', 'groupEducationScore'];
+            for (var i = 0; i < scoreFields.length; i++) {
+                var val = Number($("#" + scoreFields[i]).val());
+                if (!isNaN(val)) {
+                    total += val;
+                }
+            }
+            $("#totalScore").val(total);
+        });
+
+        function saveScore() {
+            var proId = $("#proId").val();
+            var taskId = $("#taskId").val();
+            if (!proId || !taskId) {
+                alert("项目信息缺失，无法保存");
+                return;
+            }
+
+            var data = {
+                proId: proId,
+                taskId: taskId,
+                organizationScore: $("#organizationScore").val(),
+                activeDescScore: $("#activeDescScore").val(),
+                activeRealScore: $("#activeRealScore").val(),
+                resultMaintainScore: $("#resultMaintainScore").val(),
+                groupEducationScore: $("#groupEducationScore").val(),
+                totalScore: $("#totalScore").val(),
+                sumRecommend: $("#sumRecommend").val()
+            };
+
+            $.ajax({
+                url: "/qcScore/saveScore",
+                type: "POST",
+                data: data,
+                success: function (r) {
+                    if (r.code == 0) {
+                        alert("保存成功！");
+                    } else {
+                        alert(r.msg || "保存失败");
+                    }
+                },
+                error: function () {
+                    alert("请求失败");
+                }
+            });
+        }
+
+        // 表单验证
+        $('.ui.form').form({
+            on: 'blur',
+            fields: {
+                organizationScore: {
+                    identifier: 'organizationScore',
+                    rules: [{type: 'empty', prompt: '请填写质量管理小组活动的组织得分'}]
+                },
+                activeDescScore: {
+                    identifier: 'activeDescScore',
+                    rules: [{type: 'empty', prompt: '请填写活动情况与活动记录得分'}]
+                },
+                activeRealScore: {
+                    identifier: 'activeRealScore',
+                    rules: [{type: 'empty', prompt: '请填写活动真实性与有效性得分'}]
+                },
+                resultMaintainScore: {
+                    identifier: 'resultMaintainScore',
+                    rules: [{type: 'empty', prompt: '请填写成果的维持与巩固得分'}]
+                },
+                groupEducationScore: {
+                    identifier: 'groupEducationScore',
+                    rules: [{type: 'empty', prompt: '请填写质量管理小组教育得分'}]
+                }
+            }
+        });
+    </script>
+    -->
+
+    <div class="ui container">
+        <div class="ui bottom attached segment">
+            <form action="" class="ui basic form" id="resultScoreForm">
+                <input type="hidden" id="proId" name="proId" th:value="${proId}" />
+                <input type="hidden" id="taskId" name="taskId" th:value="${taskId}" />
+                <input type="hidden" id="expertUid" name="expertUid" th:value="${expertUid}" />
+                <input type="hidden" id="topicType" th:value="${proInfo != null ? proInfo.topicType : ''}" />
+
+                <h4 class="ui red horizontal divider header">基本信息</h4>
+                <div class="ui two fields">
+<!--                    <div class="ui field">-->
+<!--                        <label>项目编号</label>-->
+<!--                        <input type="text" placeholder="项目编号" readonly="readonly"-->
+<!--                               th:value="${proInfo != null ? proInfo.proCode : ''}" />-->
+<!--                    </div>-->
+                    <div class="ui field disabled">
+                        <label>课题名称</label>
+                        <input type="text" placeholder="课题名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.topicName : ''}" />
+                    </div>
+                </div>
+<!--                <div class="ui two fields">-->
+<!--                    <div class="ui field">-->
+<!--                        <label>小组名称</label>-->
+<!--                        <input type="text" placeholder="小组名称" readonly="readonly"-->
+<!--                               th:value="${proInfo != null ? proInfo.groupName : ''}" />-->
+<!--                    </div>-->
+<!--                    <div class="ui field">-->
+<!--                        <label>单位名称</label>-->
+<!--                        <input type="text" placeholder="单位名称" readonly="readonly"-->
+<!--                               th:value="${proInfo != null ? proInfo.companyName : ''}" />-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--                <div class="ui two fields">-->
+<!--                    <div class="ui field">-->
+<!--                        <label>课题类型</label>-->
+<!--                        <input type="text" placeholder="课题类型" readonly="readonly"-->
+<!--                               th:value="${proInfo != null ? proInfo.topicType : ''}" />-->
+<!--                    </div>-->
+<!--                    <div class="ui field">-->
+<!--                        <label>专业范围</label>-->
+<!--                        <input type="text" placeholder="专业范围" readonly="readonly"-->
+<!--                               th:value="${proInfo != null ? proInfo.professionalScope : ''}" />-->
+<!--                    </div>-->
+<!--                </div>-->
+
+                <h4 class="ui red horizontal divider header">打分详情</h4>
+                <div style="text-align: center;margin: 10px 0 20px 0;">成果形成过程评价</div>
+
+                <div class="ui grid">
+                    <div class="eight wide column">
+                        <div class="ui field">
+                            <label id="selSocreLabel">选题（<span id="selSocreMaxCell"></span>）：</label>
+                            <input type="number" id="selSocre" name="selSocre" min="0" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>对策与实施（20）：</label>
+                            <input type="number" id="strategyExecuteScore" name="strategyExecuteScore" min="0" max="20" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>成果报告（5）：</label>
+                            <input type="number" id="reportScore" name="reportScore" min="0" max="5" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>特点（3.5）：</label>
+                            <input type="number" id="characteristicScore" name="characteristicScore" min="0" max="3.5" step="0.01" placeholder="请输入..." />
+                        </div>
+                    </div>
+
+                    <div class="eight wide column">
+                        <div class="ui field innovate-only" style="display: none;">
+                            <label>提出方案确定最佳方案（30）：</label>
+                            <input type="number" id="bestPlanScore" name="bestPlanScore" min="0" max="30" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field solve-only" style="display: none;">
+                            <label>原因分析（30）：</label>
+                            <input type="number" id="reasonScore" name="reasonScore" min="0" max="30" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label id="effectScoreLabel">效果（<span id="effectScoreMaxCell"></span>）：</label>
+                            <input type="number" id="effectScore" name="effectScore" min="0" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>特点（8.5）：</label>
+                            <input type="number" id="materialScore" name="materialScore" min="0" max="8.5" step="0.01" placeholder="请输入..." />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成果实际价值评价（创新型和问题解决型都显示） -->
+                <div style="text-align: center;margin: 30px 0 20px 0;">成果实际价值评价</div>
+                <div class="ui field">
+                    <label>1.技术价值2.经济价值3.社会价值4.推广应用价值（共20分）</label>
+                    <input type="number" id="practicalValueScore" name="practicalValueScore" min="0" max="20" step="0.01" placeholder="请输入..." />
+                </div>
+
+                <div class="ui field disabled">
+                    <label>总分</label>
+                    <input type="number" id="appraiseSum" name="appraiseSum" readonly="readonly" />
+                </div>
+
+                <div style="text-align: center;margin: 30px 0 20px 0;">意见备注</div>
+
+                <div class="ui field">
+                    <label>推荐意见等级</label>
+                    <select id="recommendLevel" name="recommendLevel" class="ui dropdown">
+                        <option value="">请选择</option>
+                        <option value="优秀">优秀</option>
+                        <option value="良好">良好</option>
+                        <option value="合格">合格</option>
+                        <option value="不合格">不合格</option>
+                    </select>
+                </div>
+
+                <div class="ui field">
+                    <label>评价意见</label>
+                    <textarea id="sumRecommend" name="sumRecommend" rows="5" placeholder="请输入..."></textarea>
+                </div>
+
+                <div class="ui basic center aligned segment">
+                    <div class="ui blue button" onclick="saveResultScore()">保存</div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div th:include="include :: footer_lu"></div>
+
+    <script>
+        function isInnovateTopicType() {
+            var t = ($('#topicType').val() || '').toString();
+            return t.indexOf('创新') >= 0 || t === 'innovate';
+        }
+
+        function parseNum(val) {
+            if (val === null || val === undefined || val === '') {
+                return 0;
+            }
+            var n = Number(val);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function fixed2(n) {
+            return (Math.round(n * 100) / 100).toFixed(2);
+        }
+
+        function refreshByTopicType() {
+            var innovate = isInnovateTopicType();
+            if (innovate) {
+                $('.innovate-only').show();
+                $('.solve-only').hide();
+                $('#selSocre').attr('max', 18);
+                $('#selSocreMaxCell').text('18');
+                $('#effectScore').attr('max', 15);
+                $('#effectScoreMaxCell').text('15');
+            } else {
+                $('.innovate-only').hide();
+                $('.solve-only').show();
+                $('#selSocre').attr('max', 13);
+                $('#selSocreMaxCell').text('13');
+                $('#effectScore').attr('max', 20);
+                $('#effectScoreMaxCell').text('20');
+            }
+        }
+
+        function calcTotal() {
+            var innovate = isInnovateTopicType();
+            var total = 0;
+            total += parseNum($('#selSocre').val());
+            total += innovate ? parseNum($('#bestPlanScore').val()) : parseNum($('#reasonScore').val());
+            total += parseNum($('#strategyExecuteScore').val());
+            total += parseNum($('#effectScore').val());
+            total += parseNum($('#reportScore').val());
+            total += parseNum($('#characteristicScore').val());
+            total += parseNum($('#materialScore').val());
+            // 两种类型都包含实际价值评价20分
+            total += parseNum($('#practicalValueScore').val());
+            $('#appraiseSum').val(fixed2(total));
+        }
+
+        function loadResultScore() {
+            var proId = $('#proId').val();
+            var taskId = $('#taskId').val();
+            if (!proId || !taskId) {
+                return;
+            }
+            var innovate = isInnovateTopicType();
+            var url = innovate ? '/qcScore/getInnovateResultScore' : '/qcScore/getSolveResultScore';
+            $.ajax({
+                type: 'GET',
+                url: url,
+                data: { proId: proId, taskId: taskId },
+                success: function (r) {
+                    if (!r || r.code != 0) {
+                        return;
+                    }
+                    var s = r.score || {};
+                    $('#selSocre').val(s.selSocre);
+                    $('#bestPlanScore').val(s.bestPlanScore);
+                    $('#reasonScore').val(s.reasonScore);
+                    $('#strategyExecuteScore').val(s.strategyExecuteScore);
+                    $('#effectScore').val(s.effectScore);
+                    $('#reportScore').val(s.reportScore);
+                    $('#characteristicScore').val(s.characteristicScore);
+                    $('#sumRecommend').val(s.sumRecommend);
+                    $('#appraiseSum').val(s.appraiseSum);
+                    
+                    // 字段映射说明：
+                    // - materialScore (特点8.5分) 使用 appraiseSign 字段
+                    // - practicalValueScore (实际价值20分):
+                    //   创新型: 使用 reasonScore 字段（因创新型不使用原因分析）
+                    //   问题解决型: 暂无合适字段，前端临时计算，不持久化
+                    //   TODO: 建议数据库增加 practical_value_score 字段
+                    
+                    $('#materialScore').val(s.appraiseSign);
+                    
+                    // 加载实际价值评价分数
+                    if (innovate) {
+                        // 创新型：从reasonScore加载
+                        $('#practicalValueScore').val(s.reasonScore);
+                    } else {
+                        // 问题解决型：暂无持久化，默认为空
+                        $('#practicalValueScore').val('');
+                    }
+
+                    calcTotal();
+                }
+            });
+        }
+
+        /**
+         * 验证单个分值是否在有效范围内
+         * @param fieldId 字段ID
+         * @param fieldName 字段名称（用于错误提示）
+         * @param min 最小值
+         * @param max 最大值
+         * @param allowEmpty 是否允许空值
+         * @returns {boolean} 是否有效
+         */
+        function validateScore(fieldId, fieldName, min, max, allowEmpty) {
+            var val = $('#' + fieldId).val();
+            
+            // 如果允许空值且输入框为空，则验证通过
+            if (allowEmpty && (val === null || val === undefined || val === '')) {
+                return true;
+            }
+            
+            var value = parseNum(val);
+            if (value < min || value > max) {
+                console.error('[验证失败]', fieldName, '- 范围:', min, '-', max, ', 当前值:', value);
+                alert(fieldName + '的分值必须在 ' + min + ' 到 ' + max + ' 之间，当前值：' + value);
+                $('#' + fieldId).focus();
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * 自动修正输入值到有效范围内
+         * @param input jQuery输入框对象
+         */
+        function autoCorrectScore(input) {
+            var val = parseNum(input.val());
+            var min = parseFloat(input.attr('min')) || 0;
+            var max = parseFloat(input.attr('max')) || 999;
+            
+            if (val < min) {
+                input.val(min);
+            } else if (val > max) {
+                input.val(max);
+                console.warn('[自动修正] 分值超过最大值', max, '，已修正');
+                // 不显示提示，避免打扰用户
+            }
+        }
+
+        function saveResultScore() {
+            console.log('[保存评分] 开始保存...');
+            
+            var proId = $('#proId').val();
+            var taskId = $('#taskId').val();
+            if (!proId || !taskId) {
+                alert('项目信息缺失，无法保存');
+                console.error('[保存评分] 项目信息缺失 - proId:', proId, ', taskId:', taskId);
+                return;
+            }
+            
+            // 验证所有分值
+            var innovate = isInnovateTopicType();
+            var selSocreMax = innovate ? 18 : 13;
+            var effectScoreMax = innovate ? 15 : 20;
+            
+            console.log('[保存评分] 开始验证分值 - 课题类型:', innovate ? '创新型' : '问题解决型');
+            
+            // 必填项和范围验证（允许空值，因为专家可能只保存部分分数）
+            if (!validateScore('selSocre', '选题', 0, selSocreMax, true)) return;
+            
+            if (innovate) {
+                if (!validateScore('bestPlanScore', '提出方案确定最佳方案', 0, 30, true)) return;
+            } else {
+                if (!validateScore('reasonScore', '原因分析', 0, 30, true)) return;
+            }
+            
+            if (!validateScore('strategyExecuteScore', '对策与实施', 0, 20, true)) return;
+            if (!validateScore('effectScore', '效果', 0, effectScoreMax, true)) return;
+            if (!validateScore('reportScore', '成果报告', 0, 5, true)) return;
+            if (!validateScore('characteristicScore', '特点（3.5）', 0, 3.5, true)) return;
+            if (!validateScore('materialScore', '特点（8.5）', 0, 8.5, true)) return;
+            if (!validateScore('practicalValueScore', '成果实际价值评价', 0, 20, true)) return;
+            
+            console.log('[保存评分] 验证通过，准备提交数据');
+            
+            calcTotal();
+            // innovate变量已在上面声明，这里不需要重复声明
+            var url = innovate ? '/qcScore/saveInnovateResultScore' : '/qcScore/saveSolveResultScore';
+            
+            console.log('[保存评分] 课题类型:', innovate ? '创新型' : '问题解决型', ', URL:', url);
+            var data = {
+                proId: proId,
+                taskId: taskId,
+                selSocre: $('#selSocre').val(),
+                bestPlanScore: $('#bestPlanScore').val(),
+                strategyExecuteScore: $('#strategyExecuteScore').val(),
+                effectScore: $('#effectScore').val(),
+                reportScore: $('#reportScore').val(),
+                characteristicScore: $('#characteristicScore').val(),
+                sumRecommend: $('#sumRecommend').val(),
+                appraiseSum: $('#appraiseSum').val(),
+
+                // 字段映射：
+                // - materialScore (特点8.5分) 使用 appraiseSign 字段
+                appraiseSign: $('#materialScore').val()
+            };
+            
+            // 字段映射说明：
+            // 创新型：practicalValueScore (实际价值20分) 使用 reasonScore 字段
+            // 问题解决型：reasonScore 用于原因分析，practicalValueScore暂不保存
+            if (innovate) {
+                // 创新型：实际价值评价存入reasonScore
+                data.reasonScore = $('#practicalValueScore').val();
+            } else {
+                // 问题解决型：原因分析存入reasonScore
+                data.reasonScore = $('#reasonScore').val();
+                // TODO: practicalValueScore 暂无字段存储，需扩展数据库
+                // data.practicalValueScore = $('#practicalValueScore').val();
+            }
+            console.log('[保存评分] 发送Ajax请求 - data:', data);
+            
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: data,
+                beforeSend: function() {
+                    console.log('[保存评分] 请求已发送...');
+                },
+                success: function (r) {
+                    console.log('[保存评分] 收到响应:', r);
+                    if (r && r.code == 0) {
+                        alert('保存成功！');
+                        
+                        // 关闭弹窗并刷新父页面列表
+                        try {
+                            var index = parent.layer.getFrameIndex(window.name);
+                            parent.layer.close(index);
+                            // 刷新父页面的表格
+                            if (parent.reLoad && typeof parent.reLoad === 'function') {
+                                parent.reLoad();
+                            }
+                        } catch (e) {
+                            console.warn('[保存评分] 关闭弹窗失败，可能不在弹窗中:', e);
+                            // 如果不在弹窗中，只刷新当前页面
+                            loadResultScore();
+                        }
+                    } else {
+                        var errorMsg = r && r.msg ? r.msg : '保存失败';
+                        console.error('[保存评分] 保存失败:', errorMsg);
+                        alert('保存失败: ' + errorMsg);
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('[保存评分] Ajax请求失败 - status:', status, ', error:', error, ', xhr:', xhr);
+                    alert('请求失败: ' + (error || status));
+                }
+            });
+        }
+
+        $(function () {
+            refreshByTopicType();
+            loadResultScore();
+            
+            // 输入时计算总分
+            $('#resultScoreForm').on('keyup change', "input[type='number']", function () {
+                calcTotal();
+            });
+            
+            // 失焦时自动修正超出范围的值
+            $('#resultScoreForm').on('blur', "input[type='number']:not([readonly])", function () {
+                autoCorrectScore($(this));
+                calcTotal();
+            });
+        });
+    </script>
+</body>
+
+</html>

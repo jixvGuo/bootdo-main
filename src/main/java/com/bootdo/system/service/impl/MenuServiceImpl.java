@@ -143,12 +143,44 @@ public class MenuServiceImpl implements MenuService {
 		return permsSet;
 	}
 
+	// 原代码：无诊断日志，难以排查菜单加载问题
+	// @Override
+	// public List<Tree<MenuDO>> listMenuTree(Long id, Integer awardId) {
+	// 	List<Tree<MenuDO>> trees = new ArrayList<Tree<MenuDO>>();
+	// 	List<MenuDO> menuDOs = menuMapper.listMenuByUserId(id);
+	// 	List<Long> noExistsList = RoleAwardParamData.getAwardNoExistsMenuIdListByAwardId(awardId);
+	// 	for (MenuDO sysMenuDO : menuDOs) {
+	// 		long menuId = sysMenuDO.getMenuId();
+	// 		if(noExistsList.contains(menuId)) { continue; }
+	// 		Tree<MenuDO> tree = new Tree<MenuDO>();
+	// 		tree.setId(sysMenuDO.getMenuId().toString());
+	// 		tree.setParentId(sysMenuDO.getParentId().toString());
+	// 		tree.setText(sysMenuDO.getName());
+	// 		Map<String, Object> attributes = new HashMap<>(16);
+	// 		attributes.put("url", sysMenuDO.getUrl());
+	// 		attributes.put("icon", sysMenuDO.getIcon());
+	// 		tree.setAttributes(attributes);
+	// 		trees.add(tree);
+	// 	}
+	// 	List<Tree<MenuDO>> list = BuildTree.buildList(trees, "0");
+	// 	return list;
+	// }
+	// 新代码：增加诊断日志，追踪菜单加载过程
 	@Override
 	public List<Tree<MenuDO>> listMenuTree(Long id, Integer awardId) {
 		List<Tree<MenuDO>> trees = new ArrayList<Tree<MenuDO>>();
 		List<MenuDO> menuDOs = menuMapper.listMenuByUserId(id);
 
+		System.out.println("[listMenuTree] userId=" + id + ", awardId=" + awardId
+				+ ", DB返回菜单数=" + menuDOs.size());
+		for (MenuDO m : menuDOs) {
+			System.out.println("[listMenuTree]   menuId=" + m.getMenuId()
+					+ ", name=" + m.getName() + ", parentId=" + m.getParentId()
+					+ ", url=" + m.getUrl());
+		}
+
 		List<Long> noExistsList = RoleAwardParamData.getAwardNoExistsMenuIdListByAwardId(awardId);
+		System.out.println("[listMenuTree] 排除菜单ID列表=" + noExistsList);
 
 		for (MenuDO sysMenuDO : menuDOs) {
 			long menuId = sysMenuDO.getMenuId();
@@ -167,6 +199,7 @@ public class MenuServiceImpl implements MenuService {
 		}
 		// 默认顶级菜单为０，根据数据库实际情况调整
 		List<Tree<MenuDO>> list = BuildTree.buildList(trees, "0");
+		System.out.println("[listMenuTree] 最终菜单树数=" + list.size());
 		return list;
 	}
 

@@ -200,6 +200,11 @@ public class BaseQcProController extends BaseController {
                 params.put("ass_assign_uid", uid);
                 params.put("role", "qc_external_employee");
                 break;
+            }else if (rid == ROLE_QC_SPECIALIST_ID) {
+                // 新增：QC奖评审专家(85)只能查看分派的项目
+                params.put("scoreSpecialistUid", uid);
+                params.put("role", "qc_specialist");
+                break;
             }
         }
         return params;

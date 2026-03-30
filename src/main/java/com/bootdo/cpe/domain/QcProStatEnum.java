@@ -21,6 +21,7 @@ public enum QcProStatEnum {
     DELAYED_AWARD("delayed_award", "缓评", true, false, false, true, true),
     REJECT("reject", "已驳回", true, false, false, true, true),
     IMPROVE_PARTAKE("improve_partake", "完善后参评", true, false, false, true, true),
+    ELIMINATED("eliminated", "已淘汰", false, false, false, true, true),
 
     TO_VALIDATE("to_validate","审核中", false, true, true, false, true),
     TO_ASSIGN_EXPERTS("to_assign_experts","分派专家", false, true, false, true, true),

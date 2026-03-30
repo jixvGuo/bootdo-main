@@ -55,6 +55,7 @@
 			ti.id = #{value}
 	</select>
 
+	<!--   先进团队评审条件判断更改	 -->
 	<select id="list" resultType="com.bootdo.system.domain.EnterpriTeamInfoDO">
 		select pi.`id`,`team_name`,`research_direction`,`leader`,`main_support_company`,`team_build_time`,`apply_company`,
 		`apply_data`,`security_level`,`is_public`,`is_propaganda`,`subject_classification_name`,`industry_national_economy`,
@@ -86,8 +87,14 @@
 			join ass_award_publish_task task on pi.task_id = task.id and task.association_userid = #{associationUserId}
 		</if>
 
+		<!-- 原代码：使用 pro.pro_group_name 关联，但该字段通常为空
 		<if test="scoreSpecialistUid != null">
             join add_special_info si on pro.pro_group_name = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
+        </if>
+		-->
+		<!-- 修正：使用 pro.major 关联（与 ScienceProcessMapper.xml 保持一致） -->
+		<if test="scoreSpecialistUid != null">
+            join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
         </if>
 
 		<if test="assignUid != null">

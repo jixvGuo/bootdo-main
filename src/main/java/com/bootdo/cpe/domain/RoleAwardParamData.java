@@ -187,7 +187,9 @@ public class RoleAwardParamData {
         RoleAwardParamData paramData = new RoleAwardParamData();
 
         // 2. 设置专家/外聘标志
-        paramData.setIsSpecialist(roleList.contains(ROLE_SPECIALIST_ID));
+        // 原代码：paramData.setIsSpecialist(roleList.contains(ROLE_SPECIALIST_ID));
+        // 新代码：科技奖专家(62)或QC奖评审专家(85)都算专家
+        paramData.setIsSpecialist(roleList.contains(ROLE_SPECIALIST_ID) || roleList.contains(ROLE_QC_SPECIALIST_ID));
         paramData.setIsOutWorker(
                 roleList.contains(ROLE_SCIENCE_EXTERNAL_EMPLOYMENT_ID) ||
                         roleList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID) ||
@@ -253,6 +255,15 @@ public class RoleAwardParamData {
                 paramData.setIsOutWorker(true);
                 paramData.setAwardId(awardIdInt);
                 paramData.setRoleId(ROLE_QC_EXTERNAL_EMPLOYMENT_ID);
+                paramData.setType("3");
+                return paramData;
+            }
+            // 新增：QC奖评审专家角色(85)
+            if (roleList.contains(ROLE_QC_SPECIALIST_ID)) {
+                paramData.setIsAssociation(false);
+                paramData.setIsSpecialist(true);
+                paramData.setAwardId(awardIdInt);
+                paramData.setRoleId(ROLE_QC_SPECIALIST_ID);
                 paramData.setType("3");
                 return paramData;
             }

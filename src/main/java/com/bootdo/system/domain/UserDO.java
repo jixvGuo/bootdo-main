@@ -201,7 +201,19 @@ public class UserDO implements Serializable {
         this.gmtModified = gmtModified;
     }
 
+    // 原代码：roleIds为null时会NPE，导致savepro中角色无法正确保存 而且是科技奖的判断逻辑而非是QC奖的
+    // public List<Long> getRoleIds() {
+    //     if(roleIds.contains(ROLE_SCIENCE_OFFLINE_VIEW_ID) && !roleIds.contains(ROLE_SCIENCE_ASSOCIATION_ID)) {
+    //         //TODO 科技奖线下评审账号，拥有协会联系人的角色权限
+    //         roleIds.add(ROLE_SCIENCE_ASSOCIATION_ID);
+    //     }
+    //     return roleIds;
+    // }
+    // 新代码：增加null检查，防止NPE
     public List<Long> getRoleIds() {
+        if(roleIds == null) {
+            return new ArrayList<>();
+        }
         if(roleIds.contains(ROLE_SCIENCE_OFFLINE_VIEW_ID) && !roleIds.contains(ROLE_SCIENCE_ASSOCIATION_ID)) {
             //TODO 科技奖线下评审账号，拥有协会联系人的角色权限
             roleIds.add(ROLE_SCIENCE_ASSOCIATION_ID);

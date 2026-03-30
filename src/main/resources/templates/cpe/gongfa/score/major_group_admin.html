@@ -1,4 +1,7 @@
 ﻿<!DOCTYPE html>
+<!--
+工法奖专业组管理页面,用于协会工作人员为不同专业组分配外聘评审专家
+-->
 <!-- 专业组管理-->
 <html xmlns:th="http://www.w3.org/1999/xhtml">
 
@@ -28,6 +31,12 @@
             </div>-->
             <input id="taskId" name="taskId" type="hidden" th:value="${taskId}">
             <input id="proType" name="proType" type="hidden" th:value="${proType}">
+            <!--  左侧专业组导航   -->
+            <!--
+               显示固定专业组：管理、管理类、监理、勘察设计、施工等
+               点击文件夹图标查看该组已分配的专家
+               点击 + 号为该组添加新专家
+               -->
             <div class="col-sm-3">
                 <div class="ibox float-e-margins">
                     <div class="ibox-content">
@@ -57,6 +66,13 @@
                     </div>
                 </div>
             </div>
+            <!--  右侧专家列表   -->
+            <!--
+                 显示已分配的专家信息:
+                    专业组名称、临时账号
+                    专家姓名、工作单位、银行账号、手机号
+                    电子签章图片
+            -->
             <div class="col-sm-9">
                 <div class="ibox float-e-margins">
                     <div class="ibox-title">
@@ -90,6 +106,7 @@
                                       <td ><input th:value="${sel.bankAccount}" th:id="'accountBank' + ${sel.loginAccount}" class="form-control" type="text" placeholder="银行账户"></td>
                                       <td ><input th:value="${sel.phone}" th:id="'accountPhone' + ${sel.loginAccount}" class="form-control" type="text" placeholder="手机号"></td>
                                       <td th:id="'signImg_'+${sel.loginAccount}"><img th:src="${sel.expertSignUrl}" width='75' height='40'></td>
+                                      <!-- 操作功能:保存、上传签章、移出 -->
                                       <td>
                                           <!--                                    <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save('+${sel.loginAccount}+')'">更新</button>-->
                                           <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign('+${sel.loginAccount}+')'">上传签章</button>

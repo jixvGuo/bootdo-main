@@ -703,11 +703,21 @@ public class PublishAwardTaskDo {
                 this.isApply = true;
                 return;
             } else {
-                this.isAssign = this.awardId.equals(EnumAwardType.SCIENCE.getAwrdType() + "")
-                        || this.awardId.equals(EnumAwardType.QC.getAwrdType() + "")
-                        || this.awardId.equals(EnumAwardType.SURVER.getAwrdType() + "");
-                this.taskStatStr = "分派";
-                return;
+                // 原代码：直接return到"分派"，导致永远走不到专家阶段
+                // this.isAssign = this.awardId.equals(EnumAwardType.SCIENCE.getAwrdType() + "")
+                //         || this.awardId.equals(EnumAwardType.QC.getAwrdType() + "")
+                //         || this.awardId.equals(EnumAwardType.SURVER.getAwrdType() + "");
+                // this.taskStatStr = "分派";
+                // return;
+                // 新代码：如果有专家阶段配置则不return，继续往下判断；否则才停在"分派"
+                if (StringUtils.isBlank(this.expertStartTime) && StringUtils.isBlank(this.expertStartTimeSecond)) {
+                    this.isAssign = this.awardId.equals(EnumAwardType.SCIENCE.getAwrdType() + "")
+                            || this.awardId.equals(EnumAwardType.QC.getAwrdType() + "")
+                            || this.awardId.equals(EnumAwardType.SURVER.getAwrdType() + "");
+                    this.taskStatStr = "分派";
+                    return;
+                }
+                // 有专家阶段配置，继续往下走
             }
         }
     

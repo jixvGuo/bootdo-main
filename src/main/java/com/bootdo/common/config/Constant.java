@@ -62,6 +62,8 @@ public class Constant {
     public static long ROLE_SCIENCE_EXTERNAL_EMPLOYMENT_ID = 65L;
     //QC奖协会外聘人员
     public static long ROLE_QC_EXTERNAL_EMPLOYMENT_ID = 72L;
+    //QC奖评审专家
+    public static long ROLE_QC_SPECIALIST_ID = 85L;
     //勘察奖协会外聘人员
     public static long ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID = 75L;
     //优质工程外聘

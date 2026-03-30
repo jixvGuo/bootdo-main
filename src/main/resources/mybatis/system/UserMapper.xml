@@ -194,7 +194,8 @@
             <if test="hobby != null">`hobby` = #{hobby},</if>
             <if test="province != null">`province` = #{province},</if>
             <if test="city != null">`city` = #{city},</if>
-            <if test="district != null">`district` = #{district}</if>
+            <if test="district != null">`district` = #{district},</if>
+            <if test="bankCard != null">`bank_card` = #{bankCard}</if>
         </set>
         where user_id = #{userId}
     </update>

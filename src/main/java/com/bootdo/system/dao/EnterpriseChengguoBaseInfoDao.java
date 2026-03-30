@@ -20,6 +20,11 @@ public interface EnterpriseChengguoBaseInfoDao {
 
 	EnterpriseChengguoBaseInfoDO getByProId(Integer id);
 
+	/**
+	 * 查询科学技术奖成果申报项目列表
+	 * @param map
+	 * @return
+	 */
 
 	List<EnterpriseChengguoBaseInfoDO> list(Map<String,Object> map);
 	

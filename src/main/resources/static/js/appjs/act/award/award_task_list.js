@@ -61,11 +61,27 @@ function resolveQcTaskStageCode(row) {
 	var checkStarted = checkStart && !isNaN(checkStart.getTime()) && now >= checkStart;
 	var checkEnded = checkEnd && !isNaN(checkEnd.getTime()) && now >= checkEnd;
 
+	// 新增：专家阶段时间解析
+	var expertStart = row.expertStartTime ? new Date((row.expertStartTime + "").replace(/-/g, "/")) : null;
+	var expertEnd = row.expertEndTime ? new Date((row.expertEndTime + "").replace(/-/g, "/")) : null;
+	var expertStarted = expertStart && !isNaN(expertStart.getTime()) && now >= expertStart;
+	var expertEnded = expertEnd && !isNaN(expertEnd.getTime()) && now >= expertEnd;
+	var hasExpertTime = expertStart && !isNaN(expertStart.getTime());
+
 	if (!applyStarted && !checkStarted) return "WAIT_APPLY";
 	if (applyStarted && !checkStarted && !applyClosed) return "APPLYING";
 	// 新增：申报结束、形审未开始的独立状态
 	if (applyStarted && applyClosed && !checkStarted) return "APPLY_CLOSED";
-	if (checkEnded) return "CHECK_END";
+	// 原代码：if (checkEnded) return "CHECK_END";
+	// 新代码：形审结束后继续判断专家阶段
+	if (checkEnded) {
+		if (hasExpertTime) {
+			if (expertEnded) return "FINISHED";
+			if (expertStarted) return "SCORING";
+			return "ASSIGN_EXPERTS";
+		}
+		return "CHECK_END";
+	}
 	if (checkStarted) return "CHECKING";
 	return "WAIT_APPLY";
 }
@@ -86,6 +102,10 @@ function resolveQcStageText(stageCode) {
 	if (stageCode === "APPLY_CLOSED") return "申报结束"; // 新增
 	if (stageCode === "CHECKING") return "形式审查";
 	if (stageCode === "CHECK_END") return "形审结束";
+	// 新增：专家阶段状态文本
+	if (stageCode === "ASSIGN_EXPERTS") return "分派专家";
+	if (stageCode === "SCORING") return "专家打分";
+	if (stageCode === "FINISHED") return "完成";
 	return "等待申请";
 }
 /**
@@ -160,6 +180,10 @@ function resolveQcApplyBtnState(row) {
 	} else if (stageCode === "CHECK_END") {
 		state.showBtn = false;
 		state.enableBtn = false;
+	// 新增：专家阶段也隐藏申报按钮
+	} else if (stageCode === "ASSIGN_EXPERTS" || stageCode === "SCORING" || stageCode === "FINISHED") {
+		state.showBtn = false;
+		state.enableBtn = false;
 	}
 
 	return state;
@@ -174,11 +198,22 @@ function resolveQcApplyBtnState(row) {
  * APPLYING：QC奖项目列表、编辑、分派、分组、删除
  * CHECKING/CHECK_END：QC奖项目列表、导入形式审查结果、查看、编辑、分组、分派、删除
  */
+/**
+ * 该函数根据 QC 奖任务的不同阶段，返回协会管理角色可执行的操作权限配置：
+ *
+ * - **默认配置**: 项目列表、查看、编辑始终可用
+ * - **WAIT_APPLY**(等待申请): 可查看、编辑、删除
+ * - **APPLYING**(申请中): 可查看、编辑、删除、分组
+ * - **APPLY_CLOSED**(申报结束): 可查看、编辑、删除
+ * - **CHECKING**(形式审查): 所有操作开放 (含分派、分组、导入结果)
+ * - **CHECK_END**(形审结束): 保留查看、编辑、删除、导入结果，关闭分派和分组
+ *
+ * */
 function resolveQcManagerTaskOps(stageCode) {
     var ops = {
         showQcProList: true,
-        showView: false,
-        showEdit: false,
+        showView: true,
+        showEdit: true,
         showDelete: false,
         showAssign: false,
         showGroup: false,
@@ -207,18 +242,42 @@ function resolveQcManagerTaskOps(stageCode) {
         ops.showAssign = true;
         ops.showGroup = true;
         ops.showImportCheckResult = true;
-    }else if (stageCode === "CHECK_END") {
-		ops.showView = true;
-		ops.showEdit = false;
-		ops.showDelete = false;
-		ops.showAssign = false;
-		ops.showGroup = false;
-		ops.showImportCheckResult = true;
-	}
+    } else if (stageCode === "CHECK_END") {
+        // 形审结束后仍保留编辑按钮
+        ops.showView = true;
+        ops.showEdit = true;
+        ops.showDelete = true;
+        ops.showAssign = false;
+        ops.showGroup = false;
+        ops.showImportCheckResult = true;
+    // 新增：分派专家阶段 - 显示分派和分组按钮
+    } else if (stageCode === "ASSIGN_EXPERTS") {
+        ops.showView = true;
+        ops.showEdit = true;
+        ops.showDelete = true;
+        ops.showAssign = true;
+        ops.showGroup = true;
+        ops.showImportCheckResult = false;
+    // 新增：专家打分阶段 - 只读查看
+    } else if (stageCode === "SCORING") {
+        ops.showView = true;
+        ops.showEdit = true;
+        ops.showDelete = false;
+        ops.showAssign = false;
+        ops.showGroup = false;
+        ops.showImportCheckResult = false;
+    // 新增：完成阶段 - 只读查看
+    } else if (stageCode === "FINISHED") {
+        ops.showView = true;
+        ops.showEdit = false;
+        ops.showDelete = false;
+        ops.showAssign = false;
+        ops.showGroup = false;
+        ops.showImportCheckResult = false;
+    }
 
     return ops;
 }
-
 // /**
 //  * 第3步修复：判断是否协会管理角色（领导/联系人）
 //  * 说明：用现有权限按钮变量做最小侵入识别
@@ -567,20 +626,15 @@ function load() {
 
 								// 查看
 								var qcViewBtn = qcOps.showView
-									? '<a class="btn btn-primary btn-sm ' + s_watch_h + '" href="#" mce_href="#" title="查看" onclick="watchPro(\''
-										+ row.id + '\')">查看</a> '
+									? '<a class="btn btn-primary btn-sm ' + s_watch_h + '" href="#" mce_href="#" title="查看" onclick="watchPro(\'' + row.id + '\')">查看</a> '
 									: '';
 
-								// 编辑
-								var qcEditBtn = qcOps.showEdit
-									? '<a class="btn btn-primary btn-sm ' + s_edit_h + '" href="#" mce_href="#" title="编辑" onclick="edit(\''
-										+ row.id + '\')">编辑</a> '
-									: '';
+								// 编辑（只受权限控制，不受阶段控制，所有阶段都显示）
+								var qcEditBtn = '<a class="btn btn-primary btn-sm ' + s_edit_h + '" href="#" mce_href="#" title="编辑" onclick="edit(\'' + row.id + '\')">编辑</a> ';
 
 								// 删除
 								var qcDeleteBtn = qcOps.showDelete
-									? '<a class="btn btn-warning btn-sm ' + s_remove_h + '" href="#" title="删除" mce_href="#" onclick="remove(\''
-										+ row.id + '\')"><i class="fa fa-remove"></i></a> '
+									? '<a class="btn btn-warning btn-sm ' + s_remove_h + '" href="#" title="删除" mce_href="#" onclick="remove(\'' + row.id + '\')"><i class="fa fa-remove"></i></a> '
 									: '';
 
 								// 分派
@@ -588,10 +642,10 @@ function load() {
 									? '<a class="btn btn-success btn-sm" href="javascript:page(\'/qcProcess/toAssign?taskId=' + row.id + '\',\'分派\',2022020700)" title="分派项目" mce_href="#">分派</a> '
 									: '';
 
-								// 分组
-								// var qcGroupBtn = qcOps.showGroup
-								// 	? '<a class="btn btn-success btn-sm" href="javascript:void(0)" title="分组" mce_href="#" onclick="qcGroup(\'' + row.id + '\')">分组</a> '
-								// 	: '';
+								// 专业组管理（移除时间限制，只要有权限就始终显示）
+								var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden')
+									? '<a class="btn btn-primary btn-sm" href="javascript:page(\'/qcProcess/toAddSpecialist?taskId=' + row.id + '\',\'专业组管理\')" title="专业组管理" mce_href="#">专业组管理</a> '
+									: '';
 
 								// 导入形式审查结果
 								var qcImportBtn = qcOps.showImportCheckResult
@@ -600,13 +654,13 @@ function load() {
 									: '';
 
 								// 第3步修改：QC角色冲突按钮不拼（企业列表/其他奖项申报入口）
-								return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn +   qcAssignBtn + qcDeleteBtn;
+								return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcExpertGroupBtn + qcDeleteBtn;
 							}
 
-							if (row.awardId == 3 && isQcManagerRole()) {
-								// 协会矩阵：分派/分组/导入...
-								return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn  + qcAssignBtn + qcDeleteBtn;
-							}
+							// if (row.awardId == 3 && isQcManagerRole()) {
+							// 	// 协会矩阵：分派/分组/导入...
+							// 	return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn  + qcAssignBtn + qcDeleteBtn;
+							// }
 							
 							if (row.awardId == 3 && !isQcManagerRole()) {
 								// 企业矩阵：只保留项目列表 + 申报入口

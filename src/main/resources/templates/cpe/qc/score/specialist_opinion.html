@@ -1,3 +1,28 @@
+<!-- 原代码已注释保留，新代码添加了后端数据绑定和保存功能 -->
+<!--
+原代码：静态表单，无后端数据绑定和保存功能
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head th:include="include :: header_lu"></head>
+<body>
+    <div class="ui container">
+        <div class="ui bottom attached segment">
+            <form action="" class="ui basic form">
+                ... (原始静态表单内容) ...
+                <div class="ui basic center aligned segment">
+                    <div class="ui submit button">保存</div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div th:include="include :: footer_lu"></div>
+    <script>
+        var opinion = new Simditor({ textarea: $("#opinion"), defaultImage: "img/a9.jpg" })
+        ... (原始脚本) ...
+    </script>
+</body>
+</html>
+-->
+
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
 
@@ -6,46 +31,59 @@
 <body>
     <div class="ui container">
         <div class="ui bottom attached segment">
-            <form action="" class="ui basic form">
-                <h4 class="ui red horizontal divider header">基本信息 </h4>
+            <!-- <form action="" class="ui basic form">
+                <h4 class="ui red horizontal divider header">基本信息 </h4> -->
+            <form action="" class="ui basic form" id="opinionForm">
+                <input type="hidden" id="proId" name="proId" th:value="${proId}" />
+                <input type="hidden" id="taskId" name="taskId" th:value="${taskId}" />
+                <input type="hidden" id="expertUid" name="expertUid" th:value="${expertUid}" />
+
+                <h4 class="ui red horizontal divider header">基本信息</h4>
                 <div class="ui two fields">
                     <div class="ui field">
                         <label>项目编号</label>
-                        <input type="text" name="procode" placeholder="项目编号">
+                        <input type="text" name="procode" placeholder="项目编号" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.proCode : ''}" />
                     </div>
                     <div class="ui field">
                         <label>课题名称</label>
-                        <input type="text" name="topicname" placeholder="课题名称">
+                        <input type="text" name="topicname" placeholder="课题名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.topicName : ''}" />
                     </div>
                 </div>
                 <div class="ui two fields">
                     <div class="ui field">
                         <label>小组名称</label>
-                        <input type="text" name="groupname" placeholder="小组名称">
+                        <input type="text" name="groupname" placeholder="小组名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.groupName : ''}" />
                     </div>
                     <div class="ui field">
                         <label>单位名称</label>
-                        <input type="text" name="companyname" placeholder="单位名称">
+                        <input type="text" name="companyname" placeholder="单位名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.companyName : ''}" />
                     </div>
                 </div>
                 <div class="ui two fields">
                     <div class="ui field">
-                        <label>小组类型</label>
-                        <input type="text" name="grouptype" placeholder="小组类型">
+                        <label>课题类型</label>
+                        <input type="text" name="grouptype" placeholder="课题类型" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.topicType : ''}" />
                     </div>
                     <div class="ui field">
                         <label>专业范围</label>
-                        <input type="text" name="majorrange" placeholder="专业范围">
+                        <input type="text" name="majorrange" placeholder="专业范围" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.professionalScope : ''}" />
                     </div>
                 </div>
 
-                <h4 class="ui red horizontal divider header">评审意见 </h4>
+                <h4 class="ui red horizontal divider header">评审意见</h4>
                 <div class="ui field">
-                    <textarea id="opinion" name="opinion"></textarea>
+                    <textarea id="opinion" name="opinion"
+                              th:text="${scoreInfo != null ? scoreInfo.sumRecommend : ''}"></textarea>
                 </div>
                 <div class="ui error message"></div>
                 <div class="ui basic center aligned segment">
-                    <div class="ui submit button">保存</div>
+                    <div class="ui blue button" onclick="saveOpinion()">保存</div>
                 </div>
             </form>
         </div>
@@ -53,104 +91,144 @@
     <div th:include="include :: footer_lu"></div>
 
     <script>
-        var opinion = new Simditor({
+        // var opinion = new Simditor({
+        var opinionEditor = new Simditor({
             textarea: $("#opinion"),
             defaultImage: "img/a9.jpg"
-        })
+        });
         $(".simditor-clean-paste-area").hide();
         $('.ui.dropdown').dropdown();
 
+        // $("input[type='number']").keyup(function() {
+        //     var Totalscore = 0;
+        //     $("input[type='number']").each(function() {
+        //         var namec = $(this).attr("name");
+        //         if (namec != "Totalscore") {
+        //             Totalscore += Number($(this).val());
+        //         }
+        //     });
+        //     $("input[name='Totalscore']").val(Totalscore);
+        // });
+        // function addimage() {
+        //     $("#fileimage").trigger("click");
+        // }
+        // $('.ui.form').form({
+        //     on: 'blur',
+        //     fields: {
+        //         procode: {
+        //             identifier: 'procode',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写项目编号'
+        //             }]
+        //         },
+        //         topicname: {
+        //             identifier: 'topicname',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写课题名称'
+        //             }]
+        //         },
+        //         groupname: {
+        //             identifier: 'groupname',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写小组名称'
+        //             }]
+        //         },
+        //         companyname: {
+        //             identifier: 'companyname',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写单位名称'
+        //             }]
+        //         },
+        //         grouptype: {
+        //             identifier: 'grouptype',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写小组类型'
+        //             }]
+        //         },
+        //         majorrange: {
+        //             identifier: 'majorrange',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写专业范围'
+        //             }]
+        //         },
+        //         advancedtechnique: {
+        //             identifier: 'advancedtechnique',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写选题(满分12)'
+        //             }]
+        //         },
+        //         innovate: {
+        //             identifier: 'innovate',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写选题(满分12)'
+        //             }]
+        //         },
+        //         facilityvalue: {
+        //             identifier: 'facilityvalue',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写对策与实施(满分16)'
+        //             }]
+        //         },
+        //         intellectualproperty: {
+        //             identifier: 'intellectualproperty',
+        //             rules: [{
+        //                 type: 'empty',
+        //                 prompt: '请填写效果(满分11)'
+        //             }]
+        //         }
+        //     }
+        // });
 
-        $("input[type='number']").keyup(function() {
-            var Totalscore = 0;
-            $("input[type='number']").each(function() {
-                var namec = $(this).attr("name");
-                if (namec != "Totalscore") {
-                    Totalscore += Number($(this).val());
+
+
+
+        
+
+        function saveOpinion() {
+            var proId = $("#proId").val();
+            var taskId = $("#taskId").val();
+            if (!proId || !taskId) {
+                layer.msg("项目信息缺失，无法保存");
+                return;
+            }
+
+            var opinionContent = opinionEditor.getValue();
+            if (!opinionContent || opinionContent.trim() === '') {
+                layer.msg("请填写评审意见");
+                return;
+            }
+
+            var data = {
+                proId: proId,
+                taskId: taskId,
+                sumRecommend: opinionContent
+            };
+
+            $.ajax({
+                url: "/qcScore/saveScore",
+                type: "POST",
+                data: data,
+                success: function (r) {
+                    if (r.code == 0) {
+                        layer.msg("保存成功");
+                    } else {
+                        layer.msg(r.msg);
+                    }
+                },
+                error: function () {
+                    layer.msg("请求失败");
                 }
             });
-            $("input[name='Totalscore']").val(Totalscore);
-        });
-
-        function addimage() {
-            $("#fileimage").trigger("click");
         }
-
-        $('.ui.form').form({
-            on: 'blur',
-            fields: {
-                procode: {
-                    identifier: 'procode',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写项目编号'
-                    }]
-                },
-                topicname: {
-                    identifier: 'topicname',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写课题名称'
-                    }]
-                },
-                groupname: {
-                    identifier: 'groupname',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写小组名称'
-                    }]
-                },
-                companyname: {
-                    identifier: 'companyname',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写单位名称'
-                    }]
-                },
-                grouptype: {
-                    identifier: 'grouptype',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写小组类型'
-                    }]
-                },
-                majorrange: {
-                    identifier: 'majorrange',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写专业范围'
-                    }]
-                },
-                advancedtechnique: {
-                    identifier: 'advancedtechnique',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写选题(满分12)'
-                    }]
-                },
-                innovate: {
-                    identifier: 'innovate',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写选题(满分12)'
-                    }]
-                },
-                facilityvalue: {
-                    identifier: 'facilityvalue',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写对策与实施(满分16)'
-                    }]
-                },
-                intellectualproperty: {
-                    identifier: 'intellectualproperty',
-                    rules: [{
-                        type: 'empty',
-                        prompt: '请填写效果(满分11)'
-                    }]
-                }
-            }
-        });
     </script>
 </body>
 

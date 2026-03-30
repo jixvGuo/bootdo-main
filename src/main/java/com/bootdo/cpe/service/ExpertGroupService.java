@@ -37,4 +37,12 @@ public interface ExpertGroupService {
      */
     int delByLoginAccount(String loginAccount);
 
+    /**
+     * (得改，连接的表不对)
+     * 新增：获取指定条件下的不重复专业组名称列表
+     * @param params 包含taskId、proType等过滤条件
+     * @return 不重复的group_name列表
+     */
+    List<String> getDistinctGroupNames(Map<String, Object> params);
+
 }

@@ -85,14 +85,17 @@ public class UserRealm extends AuthorizingRealm {
 		}else if("2".equalsIgnoreCase(currentType)){
 			// 优秀勘察
 			for(Long m : roleIdList){
-				if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_ASSOCIATION_LEADER){
+				// if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_ASSOCIATION_LEADER){
+				if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_SURVER_SPECALIST_ID|| m == ROLE_ASSOCIATION_LEADER){
 					isCanLogin = true ;
 				}
 			}
 		}else if("3".equalsIgnoreCase(currentType)){
 			// QC
 			for(Long m : roleIdList){
-				if (m == 1 || m == 70 || m == 71 || m == ROLE_QC_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_ASSOCIATION_LEADER){
+				// 原代码：if (m == 1 || m == 70 || m == 71 || m == ROLE_QC_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_ASSOCIATION_LEADER){
+				// 新代码：增加QC奖评审专家角色(85)的登录权限
+				if (m == 1 || m == 70 || m == 71 || m == ROLE_QC_EXTERNAL_EMPLOYMENT_ID || m == ROLE_QC_SPECIALIST_ID || m == ROLE_ASSOCIATION_LEADER){
 					isCanLogin = true ;
 				}
 			}

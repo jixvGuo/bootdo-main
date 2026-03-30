@@ -4,10 +4,12 @@
 <mapper namespace="com.bootdo.cpe.dao.QcAppraiseActiveScoreDao">
 
 	<select id="get" resultType="com.bootdo.cpe.domain.QcAppraiseActiveScoreDO">
+		<!-- select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`organization_score`,`active_desc_score`,`active_real_score`,`result_maintain_score`,`group_education_score`,`total_score`,`sum_recommend`,`created`,`updated`,`deleted` from ass_qc_appraise_active_score where id = #{value} -->
 		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`organization_score`,`active_desc_score`,`active_real_score`,`result_maintain_score`,`group_education_score`,`total_score`,`sum_recommend`,`created`,`updated`,`deleted` from ass_qc_appraise_active_score where id = #{value}
 	</select>
 
 	<select id="list" resultType="com.bootdo.cpe.domain.QcAppraiseActiveScoreDO">
+		<!-- select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`organization_score`,`active_desc_score`,`active_real_score`,`result_maintain_score`,`group_education_score`,`total_score`,`sum_recommend`,`created`,`updated`,`deleted` from ass_qc_appraise_active_score -->
 		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`organization_score`,`active_desc_score`,`active_real_score`,`result_maintain_score`,`group_education_score`,`total_score`,`sum_recommend`,`created`,`updated`,`deleted` from ass_qc_appraise_active_score
         <where>  
 		  		  <if test="id != null and id != ''"> and id = #{id} </if>
@@ -25,7 +27,7 @@
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
 		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
-		  		</where>
+				</where>
         <choose>
             <when test="sort != null and sort.trim() != ''">
                 order by ${sort} ${order}
@@ -113,7 +115,7 @@
 			<if test="sumRecommend != null">`sum_recommend` = #{sumRecommend}, </if>
 			<if test="created != null">`created` = #{created}, </if>
 			<if test="updated != null">`updated` = #{updated}, </if>
-			<if test="deleted != null">`deleted` = #{deleted}</if>
+			<if test="deleted != null">`deleted` = #{deleted}, </if>
 		</set>
 		where id = #{id}
 	</update>

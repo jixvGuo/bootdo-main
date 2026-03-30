@@ -91,7 +91,9 @@ public class LoginController extends BaseController {
             if (paramData != null) {
                 System.out.println("AwardId: " + paramData.getAwardId());
                 System.out.println("ParamData: " + paramData.toString());
-//                awardIdInt = paramData.getAwardId();
+                // 原代码：awardIdInt 未赋值，导致菜单过滤失效，所有奖项的菜单混在一起
+                // 新代码：启用 awardIdInt 赋值，让 listMenuTree 正确按奖项过滤菜单
+                awardIdInt = paramData.getAwardId();
             } else {
                 System.out.println("警告: RoleAwardParamData.getInstance()返回null");
                 // 设置默认值或处理逻辑

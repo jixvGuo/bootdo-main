@@ -45,11 +45,13 @@ import static com.bootdo.common.config.Constant.*;
 
 /**
  * qc奖
- *
+ * /qcAward
+ * QC项目列表/申报主入口
  * @author houzb
  * @version 1.0
  * @date 2022-02-05 10:12
  */
+
 @RequestMapping("/qcAward")
 @Controller
 public class QcController extends BaseQcProController {
@@ -119,17 +121,22 @@ public class QcController extends BaseQcProController {
         map.put("isAssociationContact", isAssociationContact);
         map.put("isAssociationLeader", isAssociationLeader);
         map.put("isEnterpriseUser", isEnterpriseUser);
+        // 原代码：boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) || roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID) || roleIdList.contains(ROLE_SPECIALIST_ID) || roleIdList.contains(ROLE_ASSOCIATION_LEADER);
+        // 新代码：增加QC奖评审专家角色(85)
         boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) ||
             roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID) ||
             roleIdList.contains(ROLE_SPECIALIST_ID) ||
+            roleIdList.contains(ROLE_QC_SPECIALIST_ID) ||
             roleIdList.contains(ROLE_ASSOCIATION_LEADER);
         map.put("isReview", isReview);
         if(!roleIdList.contains(ROLE_ENTERPRISE_QC_ID)) {
             //非企业角色不显示申请按钮
             map.put("apply_type", null);
         }
+        // 原代码：boolean canShowCancelReviewBtn = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) || roleIdList.contains(ROLE_ASSOCIATION_LEADER)|| roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID);
+        // 新代码：增加QC奖评审专家角色(85)
         boolean canShowCancelReviewBtn = roleIdList.contains(ROLE_QC_ASSOCIATION_ID)
-        || roleIdList.contains(ROLE_ASSOCIATION_LEADER)|| roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID);
+        || roleIdList.contains(ROLE_ASSOCIATION_LEADER)|| roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)|| roleIdList.contains(ROLE_QC_SPECIALIST_ID);
         map.put("canShowCancelReviewBtn", canShowCancelReviewBtn);
         List<DictDO> projectTypes = dictService.listByType("projectType");
         List<DictDO> classifications = dictService.listByType("classification");
@@ -160,6 +167,15 @@ public class QcController extends BaseQcProController {
                 boolean checkEnded = org.apache.commons.lang3.StringUtils.isNotBlank(checkEnd)
                         && com.bootdo.common.utils.DateUtils.diffNow(checkEnd) >= 0;
 
+                // 新增：获取专家阶段时间
+                String expertStart = taskDo.getExpertStartTime();
+                String expertEnd = taskDo.getExpertEndTime();
+                boolean expertStarted = org.apache.commons.lang3.StringUtils.isNotBlank(expertStart)
+                        && com.bootdo.common.utils.DateUtils.diffNow(expertStart) >= 0;
+                boolean expertEnded = org.apache.commons.lang3.StringUtils.isNotBlank(expertEnd)
+                        && com.bootdo.common.utils.DateUtils.diffNow(expertEnd) >= 0;
+                boolean hasExpertTime = org.apache.commons.lang3.StringUtils.isNotBlank(expertStart);
+
                 if (!applyStarted && !checkStarted) {
                     taskStageCode = "WAIT_APPLY";
                     taskStageName = "等待申请";
@@ -169,9 +185,23 @@ public class QcController extends BaseQcProController {
                     taskStageName = "申请中";
                     canApplyBtn = true;
                 } else if (checkEnded) {
-                    taskStageCode = "CHECK_END";
-                    taskStageName = "形审结束";
                     canApplyBtn = false;
+                    if (hasExpertTime) {
+                        if (expertEnded) {
+                            taskStageCode = "FINISHED";
+                            taskStageName = "完成";
+                        } else if (expertStarted) {
+                            taskStageCode = "SCORING";
+                            taskStageName = "专家打分";
+                        } else {
+                            taskStageCode = "ASSIGN_EXPERTS";
+                            taskStageName = "分派专家";
+                        }
+                    } else {
+                        taskStageCode = "CHECK_END";
+                        taskStageName = "形审结束";
+                        // canApplyBtn = false;
+                    }
                 } else if (checkStarted) {
                     taskStageCode = "CHECKING";
                     taskStageName = "形式审查";
@@ -1331,7 +1361,8 @@ public class QcController extends BaseQcProController {
 
         /**
      * 统一计算任务阶段（第0步：统一契约）
-     * 返回值：WAIT_APPLY / APPLYING / CHECKING / CHECK_END
+     * 原返回值：WAIT_APPLY / APPLYING / CHECKING / CHECK_END
+     * 新返回值：WAIT_APPLY / APPLYING / CHECKING / CHECK_END / ASSIGN_EXPERTS / SCORING / FINISHED
      */
     private String resolveTaskStageCodeByTaskId(String taskId) {
         String taskStageCode = "WAIT_APPLY";
@@ -1349,6 +1380,9 @@ public class QcController extends BaseQcProController {
         String applyEnd = taskDo.getApplyEndDate();
         String checkStart = taskDo.getCheckStartTime();
         String checkEnd = taskDo.getCheckEndTime();
+        // 新增：获取专家阶段时间
+        String expertStart = taskDo.getExpertStartTime();
+        String expertEnd = taskDo.getExpertEndTime();
 
         boolean applyStarted = org.apache.commons.lang3.StringUtils.isNotBlank(applyStart)
                 && com.bootdo.common.utils.DateUtils.diffNow(applyStart) >= 0;
@@ -1358,13 +1392,31 @@ public class QcController extends BaseQcProController {
                 && com.bootdo.common.utils.DateUtils.diffNow(checkStart) >= 0;
         boolean checkEnded = org.apache.commons.lang3.StringUtils.isNotBlank(checkEnd)
                 && com.bootdo.common.utils.DateUtils.diffNow(checkEnd) >= 0;
+        // 新增：专家阶段时间判断
+        boolean expertStarted = org.apache.commons.lang3.StringUtils.isNotBlank(expertStart)
+                && com.bootdo.common.utils.DateUtils.diffNow(expertStart) >= 0;
+        boolean expertEnded = org.apache.commons.lang3.StringUtils.isNotBlank(expertEnd)
+                && com.bootdo.common.utils.DateUtils.diffNow(expertEnd) >= 0;
+        boolean hasExpertTime = org.apache.commons.lang3.StringUtils.isNotBlank(expertStart);
 
         if (!applyStarted && !checkStarted) {
             taskStageCode = "WAIT_APPLY";
         } else if (applyStarted && !checkStarted && !applyEnded) {
             taskStageCode = "APPLYING";
+        // 原代码：} else if (checkEnded) { taskStageCode = "CHECK_END"; }
+        // 新代码：形审结束后继续判断专家阶段
         } else if (checkEnded) {
-            taskStageCode = "CHECK_END";
+            if (hasExpertTime) {
+                if (expertEnded) {
+                    taskStageCode = "FINISHED";
+                } else if (expertStarted) {
+                    taskStageCode = "SCORING";
+                } else {
+                    taskStageCode = "ASSIGN_EXPERTS";
+                }
+            } else {
+                taskStageCode = "CHECK_END";
+            }
         } else if (checkStarted) {
             // 允许申报与形审重叠：只要形审开始且未结束，统一 CHECKING
             taskStageCode = "CHECKING";

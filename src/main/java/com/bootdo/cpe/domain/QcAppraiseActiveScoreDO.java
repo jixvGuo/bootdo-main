@@ -44,6 +44,8 @@ public class QcAppraiseActiveScoreDO implements Serializable {
 
 	//总体评价
 	private String sumRecommend = "" ;
+	// 新增：是否已提交最终打分（参考科技奖 scoreOver 逻辑）0=未提交, 1=已提交
+	private Integer scoreOver = 0;
 	//
 	private Date created;
 	//
@@ -232,5 +234,17 @@ public class QcAppraiseActiveScoreDO implements Serializable {
 	 */
 	public Integer getDeleted() {
 		return deleted;
+	}
+	/**
+	 * 新增：设置是否已提交最终打分
+	 */
+	public void setScoreOver(Integer scoreOver) {
+		this.scoreOver = scoreOver;
+	}
+	/**
+	 * 新增：获取是否已提交最终打分
+	 */
+	public Integer getScoreOver() {
+		return scoreOver;
 	}
 }

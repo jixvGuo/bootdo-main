@@ -25,6 +25,16 @@ public class QcProDataDto extends QcGroupApplyInfoDO {
     private String proType = "QC";
 
     /**
+     * 打分日期（专家评分保存时间）
+     */
+    private String scoreDate;
+
+    /**
+     * 是否回避（当前专家对该项目的回避状态）
+     */
+    private Boolean isAvoided;
+
+    /**
      * 单位名称
      */
     private String companyName;
@@ -172,6 +182,22 @@ public class QcProDataDto extends QcGroupApplyInfoDO {
 
     public void setProType(String proType) {
         this.proType = proType;
+    }
+
+    public String getScoreDate() {
+        return scoreDate;
+    }
+
+    public void setScoreDate(String scoreDate) {
+        this.scoreDate = scoreDate;
+    }
+
+    public Boolean getIsAvoided() {
+        return isAvoided;
+    }
+
+    public void setIsAvoided(Boolean isAvoided) {
+        this.isAvoided = isAvoided;
     }
 
     public String getCompanyName() {

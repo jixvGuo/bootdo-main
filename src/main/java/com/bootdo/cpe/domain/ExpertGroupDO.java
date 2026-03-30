@@ -3,6 +3,7 @@ package com.bootdo.cpe.domain;
 import org.apache.commons.lang.StringUtils;
 
 import java.io.Serializable;
+import java.util.List;
 
 
 /***
@@ -21,6 +22,8 @@ public class ExpertGroupDO implements Serializable {
     private  String userId;
     //类型
     private  Integer  isGroupLeader;
+
+    // 专业分组
     private  String groupName;
     /**
      * 工作单位
@@ -51,6 +54,19 @@ public class ExpertGroupDO implements Serializable {
      * 项目类型
      */
     private String proType;
+
+    /**
+     * 新增：已分派的项目ID列表（用于页面回显，不存数据库）
+     */
+    private List<Integer> assignedProjectIds;
+
+    public List<Integer> getAssignedProjectIds() {
+        return assignedProjectIds;
+    }
+
+    public void setAssignedProjectIds(List<Integer> assignedProjectIds) {
+        this.assignedProjectIds = assignedProjectIds;
+    }
 
     public String getGroupName() {
         return groupName;

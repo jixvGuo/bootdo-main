@@ -91,6 +91,7 @@ public class SpecialistController extends BaseScienceTechnologyController {
     /**
      * 选择专家确定组长
      *
+     * 专家选择/组长确认
      * @param taskId
      * @param request
      * @return
@@ -102,6 +103,9 @@ public class SpecialistController extends BaseScienceTechnologyController {
         if(awardTaskDoList.size() > 0) {
            PublishAwardTaskDo awardTaskDo = awardTaskDoList.get(0);
            String awardId = awardTaskDo.getAwardId();
+            /**
+             * 科学技术奖走通用页面；QC 在这里被分支到自己的 QcProcessController.toAddSpecialistUser()）
+             */
            if(String.valueOf(EnumAwardType.QC.getAwrdType()).equals(awardId)) {
                //QC奖
                return qcProcessController.toAddSpecialistUser(params, map);
@@ -172,6 +176,7 @@ public class SpecialistController extends BaseScienceTechnologyController {
     /**
      * 专家去打分
      *
+     * 专家进入评分入口
      * @param map
      * @return
      */
@@ -185,6 +190,7 @@ public class SpecialistController extends BaseScienceTechnologyController {
     /**
      * 跳转到打分的项目列表
      *
+     * 专家查看自己被分派的项目列表
      * @param scoreType 页面名称
      * @param map
      * @return
@@ -285,7 +291,7 @@ public class SpecialistController extends BaseScienceTechnologyController {
 
 
     /**
-     * 弹出个人打分列表
+     * 弹出个人打分列表1
      */
     @RequestMapping("/toScoreProPersonalList")
     @RequiresPermissions("award_flow:specialist_pros:specialist_personal_list")
@@ -322,7 +328,7 @@ public class SpecialistController extends BaseScienceTechnologyController {
     }
 
     /**
-     * 弹出团队打分列表
+     * 弹出团队打分列表1
      */
     @RequestMapping("/toScoreProTeamList")
     @RequiresPermissions("award_flow:specialist_pros:specialist_team_list")
@@ -375,8 +381,17 @@ public class SpecialistController extends BaseScienceTechnologyController {
     }
 
     /**
-     * 弹出团队打分列表
+     * 弹出科技打分列表
+     * 
+     * 恢复原实现。专家通过 add_special_info.group_name = pro.pro_group_name 的 JOIN 关系
+     * 自动关联到对应专业组的项目，无需按 proId 逐条分派。
+     * 之前的"修正版"依赖单独的项目分派步骤（已移除），因此恢复原始逻辑。
      */
+    /*
+    // 已废弃的修正版（依赖单独的项目分派步骤，该步骤已移除）：
+    // 根据 ExpertGroupDO.proId 逐条过滤项目列表
+    // 问题：没有单独的项目分派步骤，assignedProjectIds 始终为空，导致专家看不到任何项目
+    */
     @ResponseBody
     @RequestMapping("/science/list")
     @RequiresPermissions("award_flow:specialist_pros:specialist_science_list")
@@ -456,9 +471,48 @@ public class SpecialistController extends BaseScienceTechnologyController {
      *
      * @return
      */
+    /*
+     * 原实现保留（不要删除）。该实现存在页面需要的 proId 未回填到 ModelMap 的风险，
+     * 可能导致 score_pro_science.html 中隐藏字段 proId 为空，从而 /specialist/score 保存失败。
+     */
+//    @RequestMapping("/toScoreProScience")
+//    public String toScoreProScience(@RequestParam Map<String, Object> params, ModelMap map) {
+//        packageAwardTaskId(map, params);
+//        //科技奖只有一个内容信息进行评审，因此子项为0
+//        params.put("uid", getUserId());
+//
+//        List<AwardScoreDetailInfo> scoreList = specialistService.getProScoreDetails(params);
+//        double totalScore = 0;
+//        for (AwardScoreDetailInfo scoreInfo : scoreList) {
+//            if (StringUtils.isBlank(scoreInfo.getScoreTxt())) {
+//                map.put(scoreInfo.getScoreKey(), scoreInfo.getScoreVal());
+//            } else {
+//                map.put(scoreInfo.getScoreKey(), scoreInfo.getScoreTxt());
+//            }
+//            if(!"totalScore".equalsIgnoreCase(scoreInfo.getScoreKey())){
+//                totalScore += scoreInfo.getScoreVal();
+//            }
+//        }
+//        map.put("totalScore", totalScore);
+//
+//        List<EnterpriseChengguoBaseInfoDO> list = chengguoBaseInfoService.list(params);
+//        EnterpriseChengguoBaseInfoDO baseInfoDO = list.size() > 0 ? list.get(0) : new EnterpriseChengguoBaseInfoDO();
+//        map.put("proInfo", baseInfoDO);
+//        map.put("itemId", baseInfoDO == null ? 0 : baseInfoDO.getId());
+//
+//        //是否已提交结束打分
+//        int scoreOverFlg = specialistService.getSubmitScoreOverFlg(params);
+//        map.put("readonly", scoreOverFlg);
+//
+//        return prefix + "/score/score_pro_science";
+//    }
+
     @RequestMapping("/toScoreProScience")
     public String toScoreProScience(@RequestParam Map<String, Object> params, ModelMap map) {
         packageAwardTaskId(map, params);
+        // 页面需要 proId 作为隐藏字段；同时后续 /specialist/score 也依赖 proId
+        map.put("proId", params.get("proId"));
+
         //科技奖只有一个内容信息进行评审，因此子项为0
         params.put("uid", getUserId());
 
@@ -470,7 +524,7 @@ public class SpecialistController extends BaseScienceTechnologyController {
             } else {
                 map.put(scoreInfo.getScoreKey(), scoreInfo.getScoreTxt());
             }
-            if(!"totalScore".equalsIgnoreCase(scoreInfo.getScoreKey())){
+            if (!"totalScore".equalsIgnoreCase(scoreInfo.getScoreKey())) {
                 totalScore += scoreInfo.getScoreVal();
             }
         }
@@ -479,7 +533,9 @@ public class SpecialistController extends BaseScienceTechnologyController {
         List<EnterpriseChengguoBaseInfoDO> list = chengguoBaseInfoService.list(params);
         EnterpriseChengguoBaseInfoDO baseInfoDO = list.size() > 0 ? list.get(0) : new EnterpriseChengguoBaseInfoDO();
         map.put("proInfo", baseInfoDO);
-        map.put("itemId", baseInfoDO == null ? 0 : baseInfoDO.getId());
+        // 修正：原代码 baseInfoDO == null ? 0 : baseInfoDO.getId() 当 getId() 返回 null Long 时
+        // 三元运算符自动拆箱触发 NullPointerException；改为显式判空避免拆箱
+        map.put("itemId", (baseInfoDO != null && baseInfoDO.getId() != null) ? baseInfoDO.getId() : 0);
 
         //是否已提交结束打分
         int scoreOverFlg = specialistService.getSubmitScoreOverFlg(params);

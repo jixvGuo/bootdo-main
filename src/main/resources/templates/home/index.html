@@ -2,6 +2,8 @@
 <html lang="zh">
 <head>
     <meta charset="UTF-8">
+    <!--  3D旋转入口页面  -->
+
     <!--<meta name="viewport" content="width=device-width, initial-scale=0.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>-->
     <title>中油建设协会数字化管理平台</title>
     <!-- 引入样式 -->
@@ -117,6 +119,8 @@
                  return;
               }
               if(this.CurrentlySelected == 'QC') {
+                 //  点击 QC -> 登录后进入 /index?awardId=3，
+                 //  加载 index_v1.html，左侧菜单由数据库菜单 + 角色权限决定（Shiro + sys_menu）
                  toLogin('/toLogin?award=qc&awardId=3', 3);
                  return;
               }

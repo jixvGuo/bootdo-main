@@ -5,6 +5,13 @@
 
 
 <head th:include="include :: header"></head>
+<!--
+    有部分表格、按钮、搜索框等UI元素
+    但没有实际功能：新增、删除、搜索功能均无js事件绑定，无法执行操作
+    数据写死：表格只有一行硬编码数据，无动态加载逻辑
+    缺少后端交互：没有 AJAX 请求或表单提交逻辑，无法与服务器通信。
+    这是一个待开发的页面框架，需补充业务逻辑代码才能实现完整功能
+-->
 <body class="gray-bg">
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
@@ -20,6 +27,7 @@
                                 <i class="fa fa-wrench"></i>
                             </a>
                             <ul class="dropdown-menu dropdown-user">
+                                <!--  一个没用的示例表单  -->
                                 <li>
                                     <a href="table_basic.html#">选项1</a>
                                 </li>

@@ -2,13 +2,25 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.w3.org/1999/xhtml">
 
-
+<!--
+    缺少真实数据源：使用本地硬编码的 mydata，未从后端加载
+    表单提交：顶部的"初评专业组"表单无提交处理逻辑
+    保存操作：编辑/新增/删除后不会同步到服务器
+    权限控制：未见权限校验或操作日志记录
+    是一个功能完整的前端原型，但未与后端集成
+-->
 
 <head th:include="include :: header"></head>
 <body class="gray-bg">
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
             <div class="col-sm-12">
+                <!--
+                    HTML 代码构建了一个评审页面布局：
+                    外层容器：使用 ibox 组件包裹内容，带折叠、关闭等操作按钮。
+                    表单区域：包含"初评专业组"输入框及保存/取消按钮。
+                    表格区域：内嵌 jqGrid 表格容器（table_list_2）和分页器（pager_list_2），用于展示评审数据列表。
+                         -->
                 <div class="ibox float-e-margins">
                     <div class="ibox-title">
                         <h5>所有表单元素 <small>包括自定义样式的复选和单选按钮</small></h5>
@@ -55,6 +67,7 @@
                                     <div class="ibox ">
                                         <div class="ibox-content">
                                             <div class="jqGrid_wrapper">
+                                                <!--  表格容器和分页器  -->
                                                 <table id="table_list_2"></table>
                                                 <div id="pager_list_2"></div>
                                             </div>
@@ -68,6 +81,7 @@
             </div>
         </div>
     </div>
+    <!--  引用jQuery基础库、Bootstrap、iCheck功能插件、jqGrid表格组件  -->
     <script src="js/jquery.min.js?v=2.1.4"></script>
     <script src="js/bootstrap.min.js?v=3.3.6"></script>
     <script src="js/content.min.js?v=1.0.0"></script>
@@ -80,6 +94,11 @@
         $(document).ready(function () {
             $.jgrid.defaults.styleUI = "Bootstrap";
 
+            /**
+             * 模拟测试数据
+             * 有id,项目名称、金额、等级、评审意见
+             * @type {[{amount: string, Opinion: string, ProjectName: string, Grade: string, id: string},{amount: string, Opinion: string, ProjectName: string, Grade: string, id: string},{amount: string, Opinion: string, ProjectName: string, Grade: string, id: string},{amount: string, Opinion: string, ProjectName: string, Grade: string, id: string},{amount: string, Opinion: string, ProjectName: string, Grade: string, id: string},null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null]}
+             */
             var mydata = [
                 { id: "1", ProjectName: "高海拔", amount: "100.00", Grade: "一级", Opinion: "不通过" },
                 { id: "2", ProjectName: "高海拔", amount: "100.00", Grade: "一级", Opinion: "不通过" },
@@ -110,6 +129,7 @@
                 { id: "29", ProjectName: "高海拔", amount: "100.00", Grade: "一级", Opinion: "不通过" }
             ];
 
+            // 绑定mydata数据源，以表格形式渲染项目评审信息
             $("#table_list_2").jqGrid({
                 data: mydata, datatype: "local", height: 450, autowidth: true, shrinkToFit: true, rowNum: 20, rowList: [10, 20, 30],
                 colNames: ["序号", "项目名称", "专业组评分", "建议推荐等级", "意见"],
@@ -126,12 +146,19 @@
 
                 pager: "#pager_list_2", viewrecords: true, caption: "石油工程建设科技进步奖专业评审推荐意见表2", add: true, edit: true, addtext: "Add", edittext: "Edit", hidegrid: false
             });
-            $("#table_list_2").setSelection(4, true); $("#table_list_2").jqGrid("navGrid", "#pager_list_2", { edit: true, add: true, del: true, search: true }, { height: 200, reloadAfterSubmit: true }); $(window).bind("resize", function () {
+
+            // 默认选中表格的第四行数据
+            // 为表格添加导航按钮，启用编辑、新增、删除和搜索功能，然后设置编辑弹窗高度为200px,提交后刷新表格
+            $("#table_list_2").setSelection(4, true); $("#table_list_2")
+                .jqGrid("navGrid", "#pager_list_2", {
+                    edit: true, add: true, del: true, search: true
+                }, { height: 200, reloadAfterSubmit: true }); $(window).bind("resize", function () {
                 var width = $(".jqGrid_wrapper").width();
                 $("#table_list_2").setGridWidth(width)
             })
         });
     </script>
+    <!--  统计类 JS 脚本服务 非面向普通用户  -->
     <script type="text/javascript" src="http://tajs.qq.com/stats?sId=9051096" charset="UTF-8"></script>
 </body>
 
