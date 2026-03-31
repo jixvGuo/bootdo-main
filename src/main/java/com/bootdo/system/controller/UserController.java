@@ -181,6 +181,7 @@ public class UserController extends BaseController {
 
 	/***
 	 * 添加专家账户
+	 * 快捷保存，自动判断新增还是更新，无权限要求，密码加密
 	 * @param user
 	 * @return
 	 */
@@ -193,8 +194,25 @@ public class UserController extends BaseController {
 		}
 		String username = user.getUsername().trim();
 		List<Long> uidList = userService.getUidByLoginUserName(username);
+		// 原代码：用户已存在时直接返回userId，不更新用户信息（name、mobile、bankCard等）
+		// if(uidList.size() > 0) {
+		// 	return R.ok(uidList.get(0) + "");
+		// }
+		// 新代码（v3）：增加诊断日志，确认角色是否正确传入和保存
 		if(uidList.size() > 0) {
-			return R.ok(uidList.get(0) + "");
+			Long existUserId = uidList.get(0);
+			UserDO existUser = new UserDO();
+			existUser.setUserId(existUserId);
+			existUser.setName(user.getName());
+			existUser.setMobile(user.getMobile());
+			existUser.setBankCard(user.getBankCard());
+			List<Long> frontRoleIds = user.getRoleIds();
+			existUser.setRoleIds(frontRoleIds != null && !frontRoleIds.isEmpty()
+					? frontRoleIds : new java.util.ArrayList<>());
+			existUser.setAwardIds(new java.util.ArrayList<>());
+			userService.update(existUser);
+//			System.out.println("[savepro] 角色更新完成: userId=" + existUserId + ", roleIds=" + existUser.getRoleIds());
+			return R.ok(existUserId + "");
 		}
 		user.setPassword(MD5Utils.encrypt(username, user.getPassword().trim()));
 
@@ -207,7 +225,12 @@ public class UserController extends BaseController {
 	}
 
 
-
+	/**
+	 * 管理员修改
+	 * 仅更新，需要权限，无密码加密
+	 * @param user
+	 * @return
+	 */
 
 	@RequiresPermissions("sys:user:edit")
 	@Log("更新用户")
@@ -225,6 +248,12 @@ public class UserController extends BaseController {
 	}
 
 
+	/**
+	 * 个人中心修改
+	 * 仅更新，有权限要求，不加密
+	 * @param user
+	 * @return
+	 */
 	@RequiresPermissions("sys:user:edit")
 	@Log("更新用户")
 	@PostMapping("/updatePeronal")

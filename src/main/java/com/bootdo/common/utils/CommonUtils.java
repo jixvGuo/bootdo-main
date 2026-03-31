@@ -54,6 +54,10 @@ public class CommonUtils {
         if(roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)) {
             return true;
         }
+        // 新增：QC奖评审专家(85)
+        if(roleIdList.contains(ROLE_QC_SPECIALIST_ID)) {
+            return true;
+        }
         if(roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)) {
             return true;
         }

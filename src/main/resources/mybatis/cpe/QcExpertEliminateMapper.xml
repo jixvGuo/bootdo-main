@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bootdo.cpe.dao.QcExpertEliminateDao">
+
+    <select id="get" resultType="com.bootdo.cpe.domain.QcExpertEliminateDO">
+        select `id`,`expert_uid`,`pro_id`,`task_id`,`reason`,`prev_pro_stat`,`created`,`deleted`
+        from ass_qc_expert_eliminate where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.QcExpertEliminateDO">
+        select e.`id`, e.`expert_uid`, e.`pro_id`, e.`task_id`, e.`reason`, e.`prev_pro_stat`, e.`created`, e.`deleted`,
+            qa.`topic_name` as topicName,
+            qa.`group_name` as groupName,
+            qa.`apply_id` as proCode,
+            (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = qa.opt_uid LIMIT 1) as companyName,
+            (SELECT su.name FROM sys_user su WHERE su.user_id = e.expert_uid LIMIT 1) as expertName
+        from ass_qc_expert_eliminate e
+        left join ass_qc_group_apply_info qa on e.pro_id = qa.pro_id and e.task_id = qa.task_id
+        <where>
+            <if test="id != null"> and e.id = #{id} </if>
+            <if test="expertUid != null"> and e.expert_uid = #{expertUid} </if>
+            <if test="proId != null"> and e.pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and e.task_id = #{taskId} </if>
+            <if test="deleted != null"> and e.deleted = #{deleted} </if>
+        </where>
+        order by e.id desc
+        <if test="offset != null and limit != null">
+            <!-- limit #{offset}, #{limit} -->
+            limit ${offset}, ${limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_qc_expert_eliminate
+        <where>
+            <if test="id != null"> and id = #{id} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="deleted != null"> and deleted = #{deleted} </if>
+        </where>
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.QcExpertEliminateDO" useGeneratedKeys="true" keyProperty="id">
+        insert into ass_qc_expert_eliminate
+        (`expert_uid`, `pro_id`, `task_id`, `reason`, `prev_pro_stat`, `created`, `deleted`)
+        values
+        (#{expertUid}, #{proId}, #{taskId}, #{reason}, #{prevProStat}, now(), 0)
+    </insert>
+
+    <update id="update" parameterType="com.bootdo.cpe.domain.QcExpertEliminateDO">
+        update ass_qc_expert_eliminate
+        <set>
+            <if test="reason != null">`reason` = #{reason}, </if>
+            <if test="deleted != null">`deleted` = #{deleted}, </if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="remove">
+        delete from ass_qc_expert_eliminate where id = #{value}
+    </delete>
+
+</mapper>

@@ -30,6 +30,14 @@
 	</select>
 
 
+    <!--
+        1、查询专家分组信息：从 add_special_info 表查询专家分组记录，
+        包含 ID、任务ID、项目ID、用户ID、组长标识、专业组名、创建时间等字段
+        2、关联查询签名 URL：通过子查询从 sys_file 表获取专家签名图片的 URL
+        3、动态条件过滤：根据传入参数（如 ID、任务ID、专业组名、公司、手机号等）动态构建 WHERE 条件，
+        并过滤已删除记录（deleted = 0）
+        4、排序分页：支持自定义排序字段，默认按 ID 升序；支持分页查询（offset/limit）
+      -->
     <select id="list" resultType="com.bootdo.cpe.domain.ExpertGroupDO">
 
         select `id`,
@@ -194,5 +202,18 @@
         update add_special_info set deleted = 1 where login_account = #{loginAccount}
     </update>
 
+    <!-- 新增：获取指定taskId和proType下的所有不重复的专业组名称，用于左侧专业分类展示(得删或者得改) -->
+    <select id="getDistinctGroupNames" resultType="java.lang.String">
+        SELECT DISTINCT group_name
+        FROM add_special_info
+        <where>
+            <if test="taskId != null and taskId != ''">and task_id = #{taskId}</if>
+            <if test="proType != null and proType != ''">and pro_type = #{proType}</if>
+            and deleted = 0
+            and group_name IS NOT NULL
+            and group_name != ''
+        </where>
+        ORDER BY group_name ASC
+    </select>
 
 </mapper>

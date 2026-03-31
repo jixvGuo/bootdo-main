@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
+<meta charset="utf-8">
+<head th:include="include :: header"></head>
+<body class="gray-bg">
+<!-- 是QC 奖评审专家的项目列表页面 ,用于评审专家查看和评审分配给自己的 QC 奖申报项目。-->
+<!-- 参考科技奖 pro_list_personal.html 完善：添加提交最终打分结果按钮、查看形式审查结果按钮 -->
+<div class="wrapper wrapper-content">
+    <div class="col-sm-12">
+        <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
+
+        <!-- Tab导航 -->
+        <ul class="nav nav-tabs" id="expertTabs">
+            <li class="active"><a data-toggle="tab" href="#tabProList" onclick="switchTab('proList')">评审项目列表</a></li>
+            <li><a data-toggle="tab" href="#tabEliminateList" onclick="switchTab('eliminateList')">淘汰名单 <span id="eliminateCountBadge" class="badge" style="background-color:#e15f63;"></span></a></li>
+        </ul>
+
+        <!-- Tab内容 -->
+        <div class="tab-content" style="padding-top:10px;">
+            <!-- 评审项目列表 -->
+            <div id="tabProList" class="tab-pane fade in active">
+                <div class="ibox">
+                    <div class="ibox-body">
+                        <!-- 操作按钮区域 -->
+                        <div style="margin-bottom: 15px;">
+                            <button type="button" class="btn btn-primary" onclick="submitFinalScore()">
+                                <i class="fa fa-plus" aria-hidden="true"></i>提交最终打分结果
+                            </button>
+                            <button th:if="${scoreIsOver == 1}" type="button"
+                                    class="btn btn-primary" onclick="cancelSubmitScore()">
+                                撤回打分提交
+                            </button>
+                        </div>
+
+                        <!-- 查询筛选条件 -->
+<!--                        <div id="filterToolbar" style="margin-bottom: 10px; padding: 15px; background: #f5f5f5; border-radius: 4px;">-->
+<!--                            <div class="row">-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <input type="text" class="form-control" id="filter_proCode" placeholder="申报账号筛选">-->
+<!--                                </div>-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <input type="text" class="form-control" id="filter_topicName" placeholder="课题名称筛选">-->
+<!--                                </div>-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <input type="text" class="form-control" id="filter_groupName" placeholder="小组名称筛选">-->
+<!--                                </div>-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <input type="text" class="form-control" id="filter_companyName" placeholder="单位名称筛选">-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                            <div class="row" style="margin-top: 10px;">-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <select class="form-control" id="filter_topicType">-->
+<!--                                        <option value="">课题类型 - 全部</option>-->
+<!--                                    </select>-->
+<!--                                </div>-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <select class="form-control" id="filter_professionalScope">-->
+<!--                                        <option value="">分类类型 - 全部</option>-->
+<!--                                    </select>-->
+<!--                                </div>-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <select class="form-control" id="avoidanceFilter">-->
+<!--                                        <option value="">回避状态 - 全部</option>-->
+<!--                                        <option value="1">已回避</option>-->
+<!--                                        <option value="0">未回避</option>-->
+<!--                                    </select>-->
+<!--                                </div>-->
+<!--                                <div class="col-sm-3">-->
+<!--                                    <input type="text" name="keyWord" class="form-control" placeholder="全局关键字搜索（申报账号/课题/小组/单位）">-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                            <div class="row" style="margin-top: 10px;">-->
+<!--                                <div class="col-sm-12" style="text-align: right;">-->
+<!--                                    <button class="btn btn-primary" onclick="applyFilters()">筛选</button>-->
+<!--                                    <button class="btn btn-default" onclick="clearFilters()">重置</button>-->
+<!--                                </div>-->
+<!--                            </div>-->
+<!--                        </div>-->
+
+                        <!--  打分项目table   -->
+                        <!--  表示启用移动端响应式适配   -->
+                        <table id="exampleTable" data-mobile-responsive="true"></table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 淘汰名单 -->
+            <div id="tabEliminateList" class="tab-pane fade">
+                <div class="ibox">
+                    <div class="ibox-body">
+                        <table id="eliminateTable" data-mobile-responsive="true"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div th:include="include :: footer"></div>
+<script th:inline="javascript">
+    // 设置当前登录用户ID，用于回避功能
+    window.currentUserId = /*[[${userId}]]*/ null;
+    
+    // 传递字典数据给JS，用于筛选下拉框
+    window.projectTypes = /*[[${projectTypes}]]*/ [];
+    window.classifications = /*[[${classifications}]]*/ [];
+</script>
+<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.12"></script>
+
+</body>
+</html>

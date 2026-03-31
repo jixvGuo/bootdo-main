@@ -4,6 +4,7 @@ import com.bootdo.common.utils.StringUtils;
 import com.bootdo.cpe.dao.ExpertGroupDao;
 import com.bootdo.cpe.domain.ExpertGroupDO;
 import com.bootdo.cpe.service.ExpertGroupService;
+import com.bootdo.cpe.service.QcExpertAvoidanceService;
 import com.bootdo.system.dao.UserDao;
 import com.bootdo.system.domain.UserDO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,8 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
     private ExpertGroupDao expertGroupDao;
     @Autowired
     private UserDao userDao;
+    @Autowired
+    private QcExpertAvoidanceService avoidanceService;
 
     @Override
     public ExpertGroupDO get(Integer id) {
@@ -53,6 +56,7 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
         loginAccount = loginAccount.trim();
         params.put("loginAccount", loginAccount);
         List<ExpertGroupDO> list = expertGroupDao.list(params);
+        int result = 0;
         if(list.size() > 0) {
             Map<String,Object> userParams = new HashMap<>();
             userParams.put("name", expertGroupDO.getExpertName());
@@ -69,10 +73,30 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
             ExpertGroupDO existsExpert = list.get(0);
             if(loginAccount.equals(existsExpert.getLoginAccount())) {
                 expertGroupDO.setId(existsExpert.getId());
-                return expertGroupDao.update(expertGroupDO);
+                result = expertGroupDao.update(expertGroupDO);
+            }
+        } else {
+            result = expertGroupDao.save(expertGroupDO);
+        }
+        
+        // 保存成功后，触发自动回避检查（仅针对QC项目）
+        if (result > 0 && "QC".equals(expertGroupDO.getProType()) 
+            && StringUtils.isNotBlank(expertGroupDO.getTaskId())
+            && StringUtils.isNotBlank(expertGroupDO.getUserId())
+            && StringUtils.isNotBlank(expertGroupDO.getCompany())) {
+            try {
+                avoidanceService.autoAvoidByCompany(
+                    expertGroupDO.getTaskId(), 
+                    Integer.parseInt(expertGroupDO.getUserId()), 
+                    expertGroupDO.getCompany()
+                );
+            } catch (Exception e) {
+                // 自动回避失败不影响主流程，仅记录日志
+                e.printStackTrace();
             }
         }
-        return  expertGroupDao.save(expertGroupDO);
+        
+        return result;
     }
 
     @Override
@@ -104,5 +128,13 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
     @Override
     public int delByLoginAccount(String loginAccount) {
         return expertGroupDao.delByLoginAccount(loginAccount);
+    }
+
+    /**
+     * 新增：获取指定条件下的不重复专业组名称列表(得删或者得改)
+     */
+    @Override
+    public List<String> getDistinctGroupNames(Map<String, Object> params) {
+        return expertGroupDao.getDistinctGroupNames(params);
     }
 }

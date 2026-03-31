@@ -24,6 +24,7 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -39,12 +40,15 @@ import com.bootdo.cpe.domain.QcGroupMember;
 import com.bootdo.cpe.service.QcGroupApplyInfoService;
 import com.bootdo.cpe.service.QcGroupMemberService;
 import static com.bootdo.common.config.Constant.ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
+import static com.bootdo.common.config.Constant.ROLE_QC_SPECIALIST_ID;
 import com.bootdo.cpe.domain.science_process.ScienceAssignUserInfo;
 import java.util.Set;
 import java.util.HashSet;
 
 /**
  * QC奖任务
+ * QC流程/形审/分派入口
+ * /qcProcess
  *
  * @author houzb
  * @version 1.0
@@ -81,7 +85,9 @@ public class QcProcessController extends BaseQcProController {
     @RequiresPermissions("asso:task:assign")
     @RequestMapping("/toAssign")
     public String toAssignPro(@RequestParam Map<String, Object> params, ModelMap map) {
-        long roleId = ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
+        // 原代码：long roleId = ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
+        // 新代码：分派专家时使用QC奖评审专家角色(85)查询专家列表
+        long roleId = ROLE_QC_SPECIALIST_ID;
         packageAwardTaskId(map, params);
         params.put("roleId", roleId);
 
@@ -298,6 +304,18 @@ public class QcProcessController extends BaseQcProController {
         }
         
         awardEnterpriseProjectService.assignPro(assignProjectDataDoList);
+
+        // 修复：分派专家后，将被分派项目的状态更新为"score"（专家打分），
+        // 否则QcAwardMapper中 pro.pro_stat = 'score' 条件永远不满足，专家看不到项目
+        for (String proId : proIdArr) {
+            if (StringUtils.isNotBlank(proId)) {
+                Map<String, Object> statParams = new HashMap<>();
+                statParams.put("proId", Integer.parseInt(proId.trim()));
+                statParams.put("proStat", "score");
+                qcAwardService.updateProStat(statParams);
+            }
+        }
+
         return R.ok("分派已更新");
     }
 
@@ -364,6 +382,12 @@ public class QcProcessController extends BaseQcProController {
         //用于入库标记账号的奖项类型
         String proType = EnumProjectType.QC_PRO_GROUP.getProType();
         map.put("proType", proType);
+
+        // 动态加载QC分组列表
+        String taskId = (String) params.get("taskId");
+        List<QcGroupDO> qcGroupList = qcGroupService.getGroupsByTaskId(taskId);
+        map.put("qcGroupList", qcGroupList);
+
         Map<String, Object> selParams = new HashMap<>();
         selParams.put("taskId", params.get("taskId"));
         selParams.put("groupName", params.get("major"));
@@ -372,6 +396,120 @@ public class QcProcessController extends BaseQcProController {
         map.put("selInfoList", selList);
 
         return prefix + "/score/major_group_admin";
+    }
+
+    /**
+     * QC专业组管理 - 添加/更新专家
+     * （参考 ScienceController.toAddExpert，简化版不更新 pro_group_name）
+     */
+    @ResponseBody
+    @RequestMapping("/expert/add")
+    public R toAddExpert(ExpertGroupDO expertGroupDO) {
+        // 原代码：没有try-catch，异常会被全局处理器捕获返回"服务器错误，请联系管理员"
+        // 新代码：添加try-catch，返回具体错误信息便于排查
+        try {
+            String loginAccountObj = expertGroupDO.getLoginAccount();
+            if (loginAccountObj != null) {
+                expertGroupDO.setLoginAccount(loginAccountObj.trim());
+            }
+
+            Integer id = expertGroupDO.getId();
+            if (id == null) {
+                Map<String, Object> params = new HashMap<>();
+                params.put("loginAccount", expertGroupDO.getLoginAccount());
+                params.put("taskId", expertGroupDO.getTaskId());
+                params.put("proType", expertGroupDO.getProType());
+                List<ExpertGroupDO> expertGroupDOList = expertGroupService.list(params);
+                if (expertGroupDOList.size() > 0) {
+                    id = expertGroupDOList.get(0).getId();
+                    if (id != null && id > 0) {
+                        expertGroupDO.setId(id);
+                    }
+                }
+            }
+            int tag = 0;
+            if (id != null) {
+                tag = expertGroupService.update(expertGroupDO);
+            } else {
+                tag = expertGroupService.save(expertGroupDO);
+            }
+            if (tag > 0) {
+                R r = R.ok();
+                r.put("id", expertGroupDO.getId());
+                return r;
+            } else {
+                if (tag == -100) {
+                    return R.error("修改的用户已存在,请删除后再操作");
+                }
+                return R.error("添加数据出错");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("更新专家信息异常: " + e.getMessage());
+        }
+    }
+
+    /**
+     * QC专业组管理 - 移除专家
+     * （参考 ScienceController.toRemoveExpert）
+     *
+     * 原代码（v1）：使用逻辑删除delByLoginAccount + delUserByAccount，
+     *   且count==0时跳过sys_user删除，导致账号残留
+     * 原代码（v2）：去掉count检查，仍使用逻辑删除，但sys_user可能无deleted列导致无效
+     * 新代码（v3）：改用物理删除removeByLoginAccount，确保数据彻底清除，
+     *   同时返回诊断信息便于确认
+     */
+    @ResponseBody
+    @PostMapping("/expert/remove")
+    public R toRemoveExpert(String loginAccount) {
+        try {
+            System.out.println("[QC移除专家] 收到loginAccount参数: [" + loginAccount + "]");
+            if (StringUtils.isBlank(loginAccount)) {
+                return R.error("账号为空，无法移除");
+            }
+            loginAccount = loginAccount.trim();
+
+            // 1. 先查询sys_user确认账号是否存在
+            List<Long> uidList = userService.getUidByLoginUserName(loginAccount);
+            System.out.println("[QC移除专家] sys_user中查到userId列表: " + uidList);
+
+            // 2. 物理删除 add_special_info 中的记录
+            int expertTag = expertGroupService.removeByLoginAccount(loginAccount);
+            System.out.println("[QC移除专家] removeByLoginAccount(add_special_info)删除行数=" + expertTag);
+
+            // 3. 物理删除 sys_user 中的记录
+            int userTag = userService.removeByLoginAccount(loginAccount);
+            System.out.println("[QC移除专家] removeByLoginAccount(sys_user)删除行数=" + userTag);
+
+            R r = R.ok();
+            r.put("expertDeleted", expertTag);
+            r.put("userDeleted", userTag);
+            r.put("loginAccount", loginAccount);
+            return r;
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("[QC移除专家] 异常: " + e.getMessage());
+            return R.error("移除专家异常: " + e.getMessage());
+        }
+    }
+
+    /**
+     * QC专业组管理 - 上传专家签章页面
+     * （参考 ScienceController.toUploadConfirmFilePage）
+     */
+    @RequestMapping("/toUploadExpertSign")
+    public String toUploadExpertSignPage(@RequestParam Map<String, Object> params, ModelMap map) {
+        packageAwardTaskId(map, params);
+        Object loginAccountObj = params.get("loginAccount");
+        if (loginAccountObj != null) {
+            List<Long> list = userService.getUidByLoginUserName(loginAccountObj.toString());
+            if (list.size() > 0) {
+                map.put("expertUid", list.get(0));
+            }
+        }
+        map.put("loginAccount", params.get("loginAccount"));
+        map.put("trIndex", params.get("trIndex"));
+        return "cpe/science/science_expert_sign_upload";
     }
 
 }

@@ -8,32 +8,16 @@
 <body class="gray-bg">
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
-            <!--<div class="col-sm-12">
-                <div class="ibox float-e-margins">
-                    <div class="ibox-content">
-                        <form class="form-horizontal">
-                            <div class="form-group">
-                                <label class="col-sm-2 control-label">奖项选择：</label>
-                                <div class="col-sm-4">
-                                    <select class="form-control m-b" name="account">
-                                        <option>科技奖</option>
-                                        <option>团队</option>
-                                        <option>个人</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>-->
             <input id="taskId" name="taskId" type="hidden" th:value="${taskId}">
             <input id="proType" name="proType" type="hidden" th:value="${proType}">
+            <!--  QC 奖评审专业组管理页面的左侧分组导航栏    -->
             <div class="col-sm-3">
                 <div class="ibox float-e-margins">
                     <div class="ibox-content">
                         <ul class="folder-list" style="padding: 0">
-                            <li>
-                                <a href="javascript:showMajorAccount('')" style="display:inline-block"><i class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a></a>
+                            <!--  原代码   -->
+                            <!-- <li>
+                                <a href="javascript:showMajorAccount('')" style="display:inline-block"><i class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a>
                             </li>
                             <li>
                                 <a href="javascript:showMajorAccount('管理')" style="display:inline-block"><i class="fa fa-folder"></i> 管理&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('管理');" style="display:inline-block"><i class="fa fa-plus"></i></a>
@@ -51,7 +35,20 @@
                                 <a href="javascript:showMajorAccount('勘察设计')" style="display:inline-block"><i class="fa fa-folder"></i> 勘察设计&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('勘察设计');" style="display:inline-block"><i class="fa fa-plus"></i></a>
                             </li>
                             <li>
-                                <a href="javascript:showMajorAccount('施工')" style="display:inline-block"><i class="fa fa-folder"></i> 施工&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('施工');" style="display:inline-block"><i class="fa fa-plus"></i></a>
+                                <a href="javascript:showMajorAccount('施工')" style="display:inline-block"><i class="fa fa-folder"></i> 施工&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('施工');" style="display:inline-block"><i class="fa fa-plus"></i></a> -->
+                            <!--   显示全部   -->
+                            <li>
+                                <a href="javascript:showMajorAccount('')" style="display:inline-block"><i class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a>
+                            </li>
+                            <!--   按专业组筛选   -->
+                            <li th:each="group : ${qcGroupList}">
+                                <!--   通过 showMajorAccount(组名) 函数切换不同专业组的项目列表   -->
+                                <a th:href="'javascript:showMajorAccount(\'' + ${group.name} + '\')'" style="display:inline-block">
+                                    <i class="fa fa-folder"></i>
+                                    <span th:text="${group.name}"></span>&nbsp;&nbsp;&nbsp;&nbsp;
+                                </a>
+                                <!--   通过 add(组名) 函数为该组添加新项目   -->
+                                <a th:href="'javascript:add(\'' + ${group.name} + '\')'" style="display:inline-block"><i class="fa fa-plus"></i></a>
                             </li>
                         </ul>
                     </div>
@@ -68,13 +65,15 @@
                                 <tr>
                                     <th><input type="checkbox" class="i-checks" name="input[]"></th>
                                     <th>序号</th>
-                                    <th>专业</th>
+                                    <!--   QC是按照分组显示   -->
+                                    <!-- <th>专业</th> -->
+                                    <th>分组</th>
                                     <th>账号</th>
                                     <th>专家名称</th>
                                     <th>工作单位</th>
-                                    <th>银行账号</th>
-                                    <th>手机号</th>
-                                    <th>签章</th>
+<!--                                    <th>银行账号</th>-->
+<!--                                    <th>手机号</th>-->
+<!--                                    <th>签章</th>-->
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -83,17 +82,25 @@
                                       <th><input type="checkbox" class="i-checks" name="input[]"></th>
                                       <td name='trNum' th:text="${selStat.count}"></td>
                                       <input type='hidden' th:value ='${sel.groupName}' name="major" th:id="'majorName' + ${sel.loginAccount}" />
+                                      <input type='hidden' th:value ='${sel.isGroupLeader}' name="isGroupLeader" th:id="'isGroupLeader' + ${sel.loginAccount}" />
+                                      <input type='hidden' th:value ='${sel.userId}' name="expertUserId" th:id="'expertUserId' + ${sel.loginAccount}" />
                                       <td th:text="${sel.groupName}"></td>
                                       <td th:text="${sel.loginAccount}" th:id="'accountId' + ${sel.loginAccount}"></td>
                                       <td ><input th:value="${sel.expertName}" type="text" class="form-control" placeholder="专家名称" th:id="'accountName'+${sel.loginAccount}"></td>
                                       <td ><input th:value="${sel.company}" th:id="'accountCom' + ${sel.loginAccount}" class="form-control" type="text" placeholder="工作单位"></td>
-                                      <td ><input th:value="${sel.bankAccount}" th:id="'accountBank' + ${sel.loginAccount}" class="form-control" type="text" placeholder="银行账户"></td>
-                                      <td ><input th:value="${sel.phone}" th:id="'accountPhone' + ${sel.loginAccount}" class="form-control" type="text" placeholder="手机号"></td>
-                                      <td th:id="'signImg_'+${sel.loginAccount}"><img th:src="${sel.expertSignUrl}" width='75' height='40'></td>
+<!--                                      <td ><input th:value="${sel.bankAccount}" th:id="'accountBank' + ${sel.loginAccount}" class="form-control" type="text" placeholder="银行账户"></td>-->
+<!--                                      <td ><input th:value="${sel.phone}" th:id="'accountPhone' + ${sel.loginAccount}" class="form-control" type="text" placeholder="手机号"></td>-->
+<!--                                      <td th:id="'signImg_'+${sel.loginAccount}"><img th:src="${sel.expertSignUrl}" width='75' height='40'></td>-->
                                       <td>
-                                          <!--                                    <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save('+${sel.loginAccount}+')'">更新</button>-->
-                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign('+${sel.loginAccount}+')'">上传签章</button>
-                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove('+${sel.loginAccount}+')'">移出</button>
+                                          <!--   <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save('+${sel.loginAccount}+')'">更新</button>-->
+                                          <!-- 原代码：loginAccount未加引号，含字母的账号会导致JS语法错误 -->
+                                          <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign('+${sel.loginAccount}+')'">上传签章</button> -->
+                                          <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove('+${sel.loginAccount}+')'">移出</button> -->
+                                          <!-- 新代码：loginAccount加引号，避免含字母账号的语法错误 -->
+                                          <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save(\'' + ${sel.loginAccount} + '\')'">更新</button>
+<!--                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章</button>-->
+<!--                                          <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>-->
+                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove(\'' + ${sel.loginAccount} + '\')'">移出</button>
                                       </td>
                                   </tr>
                             </tbody>
@@ -104,6 +111,48 @@
             </div>
         </div>
     </div>
+    
+    <!-- 回避管理弹窗（供layer.open使用） -->
+    <div id="avoidanceModal" style="display:none; padding: 20px;">
+        <input type="hidden" id="currentExpertUserId" />
+        
+        <!-- 筛选条件 -->
+        <div class="row" style="margin-bottom: 15px;">
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="avoidance_filter_topicName" placeholder="项目名称">
+            </div>
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="avoidance_filter_proCode" placeholder="申报账号">
+            </div>
+            <div class="col-sm-3">
+                <select class="form-control" id="avoidance_filter_status">
+                    <option value="">状态 - 全选</option>
+                    <option value="1">已回避</option>
+                    <option value="0">未回避</option>
+                </select>
+            </div>
+            <div class="col-sm-3">
+                <button class="btn btn-primary btn-sm" onclick="applyAvoidanceFilters()">筛选</button>
+                <button class="btn btn-default btn-sm" onclick="clearAvoidanceFilters()">重置</button>
+            </div>
+        </div>
+        
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>项目名称</th>
+                    <th>申报账号</th>
+                    <th>状态</th>
+                    <th>回避状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="avoidanceTableBody">
+                <tr><td colspan="5" class="text-center">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
     <div th:include="include :: footer"></div>
     <script type="text/javascript">
         $(document).ready(function () { $(".i-checks").iCheck({ checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green", }) });
@@ -133,9 +182,10 @@
 
             var aindex = ($("#list").children().length + 1);
 
-            console.log("----== " + major);
+            // console.log("----== " + major);
 
-            var raondom = getYearMonth() + '03' + aindex + items[Math.floor(Math.random() * items.length)];
+            //var raondom = getYearMonth() + '03' + aindex + items[Math.floor(Math.random() * items.length)];
+            var raondom = getYearMonth() + "_" + Math.random().toString(36).substr(2, 7);
             let loginAccount = raondom;
 
 
@@ -146,22 +196,27 @@
                 "                 <input type=\"checkbox\" class=\"i-checks\" name=\"input[]\">"+
                 "             </td>"+
                 "             <td name='trNum' style=\"width:50px\">" + aindex + "</td>" +
-                "             <td style=\"width:50px\"><input type='hidden' name=\"major\" value='"+major+"' id='majorName"+loginAccount+"' /> " + major + "</td>" +
+                "             <td style=\"width:50px\"><input type='hidden' name=\"major\" value='"+major+"' id='majorName"+loginAccount+"' /><input type='hidden' name=\"isGroupLeader\" value='0' id='isGroupLeader"+loginAccount+"' /><input type='hidden' name=\"expertUserId\" value='' id='expertUserId"+loginAccount+"' /> " + major + "</td>" +
                 "             <td style=\"width:120px\" id=\"accountId" + loginAccount + "\">" + raondom + " </td>" +
                 "             <td style=\"width:120px\"contentEditable=\"true\"> " +
                 "                 <input type='text' class=\"form-control\" placeholder='专家名称' id='accountName" + loginAccount + "'/> " +
                 "             </td>" +
                 "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountCom" + loginAccount +
                 "' class=\"form-control\" type='text' placeholder='工作单位'></td>" +
-                "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountBank" + loginAccount +
-                "'class=\"form-control\" type='text' placeholder='银行账户'></td>" +
-                "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountPhone" + loginAccount +
-                "'class=\"form-control\" type='text' placeholder='手机号'></td>" +
-                "             <td id='signImg_"+loginAccount+"' style=\"width:120px\"></td>" +
+                // "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountBank" + loginAccount +
+                // "'class=\"form-control\" type='text' placeholder='银行账户'></td>" +
+                // "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountPhone" + loginAccount +
+                // "'class=\"form-control\" type='text' placeholder='手机号'></td>" +
+                // "             <td id='signImg_"+loginAccount+"' style=\"width:120px\"></td>" +
                 "             <td style=\"width:200px\">" +
-                "              <button id='saveBtn_"+loginAccount+"' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(" + loginAccount + ")'  >保存</button>" +
-                "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(" + loginAccount + ")'>上传签章</button>" +
-                "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(" + loginAccount + ")' >移出</button>" +
+                // 原代码：loginAccount未加引号，含字母的账号会导致JS语法错误
+                // "              <button id='saveBtn_"+loginAccount+"' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(" + loginAccount + ")'  >保存</button>" +
+                // "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(" + loginAccount + ")'>上传签章</button>" +
+                // "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(" + loginAccount + ")' >移出</button>" +
+                // 新代码：loginAccount加引号，确保含字母账号也能正常调用
+                "              <button id='saveBtn_"+loginAccount+"' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(\"" + loginAccount + "\")'  >保存</button>" +
+                // "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(\"" + loginAccount + "\")'>上传签章</button>" +
+                "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(\"" + loginAccount + "\")' >移出</button>" +
                 "             </td>"
             "         </tr>";
             $("#list").append(html);
@@ -177,19 +232,26 @@
          * @param a
          */
         function remove(a) {
-            let loginAccount = $("#accountId" + a).html();
+            // 原代码：.html()可能包含尾部空格导致账号不匹配
+            // let loginAccount = $("#accountId" + a).html();
+            // 新代码：使用.text().trim()确保无多余空格
+            let loginAccount = $.trim($("#accountId" + a).text());
+            console.log("[移出] 参数a=" + a + ", 选择器=#accountId" + a + ", loginAccount=[" + loginAccount + "]");
             $.ajax({
                 cache: true,
-                url: "/scienceProgressScience/expert/remove",
+                // url: "/scienceProgressScience/expert/remove",
+                url: "/qcProcess/expert/remove",
                 type: 'POST',
                 data: {
                     loginAccount:loginAccount
                 },
                 async: false,
                 error: function (request) {
+                    console.log("[移出] AJAX error:", request);
                     parent.layer.alert("Connection error");
                 },
                 success: function (data) {
+                    console.log("[移出] 返回结果:", JSON.stringify(data));
                     if (data.code == 0) {
                         parent.layer.msg("操作成功");
                         $("#tr_"+a).remove();
@@ -211,7 +273,10 @@
         function onAddSign(a) {
 
             let taskId = $("#taskId").val();
-            var loginAccount = $("#accountId" + a).html();
+            // 原代码：.html()可能包含尾部空格
+            // var loginAccount = $("#accountId" + a).html();
+            // 新代码：使用.text().trim()
+            var loginAccount = $.trim($("#accountId" + a).text());
             let saveBtnHtml = $("#saveBtn_" + a).html();
 
             if(saveBtnHtml != "保存") {
@@ -231,7 +296,8 @@
                 type: 2,
                 shadeClose: false, // 点击遮罩关闭层
                 area: ['800px', '520px'],
-                content: '/scienceProgressScience/toUploadExpertSign?taskId='+taskId+'&loginAccount=' + loginAccount+"&trIndex="+a
+                // content: '/scienceProgressScience/toUploadExpertSign?taskId='+taskId+'&loginAccount=' + loginAccount+"&trIndex="+a
+                content: '/qcProcess/toUploadExpertSign?taskId='+taskId+'&loginAccount=' + loginAccount+"&trIndex="+a
             });
         }
 
@@ -242,19 +308,19 @@
          */
         function save(a,callback) {
             var fd = {
-                "username": $("#accountId" + a).html(),
+                // 原代码：.html()可能包含尾部空格导致用户名带空格入库
+                // "username": $("#accountId" + a).html(),
+                // 新代码：使用.text().trim()确保用户名无多余空格
+                "username": $.trim($("#accountId" + a).text()),
                 "password": "123456",
                 "name": $("#accountName" + a).val(),
                 "bankCard": $("#accountBank" + a).val(),
                 "mobile": $("#accountPhone" + a).val(),
-                "roleIds": "62",
+                "roleIds": "85",  // 新代码：使用QC奖评审专家角色
                 "status": "1",
                 "accountCom":$("#accountCom" + a).val()
             };
-
-
-            console.log("保存专家数据" + JSON.stringify(fd) + fd);
-
+            // console.log("保存专家数据" + JSON.stringify(fd) + fd);
             $.ajax({
                 cache: true,
                 url: "/sys/user/savepro",
@@ -262,14 +328,25 @@
                 data: fd,
                 async: false,
                 error: function (request) {
+                    // layui 框架
                     parent.layer.alert("Connection error");
                 },
                 success: function (data) {
                     if (data.code == 0) {
                         // parent.layer.msg("操作成功");
-                        console.log(data.msg + "userid");
-                        var isLeader = a == $("#list").find("tr").get(0).find("td").get(2).html();
+                        // console.log(data.msg + "userid");
+                        // 原代码：.get(0)返回DOM元素而非jQuery对象，调用.find()会报TypeError崩溃，导致saveExpertInfo永远不会被调用
+                        // var isLeader = a == $("#list").find("tr").get(0).find("td").get(2).html();
+                        // 新代码：使用jQuery的.eq()方法代替.get()，并增加异常保护
+                        var isLeader = false;
                         var majorName = $("#majorName"+a).val();
+                        try {
+                            var leaderVal = $("#isGroupLeader" + a).val();
+                            isLeader = ('' + leaderVal) === '1';
+                        } catch(e) {
+                            console.log('判断isLeader异常:', e);
+                            isLeader = false;
+                        }
                         saveExpertInfo(data.msg,isLeader,majorName, fd, a, callback);
 
                     } else {
@@ -284,7 +361,7 @@
          * @param uid
          */
         function saveExpertInfo(uid,isLeader,majorName, userFd, trIndex, callback) {
-            console.log("== this.selfProfession =" + uid);
+            // console.log("== this.selfProfession =" + uid);
             var proType = $("#proType").val();  //获取选中的项
             var fd = {
                 "userName": majorName,
@@ -304,7 +381,7 @@
 
             $.ajax({
                 cache: true,
-                url: "/scienceProgressScience/expert/add",
+                url: "/qcProcess/expert/add",
                 type: 'POST',
                 data: fd,
                 async: false,
@@ -314,7 +391,11 @@
                 success: function (data) {
                     if (data.code == 0) {
                         $("#saveBtn_" + trIndex).html("更新");
-                        $("#saveBtn_" + trIndex).remove();
+                        // 保存userId到隐藏字段，供回避功能使用
+                        if (data.id) {
+                            $("#expertUserId" + trIndex).val(data.id);
+                        }
+                        // $("#saveBtn_" + trIndex).remove();
                         if(callback) {
                             callback();
                         }else {
@@ -333,7 +414,240 @@
         function showSpeclist(major) {
             var proType = $("#proType").val();  //获取选中的项
             let taskId = $("#taskId").val();
-            window.location.href= "/scienceProgressScience/toAssignExperts?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
+            // window.location.href= "/scienceProgressScience/toAssignExperts?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
+            window.location.href= "/qcProcess/toAddSpecialist?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
+        }
+
+        // ==================== 回避管理功能 ====================
+        var currentExpertUserId = null;
+        var currentExpertLoginAccount = null;
+
+        /**
+         * 打开回避管理弹窗
+         */
+        function manageAvoidance(loginAccount) {
+            var taskId = $("#taskId").val();
+            var expertName = $("#accountName" + loginAccount).val() || loginAccount;
+            
+            // 从DOM读取userId
+            var expertUserId = $("#expertUserId" + loginAccount).val();
+            
+            // console.log('[回避] loginAccount=' + loginAccount + ', expertUserId=' + expertUserId);
+            
+            if (!expertUserId || expertUserId === 'null' || expertUserId === '') {
+                layer.alert("无法获取专家用户ID，请先保存专家信息");
+                return;
+            }
+            
+            currentExpertUserId = expertUserId;
+            currentExpertLoginAccount = loginAccount;
+            
+            // 使用layer.open显示弹窗
+            layer.open({
+                type: 1,
+                title: '专家回避管理 - ' + expertName,
+                area: ['900px', '600px'],
+                content: $('#avoidanceModal'),
+                success: function() {
+                    // 加载该专家已分配的项目列表
+                    loadExpertProjects(taskId, expertUserId);
+                }
+            });
+        }
+
+        // 存储原始项目数据，用于筛选
+        var allAvoidanceProjects = [];
+        
+        /**
+         * 加载专家已分配的项目列表
+         */
+        function loadExpertProjects(taskId, expertUserId) {
+            $.ajax({
+                type: "GET",
+                url: "/qcScore/get/expertProList",
+                data: {
+                    taskId: taskId,
+                    scoreSpecialistUid: expertUserId,
+                    limit: 1000,
+                    offset: 0
+                },
+                success: function(data) {
+                    if (data && data.rows) {
+                        allAvoidanceProjects = data.rows; // 保存原始数据
+                        // 回避表格
+                        renderAvoidanceTable(data.rows);
+                    } else {
+                        allAvoidanceProjects = [];
+                        $("#avoidanceTableBody").html('<tr><td colspan="5" class="text-center">暂无分配项目</td></tr>');
+                    }
+                },
+                error: function() {
+                    parent.layer.alert("加载项目列表失败");
+                }
+            });
+        }
+
+        /**
+         * 渲染回避表格
+         */
+        function renderAvoidanceTable(projects) {
+            var tbody = $("#avoidanceTableBody");
+            tbody.empty();
+            
+            if (!projects || projects.length === 0) {
+                tbody.html('<tr><td colspan="5" class="text-center">暂无分配项目</td></tr>');
+                return;
+            }
+            
+            projects.forEach(function(project) {
+                var statusText = getProStatText(project.proStat);
+                var isAvoided = project.isAvoided || false;
+                var avoidanceStatus = isAvoided ? '<span class="label label-warning">已回避</span>' : '<span class="label label-success">正常</span>';
+                
+                var operationBtn = '';
+                if (isAvoided) {
+                    operationBtn = '<button class="btn btn-sm btn-success" onclick="cancelAvoidance(' + project.proId + ')">取消回避</button>';
+                } else {
+                    operationBtn = '<button class="btn btn-sm btn-warning" onclick="setAvoidance(' + project.proId + ')">设为回避</button>';
+                }
+                
+                var row = '<tr>' +
+                    '<td>' + (project.topicName || '-') + '</td>' +
+                    '<td>' + (project.applyAccount || '-') + '</td>' +
+                    '<td>' + statusText + '</td>' +
+                    '<td>' + avoidanceStatus + '</td>' +
+                    '<td>' + operationBtn + '</td>' +
+                    '</tr>';
+                tbody.append(row);
+            });
+        }
+
+        /**
+         * 获取项目状态文本
+         */
+        function getProStatText(proStat) {
+            var statMap = {
+                'not_apply': '未申报',
+                'apply_ing': '申报中',
+                'apply_done': '申报完成',
+                'score_ing': '评分中',
+                'score_done': '评分完成',
+                'eliminated': '已淘汰'
+            };
+            return statMap[proStat] || proStat || '-';
+        }
+
+        /**
+         * 应用筛选条件
+         */
+        function applyAvoidanceFilters() {
+            var filterTopicName = $("#avoidance_filter_topicName").val().toLowerCase();
+            var filterProCode = $("#avoidance_filter_proCode").val().toLowerCase();
+            var filterStatus = $("#avoidance_filter_status").val();
+            
+            var filteredProjects = allAvoidanceProjects.filter(function(project) {
+                // 项目名称筛选
+                if (filterTopicName && (!project.topicName || project.topicName.toLowerCase().indexOf(filterTopicName) === -1)) {
+                    return false;
+                }
+                
+                // 申报账号筛选
+                if (filterProCode && (!project.applyAccount || project.applyAccount.toLowerCase().indexOf(filterProCode) === -1)) {
+                    return false;
+                }
+                
+                // 回避状态筛选
+                if (filterStatus !== "") {
+                    var isAvoided = project.isAvoided || false;
+                    if (filterStatus === "1" && !isAvoided) {
+                        return false;
+                    }
+                    if (filterStatus === "0" && isAvoided) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            });
+            
+            renderAvoidanceTable(filteredProjects);
+        }
+
+        /**
+         * 清空筛选条件
+         */
+        function clearAvoidanceFilters() {
+            $("#avoidance_filter_topicName").val('');
+            $("#avoidance_filter_proCode").val('');
+            $("#avoidance_filter_status").val('');
+            renderAvoidanceTable(allAvoidanceProjects);
+        }
+
+        /**
+         * 设为回避
+         */
+        function setAvoidance(proId) {
+            var taskId = $("#taskId").val();
+            
+            layer.confirm('确认将此项目设为回避？', {
+                btn: ['确认', '取消']
+            }, function(index) {
+                $.ajax({
+                    type: "POST",
+                    url: "/cpe/qcAvoidance/manualAvoid",
+                    data: {
+                        taskId: taskId,
+                        proId: proId,
+                        expertUserId: currentExpertUserId,
+                        reason: "手动回避"
+                    },
+                    success: function(data) {
+                        if (data.code === 0) {
+                            layer.msg("设置成功");
+                            loadExpertProjects(taskId, currentExpertUserId);
+                        } else {
+                            layer.alert(data.msg || "设置失败");
+                        }
+                    },
+                    error: function() {
+                        layer.alert("设置回避失败");
+                    }
+                });
+                layer.close(index);
+            });
+        }
+
+        /**
+         * 取消回避
+         */
+        function cancelAvoidance(proId) {
+            var taskId = $("#taskId").val();
+            
+            layer.confirm('确认取消此项目的回避状态？', {
+                btn: ['确认', '取消']
+            }, function(index) {
+                $.ajax({
+                    type: "POST",
+                    url: "/cpe/qcAvoidance/cancelAvoid",
+                    data: {
+                        taskId: taskId,
+                        proId: proId,
+                        expertUserId: currentExpertUserId
+                    },
+                    success: function(data) {
+                        if (data.code === 0) {
+                            layer.msg("取消成功");
+                            loadExpertProjects(taskId, currentExpertUserId);
+                        } else {
+                            layer.alert(data.msg || "取消失败");
+                        }
+                    },
+                    error: function() {
+                        layer.alert("取消回避失败");
+                    }
+                });
+                layer.close(index);
+            });
         }
     </script>
 

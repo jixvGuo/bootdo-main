@@ -97,6 +97,8 @@ public class QcReviewResultRecordController extends BaseQcProController {
 		proStatParams.put("reviewResult", qcReviewResultRecord.getReviewResult());
 		// petroleumEngineeringService.updateProStat(proStatParams);
 //		qcAwardService.updateProStat(proStatParams);
+		// 修复：形审保存结论后，需要根据审查结论更新项目状态，否则项目状态永远停在check
+		qcAwardService.updateProStat(proStatParams);
 
 		Long uid = getUserId();
 		qcReviewResultRecord.setOptUid(uid.intValue());

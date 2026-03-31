@@ -9,7 +9,7 @@
         join ass_award_publish_task pt on qa.task_id = pt.id
         join ass_award_enterprise_project pro ON qa.pro_id = pro.id
         <if test="scoreSpecialistUid != null">
-            join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and pro.pro_stat = 'score' and si.deleted = 0
+            join add_special_info si on si.task_id = qa.task_id and pro.qc_group_name = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
         </if>
         <if test="ass_assign_uid != null">
             join ass_award_assign_project asignPro on asignPro.pro_id = pro.id and asignPro.uid = #{ass_assign_uid}
@@ -31,6 +31,9 @@
             <if test="optUid != null and optUid != ''"> and qa.opt_uid = #{optUid} </if>
             <if test="proId != null and proId != ''"> and qa.pro_id = #{proId} </if>
             <if test="taskId != null and taskId != ''"> and qa.task_id = #{taskId} </if>
+            <if test="scoreSpecialistUid != null and (proId == null or proId == '')">
+                and (pro.pro_stat is null or pro.pro_stat != 'eliminated')
+            </if>
 
             <if test="keyWord != null and keyWord != ''">
                 <choose>
@@ -205,29 +208,6 @@
 <!--        ORDER BY rr.created DESC-->
 <!--        LIMIT 1) AS latestReviewComment,-->
 
-<!--        (SELECT DATE_FORMAT(rr.created, '%Y-%m-%d %H:%i:%s')-->
-<!--        FROM ass_qc_review_result_record rr-->
-<!--        WHERE rr.pro_id = qa.pro_id-->
-<!--        ORDER BY rr.created DESC-->
-<!--        LIMIT 1) AS latestReviewTime,-->
-<!--        qa.apply_id as proCode, &lt;!&ndash; 使用 qa 的 apply_id 作为成果编号 &ndash;&gt;-->
-<!--        (SELECT username FROM sys_user where user_id = qa.opt_uid limit 1) opt_account-->
-
-<!--        <include refid="proJoins" />-->
-<!--        <include refid="proWhere" />-->
-
-<!--        <choose>-->
-<!--            <when test="sort != null and sort.trim() != ''">-->
-<!--                order by ${sort} ${order}-->
-<!--            </when>-->
-<!--            <otherwise>-->
-<!--                order by qa.id desc-->
-<!--            </otherwise>-->
-<!--        </choose>-->
-<!--        <if test="offset != null and limit != null">-->
-<!--            limit #{offset}, #{limit}-->
-<!--        </if>-->
-<!--    </select>-->
     <select id="getProDataList" resultType="com.bootdo.cpe.dto.QcProDataDto">
         select
         qa.`id`, qa.`opt_uid`, qa.`pro_id`, qa.`task_id`, qa.`apply_id`,
@@ -236,7 +216,7 @@
         WHEN 'solving' THEN '问题解决型'
         WHEN 'innovate' THEN '创新型'
         ELSE qa.`topic_type`
-        END AS 'topic_type',
+        END AS topic_type,
         qa.`contacts`,
         qa.`phone`,
         CASE qa.`professional_scope`
@@ -245,7 +225,33 @@
         WHEN 'construction' THEN '施工'
         WHEN 'other' THEN '其它'
         ELSE qa.`professional_scope`
-        END AS 'professional_scope',
+        END AS professional_scope,
+        <choose>
+            <when test="scoreSpecialistUid != null">
+                CASE qa.`topic_type`
+                WHEN 'solving' THEN (
+                    SELECT DATE_FORMAT(MAX(rs.updated), '%Y-%m-%d')
+                    FROM ass_qc_result_solve_score rs
+                    WHERE rs.pro_id = qa.pro_id
+                    AND rs.task_id = qa.task_id
+                    AND rs.opt_uid = #{scoreSpecialistUid}
+                    AND rs.deleted = 0
+                )
+                WHEN 'innovate' THEN (
+                    SELECT DATE_FORMAT(MAX(ri.updated), '%Y-%m-%d')
+                    FROM ass_qc_result_innovate_score ri
+                    WHERE ri.pro_id = qa.pro_id
+                    AND ri.task_id = qa.task_id
+                    AND ri.opt_uid = #{scoreSpecialistUid}
+                    AND ri.deleted = 0
+                )
+                ELSE ''
+                END
+            </when>
+            <otherwise>
+                ''
+            </otherwise>
+        </choose> AS scoreDate,
         qa.`group_desc`, qa.`sel_topic_reason`,
         qa.`act_desc`, qa.`main_result`, qa.`recommend_action`,
         qa.`created`, qa.`updated`, qa.`deleted`,

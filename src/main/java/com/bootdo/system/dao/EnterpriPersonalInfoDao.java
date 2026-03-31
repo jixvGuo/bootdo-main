@@ -17,7 +17,12 @@ import org.apache.ibatis.annotations.Mapper;
 public interface EnterpriPersonalInfoDao {
 
 	EnterpriPersonalInfoDO get(Integer id);
-	
+
+	/**
+	 * 查询先进个人奖申报项目列表的 SQL，主要用于协会工作人员、专家组长等角色查看和管理先进个人奖的申报信息
+	 * @param map
+	 * @return
+	 */
 	List<EnterpriPersonalInfoDO> list(Map<String,Object> map);
 	
 	int count(Map<String,Object> map);

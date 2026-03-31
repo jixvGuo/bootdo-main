@@ -39,10 +39,12 @@
 			join ass_award_publish_task task on pi.task_id = task.id and task.association_userid = #{associationUserId}
 		</if>
 		<if test="scoreSpecialistUid != null">
-            join add_special_info si on pro.pro_group_name = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
+		<!-- join add_special_info si on pro.pro_group_name = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0 -->
+            join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
         </if>
         <where>
-			      <if test="scoreSpecialistUid != null"> and now() between pt.expert_start_time and pt.expert_end_time</if>
+		<!-- <if test="scoreSpecialistUid != null"> and now() between pt.expert_start_time and pt.expert_end_time</if> -->
+			      <if test="scoreSpecialistUid != null"> and (pt.expert_start_time is null or pt.expert_end_time is null or now() between pt.expert_start_time and pt.expert_end_time)</if>
 		  		  <if test="id != null and id != ''"> and pi.id = #{id} </if>
 		  		  <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
 			      <if test="taskId != null and taskId != ''"> and pro.publish_task_id = #{taskId} </if>

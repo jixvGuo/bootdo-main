@@ -301,10 +301,13 @@ function resolveOps(stage, proStat, row) {
         }
     }
     
+    // 编辑按钮始终可用（需求：无论任何阶段编辑按钮都要一直存在）
+    ops.edit = true;
 
     // 2) 行级权限叠加
     if (!row.isEdit) {
-        ops.edit = false;
+        // ops.edit = false;  // 原代码：编辑按钮随 isEdit 禁用
+        // ops.edit = true;   // 新代码：编辑按钮始终可用，不再受 isEdit 影响
         ops.remove = false;
     }
     if (!row.isDownloadProDoc) {
@@ -329,7 +332,7 @@ function resolveOps(stage, proStat, row) {
     }
     if (typeof isEnterpriseUser !== 'undefined' && !isEnterpriseUser && !window.isAssociationLeader) {
         ops.submit = false;
-        ops.edit=false;
+        // ops.edit=false;    // 原代码：非企业/非领导禁用编辑
         ops.remove=false;
     }
     // 4) 形式审查按钮
@@ -343,7 +346,8 @@ function resolveOps(stage, proStat, row) {
         ops.view = true;
     }
     if (isLeader) {
-        ops.edit = false;
+        // ops.edit = false;  // 原代码：领导角色禁用编辑
+        ops.edit = true;      // 新代码：领导角色也始终显示编辑按钮
         ops.remove = false;
         ops.print = true;
         ops.download = true;

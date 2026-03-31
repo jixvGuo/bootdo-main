@@ -17,6 +17,18 @@ public enum  EnumProjectType {
     SURVER_PRO("surver_pro","勘察设计奖类型"),
     GF_PRO("gf_pro","工法奖"),
     ;
+
+    /**
+     * 项目类型
+     * 项目的类型:
+     * science_progress 科技进步,
+     * science_team科技团队,
+     * science_personal科技个人,
+     * oil_install 石油安装工程优质奖,
+     * oil_quality_gold 石油优质工程金奖,
+     * oil_quality_gold 石油优质工程奖,
+     * qc_group QC奖小组
+     */
     private String proType;
     private String desc;
 

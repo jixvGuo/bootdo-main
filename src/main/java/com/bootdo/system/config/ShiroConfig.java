@@ -76,6 +76,7 @@ public class ShiroConfig {
         LinkedHashMap<String, String> filterChainDefinitionMap = new LinkedHashMap<>();
         filterChainDefinitionMap.put("/login","anon");
         filterChainDefinitionMap.put("/toLogin","anon");
+
         filterChainDefinitionMap.put("/to_register","anon");
         filterChainDefinitionMap.put("/register_company","anon");
         filterChainDefinitionMap.put("/css/**", "anon");
