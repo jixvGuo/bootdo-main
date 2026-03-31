@@ -306,9 +306,35 @@ public class SurverApplyController extends BaseSurverController {
     @RequestMapping("/toApplyContributeUserList")
     public String toApplyContributeUserList(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
+        // 前端分页模板在“上一页/下一页”链接里 pageNum 固定取 ${pageNum}，
+        // 但会带上 pageType=up/down。因此需要后端根据 pageType 调整页码。
+        Object pageTypeObj = params.get("pageType");
+        Object pageNumObj = params.get("pageNum");
+        int curPageNum = pageNumObj == null ? 1 : Integer.parseInt(pageNumObj.toString());
+        String pageType = pageTypeObj == null ? null : pageTypeObj.toString();
+        if ("up".equals(pageType) && curPageNum > 1) {
+            curPageNum = curPageNum - 1;
+        } else if ("down".equals(pageType)) {
+            curPageNum = curPageNum + 1;
+        }
+        params.put("pageNum", curPageNum);
+
+        int realCurPageNum = pageNumPackage(params, map);
         Query query = new Query(params);
+        query.put("sort", "id");
+        query.put("order", "asc");
         List<SurverDesiginContributeUserInfoDO> contributeUserInfoDOList = surverDesiginContributeUserInfoService.list(query);
-		map.put("list", contributeUserInfoDOList);
+        // 如果当前页无数据（例如“下一页”越界），则回退到上一页，避免空白页
+        if (contributeUserInfoDOList.isEmpty() && realCurPageNum > 1) {
+            params.put("pageNum", realCurPageNum - 1);
+            pageNumPackage(params, map);
+            query = new Query(params);
+            query.put("sort", "id");
+            query.put("order", "asc");
+            contributeUserInfoDOList = surverDesiginContributeUserInfoService.list(query);
+        }
+
+        map.put("list", contributeUserInfoDOList);
         return prefix + "/apply/apply_design_contribute_user_list";
     }
 
@@ -325,6 +351,7 @@ public class SurverApplyController extends BaseSurverController {
     public String toApplyContributeUserAdd(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
         map.put("contributeUserInfo", new SurverDesiginContributeUserInfoDO());
+
         return prefix + "/apply/apply_design_contribute_user_add";
     }
 
