@@ -419,6 +419,7 @@ public class QcProcessController extends BaseQcProController {
                 params.put("loginAccount", expertGroupDO.getLoginAccount());
                 params.put("taskId", expertGroupDO.getTaskId());
                 params.put("proType", expertGroupDO.getProType());
+                // 判断是更新还是新增
                 List<ExpertGroupDO> expertGroupDOList = expertGroupService.list(params);
                 if (expertGroupDOList.size() > 0) {
                     id = expertGroupDOList.get(0).getId();
@@ -450,12 +451,11 @@ public class QcProcessController extends BaseQcProController {
     }
 
     /**
-     * QC专业组管理 - 移除专家
+     * QC专业组管理 - 移出专家
      * （参考 ScienceController.toRemoveExpert）
      *
      * 原代码（v1）：使用逻辑删除delByLoginAccount + delUserByAccount，
      *   且count==0时跳过sys_user删除，导致账号残留
-     * 原代码（v2）：去掉count检查，仍使用逻辑删除，但sys_user可能无deleted列导致无效
      * 新代码（v3）：改用物理删除removeByLoginAccount，确保数据彻底清除，
      *   同时返回诊断信息便于确认
      */
@@ -463,7 +463,6 @@ public class QcProcessController extends BaseQcProController {
     @PostMapping("/expert/remove")
     public R toRemoveExpert(String loginAccount) {
         try {
-            System.out.println("[QC移除专家] 收到loginAccount参数: [" + loginAccount + "]");
             if (StringUtils.isBlank(loginAccount)) {
                 return R.error("账号为空，无法移除");
             }
@@ -471,15 +470,12 @@ public class QcProcessController extends BaseQcProController {
 
             // 1. 先查询sys_user确认账号是否存在
             List<Long> uidList = userService.getUidByLoginUserName(loginAccount);
-            System.out.println("[QC移除专家] sys_user中查到userId列表: " + uidList);
 
             // 2. 物理删除 add_special_info 中的记录
             int expertTag = expertGroupService.removeByLoginAccount(loginAccount);
-            System.out.println("[QC移除专家] removeByLoginAccount(add_special_info)删除行数=" + expertTag);
 
             // 3. 物理删除 sys_user 中的记录
             int userTag = userService.removeByLoginAccount(loginAccount);
-            System.out.println("[QC移除专家] removeByLoginAccount(sys_user)删除行数=" + userTag);
 
             R r = R.ok();
             r.put("expertDeleted", expertTag);
@@ -488,8 +484,8 @@ public class QcProcessController extends BaseQcProController {
             return r;
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("[QC移除专家] 异常: " + e.getMessage());
-            return R.error("移除专家异常: " + e.getMessage());
+            System.out.println("[QC移出专家] 异常: " + e.getMessage());
+            return R.error("移出专家异常: " + e.getMessage());
         }
     }
 

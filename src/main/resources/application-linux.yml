@@ -19,6 +19,11 @@ spring:
     password: bootdo5767 # 替换为您的数据库密码
     #    username: admin           # 替换为您的数据库用户名
     #    password: 123456 # 替换为您的数据库密码
+
+#    url: jdbc:mysql://123.57.10.88:3128/boot_do?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+#    username: boot_do        # 替换为您的数据库用户名
+#    password: bootdo5767 # 替换为您的数据库密码
+
     initialSize: 1
     minIdle: 3
     maxActive: 20

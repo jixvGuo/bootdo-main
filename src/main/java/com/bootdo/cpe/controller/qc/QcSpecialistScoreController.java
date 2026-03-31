@@ -132,10 +132,10 @@ public class QcSpecialistScoreController extends BaseQcProController {
                     String expertTaskId = expert.getTaskId();
                     String originalTaskId = params.get("taskId") != null ? params.get("taskId").toString() : "null";
                     params.put("taskId", expertTaskId);
-                    System.out.println("[专家任务强制覆盖] 专家userId=" + expert.getUserId() 
-                        + ", groupName=" + expert.getGroupName()
-                        + ", 系统默认taskId=" + originalTaskId 
-                        + ", 强制使用专家分配taskId=" + expertTaskId);
+//                    System.out.println("[专家任务强制覆盖] 专家userId=" + expert.getUserId()
+//                        + ", groupName=" + expert.getGroupName()
+//                        + ", 系统默认taskId=" + originalTaskId
+//                        + ", 强制使用专家分配taskId=" + expertTaskId);
                 }
             } catch (Exception e) {
                 System.out.println("[专家任务强制覆盖] 查询失败: " + e.getMessage());
@@ -246,6 +246,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
 
         System.out.println("[查询参数] 最终传递给Mapper的params=" + params);
         Query query = new Query(params);
+        // 获取 QC 项目列表数据
         List<QcProDataDto> proDataDtoList = qcAwardService.listProInfo(query);
         int total = qcAwardService.countProInfo(query);
         
@@ -270,10 +271,38 @@ public class QcSpecialistScoreController extends BaseQcProController {
             }
         }
         
+        // 【新增】获取当前专家已淘汰的项目ID列表
+        // 1：查询当前专家的淘汰记录
+        Set<Integer> eliminatedProIds = new HashSet<>();
+        if (roleIdList.contains(ROLE_QC_SPECIALIST_ID) && StringUtils.isNotBlank(taskId)) {
+            Map<String, Object> eliminateParams = new HashMap<>();
+            eliminateParams.put("expertUid", uid); // 只查当前专家的
+            eliminateParams.put("taskId", taskId);
+            eliminateParams.put("deleted", 0); // 只查有效的淘汰记录
+            List<QcExpertEliminateDO> eliminatedList = qcExpertEliminateService.list(eliminateParams);
+            if (eliminatedList != null && !eliminatedList.isEmpty()) {
+                for (QcExpertEliminateDO eliminate : eliminatedList) {
+                    // 提取所有被淘汰的项目ID
+                    if (eliminate.getProId() != null) {
+                        eliminatedProIds.add(eliminate.getProId());
+                    }
+                }
+            }
+//            System.out.println("[淘汰过滤] 当前专家uid=" + uid + " 已淘汰项目数=" + eliminatedProIds.size() + ", 项目IDs=" + eliminatedProIds);
+        }
+        
         if (StringUtils.isNotBlank(taskId) && proDataDtoList != null && !proDataDtoList.isEmpty()) {
             List<QcProDataDto> filteredList = new ArrayList<>();
+            // 2：过滤项目列表
             for (QcProDataDto dto : proDataDtoList) {
                 if (dto.getProId() != null) {
+                    // 【新增】过滤掉当前专家已淘汰的项目
+                        // 如果项目ID在淘汰列表中，跳过不显示
+                    if (eliminatedProIds.contains(dto.getProId())) {
+                        System.out.println("[淘汰过滤] 过滤掉已淘汰项目: proId=" + dto.getProId() + ", topicName=" + dto.getTopicName());
+                        continue; // 跳过已淘汰的项目
+                    }
+                    
                     boolean isAvoided = avoidanceService.checkAvoidance(taskId, dto.getProId(), checkExpertUserId);
                     dto.setIsAvoided(isAvoided);
                     
@@ -517,9 +546,87 @@ public class QcSpecialistScoreController extends BaseQcProController {
     /** 每个专家最多淘汰的项目数 */
     // private static final int MAX_ELIMINATE_COUNT = 9;
 
+    // ==================== 原代码：淘汰会更改项目状态 ====================
+    // /**
+    //  * 淘汰项目
+    //  * 将项目状态置为"已淘汰"，记录淘汰理由和淘汰前状态
+    //  */
+    // @RequestMapping("/eliminate")
+    // @ResponseBody
+    // public R eliminate(@RequestParam Map<String, Object> params) {
+    //     Long uid = getUserId();
+    //     String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+    //     String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+    //     String reason = params.get("reason") != null ? params.get("reason").toString() : "";
+    //     if (StringUtils.isBlank(proIdStr)) {
+    //         return R.error("项目ID不能为空");
+    //     }
+    //     if (StringUtils.isBlank(reason)) {
+    //         return R.error("淘汰理由不能为空");
+    //     }
+    //     int proId = Integer.parseInt(proIdStr);
+    //
+    //     // 检查是否已达到淘汰上限
+    //     Map<String, Object> countParams = new HashMap<>();
+    //     countParams.put("expertUid", uid);
+    //     countParams.put("taskId", taskId);
+    //     countParams.put("deleted", 0);
+    //     int currentCount = qcExpertEliminateService.count(countParams);
+    //     if (currentCount >= MAX_ELIMINATE_COUNT) {
+    //         return R.error("您最多只能淘汰" + MAX_ELIMINATE_COUNT + "个项目，当前已淘汰" + currentCount + "个");
+    //     }
+    //
+    //     // 检查该项目是否已被该专家淘汰
+    //     Map<String, Object> checkParams = new HashMap<>();
+    //     checkParams.put("expertUid", uid);
+    //     checkParams.put("proId", proId);
+    //     checkParams.put("taskId", taskId);
+    //     checkParams.put("deleted", 0);
+    //     int exists = qcExpertEliminateService.count(checkParams);
+    //     if (exists > 0) {
+    //         return R.error("该项目已被淘汰，请勿重复操作");
+    //     }
+    //
+    //     // 获取当前项目状态
+    //     Map<String, Object> proParams = new HashMap<>();
+    //     proParams.put("proId", proId);
+    //     proParams.put("taskId", taskId);
+    //     List<QcProDataDto> proList = qcAwardService.listProInfo(proParams);
+    //     if (proList == null || proList.isEmpty()) {
+    //         return R.error("项目不存在或已无法访问");
+    //     }
+    //     String prevProStat = "";
+    //     if (proList.get(0).getProStat() != null) {
+    //         prevProStat = proList.get(0).getProStat();
+    //     }
+    //     if (QcProStatEnum.ELIMINATED.getProStat().equals(prevProStat)) {
+    //         return R.error("该项目当前已是淘汰状态");
+    //     }
+    //
+    //     // 保存淘汰记录
+    //     QcExpertEliminateDO eliminate = new QcExpertEliminateDO();
+    //     eliminate.setExpertUid(uid);
+    //     eliminate.setProId(proId);
+    //     eliminate.setTaskId(taskId);
+    //     eliminate.setReason(reason);
+    //     eliminate.setPrevProStat(prevProStat);
+    //     eliminate.setDeleted(0);
+    //     qcExpertEliminateService.save(eliminate);
+    //
+    //     // 更新项目状态为"已淘汰"
+    //     Map<String, Object> statParams = new HashMap<>();
+    //     statParams.put("proId", proId);
+    //     statParams.put("proStat", QcProStatEnum.ELIMINATED.getProStat());
+    //     qcAwardService.updateProStat(statParams);
+    //
+    //     return R.ok("淘汰成功");
+    // }
+
+    // ==================== 新代码：淘汰仅记录，不更改项目状态 ====================
     /**
-     * 淘汰项目
-     * 将项目状态置为"已淘汰"，记录淘汰理由和淘汰前状态
+     * 淘汰项目（新版）
+     * 仅保存淘汰记录，不更改项目状态
+     * 淘汰仅在当前专家的页面上隐藏项目，不影响其他专家和管理员
      */
     @RequestMapping("/eliminate")
     @ResponseBody
@@ -557,7 +664,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
             return R.error("该项目已被淘汰，请勿重复操作");
         }
 
-        // 获取当前项目状态
+        // 获取当前项目状态（仅用于记录，不再检查是否已淘汰）
         Map<String, Object> proParams = new HashMap<>();
         proParams.put("proId", proId);
         proParams.put("taskId", taskId);
@@ -568,9 +675,6 @@ public class QcSpecialistScoreController extends BaseQcProController {
         String prevProStat = "";
         if (proList.get(0).getProStat() != null) {
             prevProStat = proList.get(0).getProStat();
-        }
-        if (QcProStatEnum.ELIMINATED.getProStat().equals(prevProStat)) {
-            return R.error("该项目当前已是淘汰状态");
         }
 
         // 保存淘汰记录
@@ -583,11 +687,11 @@ public class QcSpecialistScoreController extends BaseQcProController {
         eliminate.setDeleted(0);
         qcExpertEliminateService.save(eliminate);
 
-        // 更新项目状态为"已淘汰"
-        Map<String, Object> statParams = new HashMap<>();
-        statParams.put("proId", proId);
-        statParams.put("proStat", QcProStatEnum.ELIMINATED.getProStat());
-        qcAwardService.updateProStat(statParams);
+        // 【修改】不再更新项目状态，淘汰仅在专家端页面过滤显示
+        // Map<String, Object> statParams = new HashMap<>();
+        // statParams.put("proId", proId);
+        // statParams.put("proStat", QcProStatEnum.ELIMINATED.getProStat());
+        // qcAwardService.updateProStat(statParams);
 
         return R.ok("淘汰成功");
     }
@@ -612,9 +716,55 @@ public class QcSpecialistScoreController extends BaseQcProController {
         return R.ok().put("list", list);
     }
 
+    // ==================== 原代码：撤销淘汰会恢复项目状态 ====================
+    // /**
+    //  * 撤销淘汰
+    //  * 恢复项目淘汰前的状态
+    //  */
+    // @RequestMapping("/cancelEliminate")
+    // @ResponseBody
+    // public R cancelEliminate(@RequestParam Map<String, Object> params) {
+    //     Long uid = getUserId();
+    //     String idStr = params.get("id") != null ? params.get("id").toString() : "";
+    //     if (StringUtils.isBlank(idStr)) {
+    //         return R.error("记录ID不能为空");
+    //     }
+    //     int id = Integer.parseInt(idStr);
+    //     QcExpertEliminateDO record = qcExpertEliminateService.get(id);
+    //     if (record == null) {
+    //         return R.error("淘汰记录不存在");
+    //     }
+    //     if (!uid.equals(record.getExpertUid())) {
+    //         return R.error("无权操作他人的淘汰记录");
+    //     }
+    //     if (record.getDeleted() != null && record.getDeleted() == 1) {
+    //         return R.error("该记录已被撤销");
+    //     }
+    //
+    //     // 标记淘汰记录为已撤销
+    //     QcExpertEliminateDO updateDO = new QcExpertEliminateDO();
+    //     updateDO.setId(id);
+    //     updateDO.setDeleted(1);
+    //     qcExpertEliminateService.update(updateDO);
+    //
+    //     // 恢复项目状态
+    //     String prevStat = StringUtils.isNotBlank(record.getPrevProStat()) ? record.getPrevProStat() : QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
+    //     if (QcProStatEnum.ELIMINATED.getProStat().equals(prevStat)) {
+    //         prevStat = QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
+    //     }
+    //     Map<String, Object> statParams = new HashMap<>();
+    //     statParams.put("proId", record.getProId());
+    //     statParams.put("proStat", prevStat);
+    //     qcAwardService.updateProStat(statParams);
+    //
+    //     return R.ok("撤销淘汰成功");
+    // }
+
+    // ==================== 新代码：撤销淘汰仅删除记录，不恢复项目状态 ====================
     /**
-     * 撤销淘汰
-     * 恢复项目淘汰前的状态
+     * 撤销淘汰（新版）
+     * 仅标记淘汰记录为已删除，不恢复项目状态
+     * 撤销后该专家可以重新看到该项目
      */
     @RequestMapping("/cancelEliminate")
     @ResponseBody
@@ -642,15 +792,15 @@ public class QcSpecialistScoreController extends BaseQcProController {
         updateDO.setDeleted(1);
         qcExpertEliminateService.update(updateDO);
 
-        // 恢复项目状态
-        String prevStat = StringUtils.isNotBlank(record.getPrevProStat()) ? record.getPrevProStat() : QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
-        if (QcProStatEnum.ELIMINATED.getProStat().equals(prevStat)) {
-            prevStat = QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
-        }
-        Map<String, Object> statParams = new HashMap<>();
-        statParams.put("proId", record.getProId());
-        statParams.put("proStat", prevStat);
-        qcAwardService.updateProStat(statParams);
+        // 【修改】不再恢复项目状态，因为淘汰时就没有修改项目状态
+        // String prevStat = StringUtils.isNotBlank(record.getPrevProStat()) ? record.getPrevProStat() : QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
+        // if (QcProStatEnum.ELIMINATED.getProStat().equals(prevStat)) {
+        //     prevStat = QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
+        // }
+        // Map<String, Object> statParams = new HashMap<>();
+        // statParams.put("proId", record.getProId());
+        // statParams.put("proStat", prevStat);
+        // qcAwardService.updateProStat(statParams);
 
         return R.ok("撤销淘汰成功");
     }
@@ -688,6 +838,140 @@ public class QcSpecialistScoreController extends BaseQcProController {
         r.put("count", count);
         r.put("max", MAX_ELIMINATE_COUNT);
         return r;
+    }
+
+    /**
+     * 跳转到数据修复页面
+     * 注意：仅用于一次性数据修复，使用后请删除
+     */
+
+    @RequestMapping("/toRepairPage")
+    public String toRepairPage() {
+        return prefix + "/repair_eliminated_projects";
+    }
+
+    /**
+     * 数据修复：恢复所有已淘汰项目的状态
+     * 用于修复旧版淘汰功能造成的项目状态变更
+     * 注意：此方法仅用于数据修复，执行后请注释掉或删除
+     */
+    @RequestMapping("/repairEliminatedProjects")
+    @ResponseBody
+    public R repairEliminatedProjects(@RequestParam(required = false) String taskId) {
+        try {
+            // 查询所有淘汰记录
+            Map<String, Object> params = new HashMap<>();
+            if (StringUtils.isNotBlank(taskId)) {
+                params.put("taskId", taskId);
+            }
+            // 不限制deleted状态，包括已撤销的记录
+            List<QcExpertEliminateDO> eliminateList = qcExpertEliminateService.list(params);
+
+            if (eliminateList == null || eliminateList.isEmpty()) {
+                return R.ok("没有找到需要修复的淘汰记录");
+            }
+
+            int successCount = 0;
+            int skipCount = 0;
+            int errorCount = 0;
+            StringBuilder log = new StringBuilder();
+            log.append("修复日志：\n");
+
+            // 按项目ID去重，避免同一个项目被多次修复
+            Map<Integer, QcExpertEliminateDO> proIdMap = new HashMap<>();
+            for (QcExpertEliminateDO eliminate : eliminateList) {
+                if (eliminate.getProId() != null) {
+                    // 保留最早的淘汰记录（ID最小的）
+                    if (!proIdMap.containsKey(eliminate.getProId()) ||
+                        eliminate.getId() < proIdMap.get(eliminate.getProId()).getId()) {
+                        proIdMap.put(eliminate.getProId(), eliminate);
+                    }
+                }
+            }
+
+            log.append("找到 ").append(eliminateList.size()).append(" 条淘汰记录，涉及 ")
+               .append(proIdMap.size()).append(" 个项目\n\n");
+
+            // 遍历每个项目进行修复
+            for (Map.Entry<Integer, QcExpertEliminateDO> entry : proIdMap.entrySet()) {
+                Integer proId = entry.getKey();
+                QcExpertEliminateDO eliminate = entry.getValue();
+
+                try {
+                    // 查询项目当前状态
+                    Map<String, Object> proParams = new HashMap<>();
+                    proParams.put("proId", proId);
+                    if (StringUtils.isNotBlank(eliminate.getTaskId())) {
+                        proParams.put("taskId", eliminate.getTaskId());
+                    }
+                    List<QcProDataDto> proList = qcAwardService.listProInfo(proParams);
+
+                    if (proList == null || proList.isEmpty()) {
+                        log.append("[跳过] 项目ID=").append(proId).append(" 不存在\n");
+                        skipCount++;
+                        continue;
+                    }
+
+                    QcProDataDto project = proList.get(0);
+                    String currentStat = project.getProStat();
+
+                    // 只修复状态为"已淘汰"的项目
+                    if (!QcProStatEnum.ELIMINATED.getProStat().equals(currentStat)) {
+                        log.append("[跳过] 项目ID=").append(proId)
+                           .append(" 当前状态=").append(currentStat)
+                           .append(" (非已淘汰状态)\n");
+                        skipCount++;
+                        continue;
+                    }
+
+                    // 获取淘汰前的状态
+                    String prevStat = eliminate.getPrevProStat();
+                    if (StringUtils.isBlank(prevStat)) {
+                        // 如果没有记录淘汰前状态，默认恢复为"专家打分"
+                        prevStat = QcProStatEnum.SCIENCE_ASSIGN_EXPERTS.getProStat();
+                        log.append("[警告] 项目ID=").append(proId)
+                           .append(" 没有记录淘汰前状态，默认恢复为：").append(prevStat).append("\n");
+                    }
+
+                    // 恢复项目状态
+                    Map<String, Object> updateParams = new HashMap<>();
+                    updateParams.put("proId", proId);
+                    updateParams.put("proStat", prevStat);
+                    int result = qcAwardService.updateProStat(updateParams);
+
+                    if (result > 0) {
+                        log.append("[成功] 项目ID=").append(proId)
+                           .append(" 课题名称=").append(project.getTopicName())
+                           .append(" 从【已淘汰】恢复为【").append(prevStat).append("】\n");
+                        successCount++;
+                    } else {
+                        log.append("[失败] 项目ID=").append(proId).append(" 更新失败\n");
+                        errorCount++;
+                    }
+
+                } catch (Exception e) {
+                    log.append("[异常] 项目ID=").append(proId)
+                       .append(" 错误信息=").append(e.getMessage()).append("\n");
+                    errorCount++;
+                }
+            }
+
+            log.append("\n修复完成！\n");
+            log.append("成功：").append(successCount).append(" 个\n");
+            log.append("跳过：").append(skipCount).append(" 个\n");
+            log.append("失败：").append(errorCount).append(" 个\n");
+
+            System.out.println(log.toString());
+
+            return R.ok(log.toString())
+                    .put("successCount", successCount)
+                    .put("skipCount", skipCount)
+                    .put("errorCount", errorCount);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("修复失败：" + e.getMessage());
+        }
     }
 
     // ==================== 成果打分（按课题类型） ====================

@@ -228,7 +228,7 @@
 
 
         /***
-         * 删除某个条目
+         * 删除某个条目/移出专家
          * @param a
          */
         function remove(a) {
@@ -247,11 +247,11 @@
                 },
                 async: false,
                 error: function (request) {
-                    console.log("[移出] AJAX error:", request);
+                    // console.log("[移出] AJAX error:", request);
                     parent.layer.alert("Connection error");
                 },
                 success: function (data) {
-                    console.log("[移出] 返回结果:", JSON.stringify(data));
+                    // console.log("[移出] 返回结果:", JSON.stringify(data));
                     if (data.code == 0) {
                         parent.layer.msg("操作成功");
                         $("#tr_"+a).remove();

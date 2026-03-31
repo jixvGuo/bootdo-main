@@ -114,6 +114,7 @@ public class QcController extends BaseQcProController {
         boolean isApply = isTaskIsApply(map, params);
         map.put("isApply", isApply);
         UserDO user = getUser();
+        // 判断用户是否属于三种特定角色：企业用户(QC奖)、协会领导、QC奖协会联系人
         List<Long> roleIdList = user.getRoleIds();
         boolean isEnterpriseUser = roleIdList.contains(ROLE_ENTERPRISE_QC_ID);
         boolean isAssociationLeader = roleIdList.contains(ROLE_ASSOCIATION_LEADER);
