@@ -112,7 +112,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
     // 增加try-catch防止score_over列不存在时页面无法加载
 
     /** 每个专家最多淘汰的项目数 */
-    private static final int MAX_ELIMINATE_COUNT = 2;
+    private static final int MAX_ELIMINATE_COUNT = 9;
 
     @RequestMapping("/toExpertProList")
     public String toExpertProList(@RequestParam Map<String, Object> params, ModelMap map) {
@@ -180,7 +180,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
     @ResponseBody
     public PageUtils getExpertProList(@RequestParam Map<String, Object> params, ModelMap map) {
         System.out.println("========== [QC专家项目列表] 方法入口 ==========");
-        System.out.println("[请求参数] params=" + params);
+//        System.out.println("[请求参数] params=" + params);
         
         // 【优化】专家角色强制使用add_special_info表中的taskId（这个表存储了专家分配时的正确任务ID）
         UserDO currentUser = getUser();
@@ -198,13 +198,13 @@ public class QcSpecialistScoreController extends BaseQcProController {
                     String expertTaskId = expert.getTaskId();
                     String originalTaskId = params.get("taskId") != null ? params.get("taskId").toString() : "null";
                     params.put("taskId", expertTaskId);
-                    System.out.println("[专家任务强制覆盖-数据接口] 专家userId=" + expert.getUserId() 
-                        + ", groupName=" + expert.getGroupName()
-                        + ", 系统默认taskId=" + originalTaskId 
-                        + ", 强制使用专家分配taskId=" + expertTaskId);
+//                    System.out.println("[专家任务强制覆盖-数据接口] 专家userId=" + expert.getUserId()
+//                        + ", groupName=" + expert.getGroupName()
+//                        + ", 系统默认taskId=" + originalTaskId
+//                        + ", 强制使用专家分配taskId=" + expertTaskId);
                 }
             } catch (Exception e) {
-                System.out.println("[专家任务强制覆盖-数据接口] 查询失败: " + e.getMessage());
+//                System.out.println("[专家任务强制覆盖-数据接口] 查询失败: " + e.getMessage());
                 e.printStackTrace();
             }
         }
@@ -214,9 +214,9 @@ public class QcSpecialistScoreController extends BaseQcProController {
         Long uid = getUserId();
         List<Long> roleIdList = user.getRoleIds();
         
-        System.out.println("[用户信息] uid=" + uid + ", username=" + user.getUsername() + ", roleIds=" + roleIdList);
-        System.out.println("[角色检查] 是否包含QC专家角色(85)=" + roleIdList.contains(ROLE_QC_SPECIALIST_ID));
-        System.out.println("[角色检查] 是否包含管理员角色(1)=" + roleIdList.contains(ROLE_ADMIN_ID));
+//        System.out.println("[用户信息] uid=" + uid + ", username=" + user.getUsername() + ", roleIds=" + roleIdList);
+//        System.out.println("[角色检查] 是否包含QC专家角色(85)=" + roleIdList.contains(ROLE_QC_SPECIALIST_ID));
+//        System.out.println("[角色检查] 是否包含管理员角色(1)=" + roleIdList.contains(ROLE_ADMIN_ID));
 
         // 原代码：if (roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)) {
         // 新代码：使用QC奖评审专家角色(85)判断

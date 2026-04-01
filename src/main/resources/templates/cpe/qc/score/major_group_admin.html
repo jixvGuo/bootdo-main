@@ -99,8 +99,8 @@
                                           <!-- 新代码：loginAccount加引号，避免含字母账号的语法错误 -->
                                           <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save(\'' + ${sel.loginAccount} + '\')'">更新</button>
 <!--                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章</button>-->
-<!--                                          <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>-->
                                           <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove(\'' + ${sel.loginAccount} + '\')'">移出</button>
+<!--                                          <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>-->
                                       </td>
                                   </tr>
                             </tbody>
