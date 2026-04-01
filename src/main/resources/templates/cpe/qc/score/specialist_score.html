@@ -69,9 +69,8 @@
                             <input type="number" id="reportScore" name="reportScore" min="0" max="5" step="0.01" placeholder="请输入..." />
                         </div>
                         <div class="ui field">
-<!--                            <label>特点（3.5）：</label>-->
-                            <label>持证情况（3.5）：</label>
-                            <input type="number" id="characteristicScore" name="characteristicScore" min="0" max="3.5" step="0.01" placeholder="请输入..." />
+                            <label>特点（8.5）：</label>
+                            <input type="number" id="characteristicScore" name="characteristicScore" min="0" max="8.5" step="0.01" placeholder="请输入..." />
                         </div>
                     </div>
 
@@ -89,8 +88,8 @@
                             <input type="number" id="effectScore" name="effectScore" min="0" step="0.01" placeholder="请输入..." />
                         </div>
                         <div class="ui field">
-                            <label>特点（8.5）：</label>
-                            <input type="number" id="materialScore" name="materialScore" min="0" max="8.5" step="0.01" placeholder="请输入..." />
+                            <label>持证情况（3.5）：</label>
+                            <input type="number" id="certificateScore" name="certificateScore" min="0" max="3.5" step="0.01" placeholder="请输入..." />
                         </div>
                     </div>
                 </div>
@@ -181,7 +180,7 @@
             total += parseNum($('#effectScore').val());
             total += parseNum($('#reportScore').val());
             total += parseNum($('#characteristicScore').val());
-            total += parseNum($('#materialScore').val());
+            total += parseNum($('#certificateScore').val());
             // 两种类型都包含实际价值评价20分
             total += parseNum($('#practicalValueScore').val());
             $('#appraiseSum').val(fixed2(total));
@@ -214,23 +213,9 @@
                     $('#sumRecommend').val(s.sumRecommend);
                     $('#appraiseSum').val(s.appraiseSum);
 
-                    // 字段映射说明：
-                    // - materialScore (特点8.5分) 使用 appraiseSign 字段
-                    // - practicalValueScore (实际价值20分):
-                    //   创新型: 使用 reasonScore 字段（因创新型不使用原因分析）
-                    //   问题解决型: 暂无合适字段，前端临时计算，不持久化
-                    //   TODO: 建议数据库增加 practical_value_score 字段
-
-                    $('#materialScore').val(s.appraiseSign);
-
-                    // 加载实际价值评价分数
-                    if (innovate) {
-                        // 创新型：从reasonScore加载
-                        $('#practicalValueScore').val(s.reasonScore);
-                    } else {
-                        // 问题解决型：暂无持久化，默认为空
-                        $('#practicalValueScore').val('');
-                    }
+                    $('#certificateScore').val(s.certificateScore);
+                    $('#practicalValueScore').val(s.practicalValueScore);
+                    $('#recommendLevel').val(s.recommendLevel).trigger('change');
 
                     calcTotal();
                 }
@@ -254,6 +239,13 @@
                 return true;
             }
 
+            // 格式校验：非数字字符串直接拒绝
+            if (isNaN(Number(val))) {
+                alert(fieldName + '的分值格式不正确，请输入数字');
+                $('#' + fieldId).focus();
+                return false;
+            }
+
             var value = parseNum(val);
             if (value < min || value > max) {
                 console.error('[验证失败]', fieldName, '- 范围:', min, '-', max, ', 当前值:', value);
@@ -269,16 +261,34 @@
          * @param input jQuery输入框对象
          */
         function autoCorrectScore(input) {
-            var val = parseNum(input.val());
             var min = parseFloat(input.attr('min')) || 0;
             var max = parseFloat(input.attr('max')) || 999;
+            var label = input.closest('.ui.field').find('label').text() || '该字段';
 
+            // type="number"输入字母时，浏览器将val()置为空但validity.valid为false
+            var nativeInput = input[0];
+            if (nativeInput && nativeInput.validity && !nativeInput.validity.valid) {
+                alert(label + '格式不正确，请输入数字，已重置为0');
+                input.val(0);
+                return;
+            }
+
+            var raw = input.val();
+            if (raw === null || raw === undefined || raw === '') return;
+
+            if (isNaN(Number(raw))) {
+                alert(label + '格式不正确，请输入数字，已重置为0');
+                input.val(0);
+                return;
+            }
+
+            var val = parseNum(raw);
             if (val < min) {
+                alert(label + '不能小于' + min + '，已自动修正');
                 input.val(min);
             } else if (val > max) {
+                alert(label + '不能超过' + max + '分，已自动修正');
                 input.val(max);
-                console.warn('[自动修正] 分值超过最大值', max, '，已修正');
-                // 不显示提示，避免打扰用户
             }
         }
 
@@ -313,8 +323,8 @@
             if (!validateScore('effectScore', '效果', 0, effectScoreMax, true)) return;
             if (!validateScore('reportScore', '成果报告', 0, 5, true)) return;
             // if (!validateScore('characteristicScore', '特点（3.5）', 0, 3.5, true)) return;
-            if (!validateScore('characteristicScore', '持证情况（3.5）', 0, 3.5, true)) return;
-            if (!validateScore('materialScore', '特点（8.5）', 0, 8.5, true)) return;
+            if (!validateScore('characteristicScore', '特点（8.5）', 0, 8.5, true)) return;
+            if (!validateScore('certificateScore', '持证情况（3.5）', 0, 3.5, true)) return;
             if (!validateScore('practicalValueScore', '成果实际价值评价', 0, 20, true)) return;
 
             console.log('[保存评分] 验证通过，准备提交数据');
@@ -337,22 +347,13 @@
                 sumRecommend: $('#sumRecommend').val(),
                 appraiseSum: $('#appraiseSum').val(),
 
-                // 字段映射：
-                // - materialScore (特点8.5分) 使用 appraiseSign 字段
-                appraiseSign: $('#materialScore').val()
+                certificateScore: $('#certificateScore').val(),
+                practicalValueScore: $('#practicalValueScore').val(),
+                recommendLevel: $('#recommendLevel').val()
             };
-            
-            // 字段映射说明：
-            // 创新型：practicalValueScore (实际价值20分) 使用 reasonScore 字段
-            // 问题解决型：reasonScore 用于原因分析，practicalValueScore暂不保存
-            if (innovate) {
-                // 创新型：实际价值评价存入reasonScore
-                data.reasonScore = $('#practicalValueScore').val();
-            } else {
-                // 问题解决型：原因分析存入reasonScore
+
+            if (!innovate) {
                 data.reasonScore = $('#reasonScore').val();
-                // TODO: practicalValueScore 暂无字段存储，需扩展数据库
-                // data.practicalValueScore = $('#practicalValueScore').val();
             }
             console.log('[保存评分] 发送Ajax请求 - data:', data);
             

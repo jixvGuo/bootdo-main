@@ -38,14 +38,20 @@ public class QcResultInnovateScoreDO implements Serializable {
 	private BigDecimal effectScore;
 	//成果报告得分
 	private BigDecimal reportScore;
-	//特点得分
+	//特点得分（8.5分）
 	private BigDecimal characteristicScore;
+	//持证情况得分（3.5分）
+	private BigDecimal certificateScore;
+	//成果实际价值评价得分（20分）
+	private BigDecimal practicalValueScore;
 	//总体评价
 	private String appraiseSum;
 	//评价组长签字
 	private String appraiseSign;
 	//总体评价
 	private String sumRecommend = "";
+	//推荐意见等级
+	private String recommendLevel;
 	//
 	private Date created;
 	//
@@ -186,16 +192,40 @@ public class QcResultInnovateScoreDO implements Serializable {
 		return reportScore;
 	}
 	/**
-	 * 设置：特点得分
+	 * 设置：特点得分（8.5分）
 	 */
 	public void setCharacteristicScore(BigDecimal characteristicScore) {
 		this.characteristicScore = characteristicScore;
 	}
 	/**
-	 * 获取：特点得分
+	 * 获取：特点得分（8.5分）
 	 */
 	public BigDecimal getCharacteristicScore() {
 		return characteristicScore;
+	}
+	/**
+	 * 设置：持证情况得分（3.5分）
+	 */
+	public void setCertificateScore(BigDecimal certificateScore) {
+		this.certificateScore = certificateScore;
+	}
+	/**
+	 * 获取：持证情况得分（3.5分）
+	 */
+	public BigDecimal getCertificateScore() {
+		return certificateScore;
+	}
+	/**
+	 * 设置：成果实际价值评价得分（20分）
+	 */
+	public void setPracticalValueScore(BigDecimal practicalValueScore) {
+		this.practicalValueScore = practicalValueScore;
+	}
+	/**
+	 * 获取：成果实际价值评价得分（20分）
+	 */
+	public BigDecimal getPracticalValueScore() {
+		return practicalValueScore;
 	}
 	/**
 	 * 设置：总体评价
@@ -232,6 +262,18 @@ public class QcResultInnovateScoreDO implements Serializable {
 	 */
 	public String getSumRecommend() {
 		return sumRecommend;
+	}
+	/**
+	 * 设置：推荐意见等级
+	 */
+	public void setRecommendLevel(String recommendLevel) {
+		this.recommendLevel = recommendLevel;
+	}
+	/**
+	 * 获取：推荐意见等级
+	 */
+	public String getRecommendLevel() {
+		return recommendLevel;
 	}
 	/**
 	 * 设置：

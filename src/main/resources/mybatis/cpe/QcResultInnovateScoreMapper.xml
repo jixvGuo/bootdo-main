@@ -4,11 +4,11 @@
 <mapper namespace="com.bootdo.cpe.dao.QcResultInnovateScoreDao">
 
 	<select id="get" resultType="com.bootdo.cpe.domain.QcResultInnovateScoreDO">
-		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`best_plan_score`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`appraise_sum`,`appraise_sign`,`sum_recommend`,`created`,`updated`,`deleted` from ass_qc_result_innovate_score where id = #{value}
+		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`best_plan_score`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`certificate_score`,`appraise_sum`,`appraise_sign`,`practical_value_score`,`sum_recommend`,`recommend_level`,`created`,`updated`,`deleted` from ass_qc_result_innovate_score where id = #{value}
 	</select>
 
 	<select id="list" resultType="com.bootdo.cpe.domain.QcResultInnovateScoreDO">
-		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`best_plan_score`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`appraise_sum`,`appraise_sign`,`sum_recommend`,`created`,`updated`,`deleted` from ass_qc_result_innovate_score
+		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`best_plan_score`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`certificate_score`,`appraise_sum`,`appraise_sign`,`practical_value_score`,`sum_recommend`,`recommend_level`,`created`,`updated`,`deleted` from ass_qc_result_innovate_score
         <where>  
 		  		  <if test="id != null and id != ''"> and id = #{id} </if>
 		  		  <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
@@ -22,9 +22,12 @@
 		  		  <if test="effectScore != null and effectScore != ''"> and effect_score = #{effectScore} </if>
 		  		  <if test="reportScore != null and reportScore != ''"> and report_score = #{reportScore} </if>
 		  		  <if test="characteristicScore != null and characteristicScore != ''"> and characteristic_score = #{characteristicScore} </if>
+		  		  <if test="certificateScore != null and certificateScore != ''"> and certificate_score = #{certificateScore} </if>
 		  		  <if test="appraiseSum != null and appraiseSum != ''"> and appraise_sum = #{appraiseSum} </if>
 		  		  <if test="appraiseSign != null and appraiseSign != ''"> and appraise_sign = #{appraiseSign} </if>
+		  		  <if test="practicalValueScore != null and practicalValueScore != ''"> and practical_value_score = #{practicalValueScore} </if>
 		  		  <if test="sumRecommend != null and sumRecommend != ''"> and sum_recommend = #{sumRecommend} </if>
+		  		  <if test="recommendLevel != null and recommendLevel != ''"> and recommend_level = #{recommendLevel} </if>
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
 		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
@@ -57,9 +60,12 @@
 		  		  <if test="effectScore != null and effectScore != ''"> and effect_score = #{effectScore} </if>
 		  		  <if test="reportScore != null and reportScore != ''"> and report_score = #{reportScore} </if>
 		  		  <if test="characteristicScore != null and characteristicScore != ''"> and characteristic_score = #{characteristicScore} </if>
+		  		  <if test="certificateScore != null and certificateScore != ''"> and certificate_score = #{certificateScore} </if>
 		  		  <if test="appraiseSum != null and appraiseSum != ''"> and appraise_sum = #{appraiseSum} </if>
 		  		  <if test="appraiseSign != null and appraiseSign != ''"> and appraise_sign = #{appraiseSign} </if>
+		  		  <if test="practicalValueScore != null and practicalValueScore != ''"> and practical_value_score = #{practicalValueScore} </if>
 		  		  <if test="sumRecommend != null and sumRecommend != ''"> and sum_recommend = #{sumRecommend} </if>
+		  		  <if test="recommendLevel != null and recommendLevel != ''"> and recommend_level = #{recommendLevel} </if>
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
 		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
@@ -79,10 +85,13 @@
 			`strategy_execute_score`, 
 			`effect_score`, 
 			`report_score`, 
-			`characteristic_score`, 
+			`characteristic_score`,
+			`certificate_score`,
 			`appraise_sum`, 
-			`appraise_sign`, 
+			`appraise_sign`,
+			`practical_value_score`,
 			`sum_recommend`, 
+			`recommend_level`, 
 			`created`, 
 			`updated`, 
 			`deleted`
@@ -99,10 +108,13 @@
 			#{strategyExecuteScore}, 
 			#{effectScore}, 
 			#{reportScore}, 
-			#{characteristicScore}, 
+			#{characteristicScore},
+			#{certificateScore},
 			#{appraiseSum}, 
-			#{appraiseSign}, 
+			#{appraiseSign},
+			#{practicalValueScore},
 			#{sumRecommend}, 
+			#{recommendLevel}, 
 			now(),
 			#{updated}, 
 			#{deleted}
@@ -123,9 +135,12 @@
 			<if test="effectScore != null">`effect_score` = #{effectScore}, </if>
 			<if test="reportScore != null">`report_score` = #{reportScore}, </if>
 			<if test="characteristicScore != null">`characteristic_score` = #{characteristicScore}, </if>
+			<if test="certificateScore != null">`certificate_score` = #{certificateScore}, </if>
 			<if test="appraiseSum != null">`appraise_sum` = #{appraiseSum}, </if>
 			<if test="appraiseSign != null">`appraise_sign` = #{appraiseSign}, </if>
+			<if test="practicalValueScore != null">`practical_value_score` = #{practicalValueScore}, </if>
 			<if test="sumRecommend != null">`sum_recommend` = #{sumRecommend}, </if>
+			<if test="recommendLevel != null">`recommend_level` = #{recommendLevel}, </if>
 			<if test="created != null">`created` = #{created}, </if>
 			<if test="updated != null">`updated` = #{updated}, </if>
 			<if test="deleted != null">`deleted` = #{deleted}</if>

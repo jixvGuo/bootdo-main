@@ -1024,17 +1024,8 @@ public class QcSpecialistScoreController extends BaseQcProController {
         total = total.add(score.getEffectScore() == null ? BigDecimal.ZERO : score.getEffectScore());
         total = total.add(score.getReportScore() == null ? BigDecimal.ZERO : score.getReportScore());
         total = total.add(score.getCharacteristicScore() == null ? BigDecimal.ZERO : score.getCharacteristicScore());
-
-        // 新页面增加“材料(8.5)”项：暂使用 appraiseSign 字段承载 materialScore
-        BigDecimal materialScore = BigDecimal.ZERO;
-        try {
-            if (StringUtils.isNotBlank(score.getAppraiseSign())) {
-                materialScore = new BigDecimal(score.getAppraiseSign());
-            }
-        } catch (Exception e) {
-            materialScore = BigDecimal.ZERO;
-        }
-        total = total.add(materialScore);
+        total = total.add(score.getCertificateScore() == null ? BigDecimal.ZERO : score.getCertificateScore());
+        total = total.add(score.getPracticalValueScore() == null ? BigDecimal.ZERO : score.getPracticalValueScore());
         score.setAppraiseSum(total.toPlainString());
 
         Map<String, Object> checkParams = new HashMap<>();
@@ -1104,16 +1095,10 @@ public class QcSpecialistScoreController extends BaseQcProController {
         total = total.add(score.getReportScore() == null ? BigDecimal.ZERO : score.getReportScore());
         total = total.add(score.getCharacteristicScore() == null ? BigDecimal.ZERO : score.getCharacteristicScore());
 
-        // 新页面增加“材料(8.5)”项：暂使用 appraiseSign 字段承载 materialScore
-        BigDecimal materialScore = BigDecimal.ZERO;
-        try {
-            if (StringUtils.isNotBlank(score.getAppraiseSign())) {
-                materialScore = new BigDecimal(score.getAppraiseSign());
-            }
-        } catch (Exception e) {
-            materialScore = BigDecimal.ZERO;
-        }
-        total = total.add(materialScore);
+        total = total.add(score.getCertificateScore() == null ? BigDecimal.ZERO : score.getCertificateScore());
+        
+        total = total.add(score.getPracticalValueScore() == null ? BigDecimal.ZERO : score.getPracticalValueScore());
+        
         score.setAppraiseSum(total.toPlainString());
 
         Map<String, Object> checkParams = new HashMap<>();
