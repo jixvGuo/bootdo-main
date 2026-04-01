@@ -344,7 +344,7 @@ function cancelEliminate(id) {
 function specialistScore(proId, taskId) {
     var index = layer.open({
         type: 2,
-        title: 'QC奖专家评分',
+        title: 'QC专家评分',
         maxmin: true,
         shadeClose: false,
         area: ['800px', '600px'],

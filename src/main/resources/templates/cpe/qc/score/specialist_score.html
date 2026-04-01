@@ -247,7 +247,8 @@
                             <input type="number" id="reportScore" name="reportScore" min="0" max="5" step="0.01" placeholder="请输入..." />
                         </div>
                         <div class="ui field">
-                            <label>特点（3.5）：</label>
+<!--                            <label>特点（3.5）：</label>-->
+                            <label>持证情况（3.5）：</label>
                             <input type="number" id="characteristicScore" name="characteristicScore" min="0" max="3.5" step="0.01" placeholder="请输入..." />
                         </div>
                     </div>
@@ -489,7 +490,8 @@
             if (!validateScore('strategyExecuteScore', '对策与实施', 0, 20, true)) return;
             if (!validateScore('effectScore', '效果', 0, effectScoreMax, true)) return;
             if (!validateScore('reportScore', '成果报告', 0, 5, true)) return;
-            if (!validateScore('characteristicScore', '特点（3.5）', 0, 3.5, true)) return;
+            // if (!validateScore('characteristicScore', '特点（3.5）', 0, 3.5, true)) return;
+            if (!validateScore('characteristicScore', '持证情况（3.5）', 0, 3.5, true)) return;
             if (!validateScore('materialScore', '特点（8.5）', 0, 8.5, true)) return;
             if (!validateScore('practicalValueScore', '成果实际价值评价', 0, 20, true)) return;
             
