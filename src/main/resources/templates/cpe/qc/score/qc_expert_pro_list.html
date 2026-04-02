@@ -89,6 +89,11 @@
             <div id="tabEliminateList" class="tab-pane fade">
                 <div class="ibox">
                     <div class="ibox-body">
+                        <div style="margin-bottom: 10px;">
+                            <button type="button" class="btn btn-success btn-sm" onclick="exportEliminateExcel()">
+                                <i class="fa fa-file-excel-o"></i> 导出Excel
+                            </button>
+                        </div>
                         <table id="eliminateTable" data-mobile-responsive="true"></table>
                     </div>
                 </div>
@@ -106,7 +111,8 @@
     window.projectTypes = /*[[${projectTypes}]]*/ [];
     window.classifications = /*[[${classifications}]]*/ [];
 </script>
-<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.12"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" async></script>
+<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.13"></script>
 
 </body>
 </html>

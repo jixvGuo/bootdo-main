@@ -66,14 +66,13 @@
                                     <th><input type="checkbox" class="i-checks" name="input[]"></th>
                                     <th>序号</th>
                                     <!--   QC是按照分组显示   -->
-                                    <!-- <th>专业</th> -->
                                     <th>分组</th>
                                     <th>账号</th>
                                     <th>专家名称</th>
                                     <th>工作单位</th>
 <!--                                    <th>银行账号</th>-->
 <!--                                    <th>手机号</th>-->
-<!--                                    <th>签章</th>-->
+                                    <th>签章</th>
                                     <th>操作</th>
                                 </tr>
                             </thead>
@@ -90,7 +89,7 @@
                                       <td ><input th:value="${sel.company}" th:id="'accountCom' + ${sel.loginAccount}" class="form-control" type="text" placeholder="工作单位"></td>
 <!--                                      <td ><input th:value="${sel.bankAccount}" th:id="'accountBank' + ${sel.loginAccount}" class="form-control" type="text" placeholder="银行账户"></td>-->
 <!--                                      <td ><input th:value="${sel.phone}" th:id="'accountPhone' + ${sel.loginAccount}" class="form-control" type="text" placeholder="手机号"></td>-->
-<!--                                      <td th:id="'signImg_'+${sel.loginAccount}"><img th:src="${sel.expertSignUrl}" width='75' height='40'></td>-->
+                                      <td th:id="'signImg_'+${sel.loginAccount}"><img th:if="${sel.expertSignUrl != null}" th:src="${sel.expertSignUrl}" width='75' height='40'></td>
                                       <td>
                                           <!--   <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save('+${sel.loginAccount}+')'">更新</button>-->
                                           <!-- 原代码：loginAccount未加引号，含字母的账号会导致JS语法错误 -->
@@ -98,9 +97,9 @@
                                           <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove('+${sel.loginAccount}+')'">移出</button> -->
                                           <!-- 新代码：loginAccount加引号，避免含字母账号的语法错误 -->
                                           <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save(\'' + ${sel.loginAccount} + '\')'">更新</button>
-<!--                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章</button>-->
+                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章</button>
                                           <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove(\'' + ${sel.loginAccount} + '\')'">移出</button>
-<!--                                          <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>-->
+                                          <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>
                                       </td>
                                   </tr>
                             </tbody>
@@ -203,22 +202,14 @@
                 "             </td>" +
                 "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountCom" + loginAccount +
                 "' class=\"form-control\" type='text' placeholder='工作单位'></td>" +
-                // "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountBank" + loginAccount +
-                // "'class=\"form-control\" type='text' placeholder='银行账户'></td>" +
-                // "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountPhone" + loginAccount +
-                // "'class=\"form-control\" type='text' placeholder='手机号'></td>" +
-                // "             <td id='signImg_"+loginAccount+"' style=\"width:120px\"></td>" +
+                "             <td id='signImg_"+loginAccount+"' style=\"width:120px\"></td>" +
                 "             <td style=\"width:200px\">" +
-                // 原代码：loginAccount未加引号，含字母的账号会导致JS语法错误
-                // "              <button id='saveBtn_"+loginAccount+"' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(" + loginAccount + ")'  >保存</button>" +
-                // "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(" + loginAccount + ")'>上传签章</button>" +
-                // "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(" + loginAccount + ")' >移出</button>" +
-                // 新代码：loginAccount加引号，确保含字母账号也能正常调用
                 "              <button id='saveBtn_"+loginAccount+"' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(\"" + loginAccount + "\")'  >保存</button>" +
-                // "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(\"" + loginAccount + "\")'>上传签章</button>" +
+                "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(\"" + loginAccount + "\")'>上传签章</button>" +
                 "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(\"" + loginAccount + "\")' >移出</button>" +
-                "             </td>"
-            "         </tr>";
+                "              <button type=\"button\" class=\"btn btn-warning btn-xs\" onclick='manageAvoidance(\"" + loginAccount + "\")' >回避</button>" +
+                "             </td>" +
+                "         </tr>";
             $("#list").append(html);
 
 

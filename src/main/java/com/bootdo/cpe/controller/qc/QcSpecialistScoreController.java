@@ -147,10 +147,14 @@ public class QcSpecialistScoreController extends BaseQcProController {
         // 查询当前专家是否已提交最终打分（参考科技奖 scoreIsOver 逻辑）
         int scoreIsOver = 0;
         Long uid = getUserId();
+        String currentTaskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         try {
             Map<String, Object> checkParams = new HashMap<>();
             checkParams.put("optUid", uid);
             checkParams.put("scoreOver", 1);
+            if (StringUtils.isNotBlank(currentTaskId)) {
+                checkParams.put("taskId", currentTaskId);
+            }
             scoreIsOver = qcAppraiseActiveScoreService.count(checkParams);
         } catch (Exception e) {
             // score_over列可能尚未添加到数据库，降级处理
@@ -465,9 +469,13 @@ public class QcSpecialistScoreController extends BaseQcProController {
     @ResponseBody
     public R submitScore(@RequestParam Map<String, Object> params) {
         Long uid = getUserId();
-        // 查找当前专家的所有打分记录
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        // 查找当前专家在当前任务下的打分记录
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("optUid", uid);
+        if (StringUtils.isNotBlank(taskId)) {
+            queryParams.put("taskId", taskId);
+        }
         List<QcAppraiseActiveScoreDO> scoreList = qcAppraiseActiveScoreService.list(queryParams);
         if (scoreList == null || scoreList.isEmpty()) {
             return R.error("尚未进行任何打分，无法提交");
@@ -492,9 +500,13 @@ public class QcSpecialistScoreController extends BaseQcProController {
     @ResponseBody
     public R cancelSubmitScore(@RequestParam Map<String, Object> params) {
         Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("optUid", uid);
         queryParams.put("scoreOver", 1);
+        if (StringUtils.isNotBlank(taskId)) {
+            queryParams.put("taskId", taskId);
+        }
         List<QcAppraiseActiveScoreDO> scoreList = qcAppraiseActiveScoreService.list(queryParams);
         if (scoreList == null || scoreList.isEmpty()) {
             return R.error("没有已提交的打分记录");

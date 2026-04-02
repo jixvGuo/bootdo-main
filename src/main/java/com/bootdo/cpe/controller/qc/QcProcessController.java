@@ -4,8 +4,13 @@ import com.bootdo.activiti.domain.*;
 import com.bootdo.activiti.service.AwardEnterpriseProjectService;
 import com.bootdo.activiti.service.AwardPublishTaskService;
 import com.bootdo.activiti.service.QcGroupService;
+import com.bootdo.common.config.BootdoConfig;
 import com.bootdo.common.controller.BaseQcProController;
+import com.bootdo.common.domain.FileDO;
 import com.bootdo.common.service.FileService;
+import com.bootdo.common.utils.DateUtils;
+import com.bootdo.common.utils.FileType;
+import com.bootdo.common.utils.FileUtil;
 import com.bootdo.common.utils.R;
 import com.bootdo.common.utils.StringUtils;
 import com.bootdo.cpe.domain.EnumProjectType;
@@ -24,10 +29,12 @@ import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.apache.commons.lang.RandomStringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 import com.bootdo.cpe.domain.QcProStatEnum;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -77,6 +84,8 @@ public class QcProcessController extends BaseQcProController {
 
     @Autowired
     private QcGroupMemberService qcGroupMemberService;
+    @Autowired
+    private com.bootdo.cpe.service.QcExpertAvoidanceService qcExpertAvoidanceService;
     /**
      * 去分配项目给工作人员
      *
@@ -132,6 +141,8 @@ public class QcProcessController extends BaseQcProController {
     FileService fileService;
     @Autowired
     AwardEnterpriseProjectService projectService;
+    @Autowired
+    private BootdoConfig bootdoConfig;
     /**
      * 提交审核项目
      *
@@ -435,8 +446,24 @@ public class QcProcessController extends BaseQcProController {
                 tag = expertGroupService.save(expertGroupDO);
             }
             if (tag > 0) {
+                // 保存/更新成功后，触发自动回避检查（仅针对QC项目）
+                if ("qc_group".equals(expertGroupDO.getProType())
+                    && StringUtils.isNotBlank(expertGroupDO.getTaskId())
+                    && StringUtils.isNotBlank(expertGroupDO.getUserId())
+                    && StringUtils.isNotBlank(expertGroupDO.getCompany())) {
+                    try {
+                        qcExpertAvoidanceService.autoAvoidByCompany(
+                            expertGroupDO.getTaskId(),
+                            Integer.parseInt(expertGroupDO.getUserId()),
+                            expertGroupDO.getCompany()
+                        );
+                    } catch (Exception e) {
+                        // 自动回避失败不影响主流程
+                        e.printStackTrace();
+                    }
+                }
                 R r = R.ok();
-                r.put("id", expertGroupDO.getId());
+                r.put("id", expertGroupDO.getUserId());
                 return r;
             } else {
                 if (tag == -100) {
@@ -459,6 +486,41 @@ public class QcProcessController extends BaseQcProController {
      * 新代码（v3）：改用物理删除removeByLoginAccount，确保数据彻底清除，
      *   同时返回诊断信息便于确认
      */
+    /**
+     * QC专家签章文件上传
+     * 保存图片到磁盘 + sys_file表 + 更新 add_special_info.signature_id
+     */
+    @RequestMapping("/uploadExpertSign")
+    @ResponseBody
+    public R uploadExpertSign(String taskId, Long expertUid,
+                              @org.springframework.web.bind.annotation.RequestPart("file[]") MultipartFile[] files) {
+        if (files == null || files.length == 0) {
+            return R.error("请选择要上传的签章图片");
+        }
+        if (expertUid == null) {
+            return R.error("专家ID不能为空");
+        }
+        MultipartFile file = files[0];
+        String originalName = file.getOriginalFilename();
+        if (originalName == null) originalName = "sign.png";
+        String curDate = DateUtils.getCurDate();
+        String[] dateArr = curDate.split("-");
+        String folder = dateArr[0] + "/" + dateArr[1] + "/sign_" + expertUid + "/";
+        String uploadPath = bootdoConfig.getUploadPath() + folder;
+        String ext = originalName.substring(originalName.lastIndexOf("."));
+        String fileName = "sign_" + System.currentTimeMillis() + RandomStringUtils.randomAlphanumeric(4) + ext;
+        String fileUrl = "/files/" + folder + fileName;
+        try {
+            FileUtil.uploadFile(file.getBytes(), uploadPath, fileName);
+        } catch (Exception e) {
+            return R.error("文件保存失败：" + e.getMessage());
+        }
+        FileDO fileDO = new FileDO(FileType.fileType(fileName), fileUrl, new java.util.Date());
+        fileService.save(fileDO);
+        expertGroupService.updateExpertSignId(fileDO.getId(), taskId, expertUid);
+        return R.ok().put("fileUrl", fileUrl);
+    }
+
     @ResponseBody
     @PostMapping("/expert/remove")
     public R toRemoveExpert(String loginAccount) {
@@ -505,7 +567,7 @@ public class QcProcessController extends BaseQcProController {
         }
         map.put("loginAccount", params.get("loginAccount"));
         map.put("trIndex", params.get("trIndex"));
-        return "cpe/science/science_expert_sign_upload";
+        return prefix + "/score/qc_expert_sign_upload";
     }
 
 }

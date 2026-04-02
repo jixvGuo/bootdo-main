@@ -95,9 +95,10 @@ public class QcExpertAvoidanceServiceImpl implements QcExpertAvoidanceService {
         // 标准化专家单位名称（去空格、统一大小写等）
         String normalizedExpertCompany = normalizeCompanyName(expertCompany);
 
-        // 查询该任务下所有QC项目
+        // 查询该任务下所有有效QC项目（过滤已删除的）
         Map<String, Object> params = new HashMap<>();
         params.put("taskId", taskId);
+        params.put("deleted", "0");
         List<QcGroupApplyInfoDO> projects = qcGroupApplyInfoDao.list(params);
 
         if (projects == null || projects.isEmpty()) {

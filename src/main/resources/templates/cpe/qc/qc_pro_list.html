@@ -228,6 +228,11 @@
 
 <!-- 淘汰项目弹窗 -->
 <div id="eliminatedModal" style="display:none; padding: 20px;">
+	<div style="margin-bottom:10px;">
+		<button type="button" class="btn btn-success btn-sm" onclick="exportEliminatedExcel()">
+			<i class="fa fa-file-excel-o"></i> 导出Excel
+		</button>
+	</div>
 	<table class="table table-bordered table-hover">
 		<thead>
 			<tr>
@@ -280,67 +285,6 @@
 		});
 	}
 
-	// 导出淘汰按钮
-	// 显示淘汰项目弹窗
-	function showEliminatedProjects() {
-		var taskId = $("#taskId").val();
-		
-		layer.open({
-			type: 1,
-			title: '淘汰项目列表',
-			area: ['1000px', '600px'],
-			content: $('#eliminatedModal'),
-			success: function() {
-				loadEliminatedProjects(taskId);
-			}
-		});
-	}
-
-	// 导出淘汰按钮
-	// 加载淘汰项目列表
-	function loadEliminatedProjects(taskId) {
-		$.ajax({
-			type: "GET",
-			url: "/qcScore/getEliminatedProjects",
-			data: {
-				taskId: taskId
-			},
-			success: function(data) {
-				if (data && data.code === 0 && data.list) {
-					renderEliminatedTable(data.list);
-				} else {
-					$("#eliminatedTableBody").html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
-				}
-			},
-			error: function() {
-				layer.alert("加载淘汰项目失败");
-			}
-		});
-	}
-
-	// 渲染淘汰项目表格
-	function renderEliminatedTable(projects) {
-		var tbody = $("#eliminatedTableBody");
-		tbody.empty();
-		
-		if (!projects || projects.length === 0) {
-			tbody.html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
-			return;
-		}
-		
-		projects.forEach(function(item) {
-			var row = '<tr>' +
-				'<td>' + (item.proCode || '-') + '</td>' +
-				'<td>' + (item.topicName || '-') + '</td>' +
-				'<td>' + (item.groupName || '-') + '</td>' +
-				'<td>' + (item.companyName || '-') + '</td>' +
-				'<td>' + (item.expertName || '-') + '</td>' +
-				'<td>' + (item.reason || '-') + '</td>' +
-				'</tr>';
-			tbody.append(row);
-		});
-	}
-
     function reloadData() {
         var applyPage = layer.open({
             type: 2,
@@ -381,9 +325,144 @@
 		})
 	}
 
+	// ==================== 淘汰名单功能 ====================
+	function showEliminatedProjects() {
+		var taskId = $("#taskId").val();
+		layer.open({
+			type: 1,
+			title: '淘汰项目列表',
+			area: ['1000px', '600px'],
+			content: $('#eliminatedModal'),
+			success: function() {
+				loadEliminatedProjects(taskId);
+			}
+		});
+	}
+
+	function loadEliminatedProjects(taskId) {
+		$.ajax({
+			type: "GET",
+			url: "/qcScore/getEliminatedProjects",
+			data: { taskId: taskId },
+			success: function(data) {
+				if (data && data.code === 0 && data.list) {
+					renderEliminatedTable(data.list);
+				} else {
+					$("#eliminatedTableBody").html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
+				}
+			},
+			error: function() {
+				layer.alert("加载淘汰项目失败");
+			}
+		});
+	}
+
+	var eliminatedProjectsData = [];
+	function renderEliminatedTable(projects) {
+		eliminatedProjectsData = projects || [];
+		var tbody = $("#eliminatedTableBody");
+		tbody.empty();
+		if (!projects || projects.length === 0) {
+			tbody.html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
+			return;
+		}
+		projects.forEach(function(item) {
+			var row = '<tr>' +
+				'<td>' + (item.proCode || '-') + '</td>' +
+				'<td>' + (item.topicName || '-') + '</td>' +
+				'<td>' + (item.groupName || '-') + '</td>' +
+				'<td>' + (item.companyName || '-') + '</td>' +
+				'<td>' + (item.expertName || '-') + '</td>' +
+				'<td>' + (item.reason || '-') + '</td>' +
+				'</tr>';
+			tbody.append(row);
+		});
+	}
+
+	function exportEliminatedExcel() {
+		if (!eliminatedProjectsData || eliminatedProjectsData.length === 0) {
+			layer.msg('暂无数据可导出', { icon: 2 });
+			return;
+		}
+		function doExport() {
+			var header = ['序号', '申报账号', '课题名称', '小组名称', '申报单位', '专家名称', '淘汰意见'];
+			var sheetData = [header];
+			eliminatedProjectsData.forEach(function(item, index) {
+				sheetData.push([
+					index + 1,
+					item.proCode || '',
+					item.topicName || '',
+					item.groupName || '',
+					item.companyName || '',
+					item.expertName || '',
+					item.reason || ''
+				]);
+			});
+			var ws = XLSX.utils.aoa_to_sheet(sheetData);
+			ws['!cols'] = [
+				{ wch: 6 },
+				{ wch: 18 },
+				{ wch: 30 },
+				{ wch: 20 },
+				{ wch: 25 },
+				{ wch: 12 },
+				{ wch: 40 }
+			];
+			var headerStyle = {
+				font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+				fill: { fgColor: { rgb: '4472C4' } },
+				alignment: { horizontal: 'center', vertical: 'center' },
+				border: {
+					top: { style: 'thin', color: { rgb: '000000' } },
+					bottom: { style: 'thin', color: { rgb: '000000' } },
+					left: { style: 'thin', color: { rgb: '000000' } },
+					right: { style: 'thin', color: { rgb: '000000' } }
+				}
+			};
+			var dataStyle = {
+				alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+				border: {
+					top: { style: 'thin', color: { rgb: '000000' } },
+					bottom: { style: 'thin', color: { rgb: '000000' } },
+					left: { style: 'thin', color: { rgb: '000000' } },
+					right: { style: 'thin', color: { rgb: '000000' } }
+				}
+			};
+			var reasonStyle = {
+				alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
+				border: dataStyle.border
+			};
+			var range = XLSX.utils.decode_range(ws['!ref']);
+			for (var R = range.s.r; R <= range.e.r; R++) {
+				for (var C = range.s.c; C <= range.e.c; C++) {
+					var addr = XLSX.utils.encode_cell({ r: R, c: C });
+					if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+					if (R === 0) {
+						ws[addr].s = headerStyle;
+					} else if (C === 6) {
+						ws[addr].s = reasonStyle;
+					} else {
+						ws[addr].s = dataStyle;
+					}
+				}
+			}
+			ws['!rows'] = [{ hpt: 22 }];
+			var wb = XLSX.utils.book_new();
+			XLSX.utils.book_append_sheet(wb, ws, '淘汰名单');
+			XLSX.writeFile(wb, '淘汰名单.xlsx');
+		}
+		if (typeof XLSX !== 'undefined') {
+			doExport();
+		} else {
+			var s = document.createElement('script');
+			s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+			s.onload = function() { doExport(); };
+			s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', { icon: 2 }); };
+			document.head.appendChild(s);
+		}
+	}
+
 </script>
-
-
 
 </body>
 </html>

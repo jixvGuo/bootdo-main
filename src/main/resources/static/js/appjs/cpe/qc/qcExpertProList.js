@@ -90,45 +90,33 @@ function load() {
                     {
                         title: '操作',
                         //field: 'id',
-                        width: 260,
+                        width: 320,
                         align: 'center',
                         formatter: function (value, row, index) {
                             var viewPro = '<a class="btn btn-warning btn-sm" href="#" title="查看项目" onclick="viewPro(\''
                                 + row.proId
                                 + '\')">查看项目</a> ';
-                            
-                            // 回避项目不显示评分和淘汰按钮
-                            var score = '';
-                            var eliminate = '';
-                            
-                            if (row.isAvoided) {
-                                // 已回避：显示已回避标签，不显示评分和淘汰按钮
-                                score = '<span class="label label-warning">已回避</span> ';
-                            } else {
-                                // 未回避：显示评分和淘汰按钮
-                                score = '<a class="btn btn-success btn-sm" href="#" title="评分" onclick="specialistScore(\''
-                                    + row.proId
-                                    + '\',\''
-                                    + row.taskId
-                                    + '\')">评分</a> ';
-                                eliminate = '<a class="btn btn-danger btn-sm" href="#" title="淘汰" onclick="eliminateProject(\''
-                                    + row.proId
-                                    + '\',\''
-                                    + row.taskId
-                                    + '\')">淘汰</a> ';
-                            }
-                            
-                            // var opinion = '<a class="btn btn-info btn-sm" href="#" title="评价" onclick="specialistOpinion(\''
-                            //     + row.proId
-                            //     + '\',\''
-                            //     + row.taskId
-                            //     + '\')">评价</a> ';
+
                             var viewCheck = '<a class="btn btn-success btn-sm" href="#" title="查看形审结果" onclick="viewCheckResult(\''
                                 + row.proId
                                 + '\')">形式审查结果</a> ';
-                            
-                            // return viewPro + score + opinion + eliminate + viewCheck;
-                            return viewPro + score + eliminate + viewCheck;
+
+                            // 回避项目不显示评分按钮，但仍可淘汰
+                            var score = '';
+                            if (row.isAvoided) {
+                                score = '<a class="btn btn-warning btn-sm disabled" href="#" style="cursor:default;pointer-events:none;">已回避</a> ';
+                            } else {
+                                score = '<a class="btn btn-success btn-sm" href="#" title="评分" onclick="specialistScore(\''
+                                    + row.proId + '\',\'' + row.taskId
+                                    + '\')">评分</a> ';
+                            }
+
+                            // 淘汰按钮无论是否回避都显示
+                            var eliminate = '<a class="btn btn-danger btn-sm" href="#" title="淘汰" onclick="eliminateProject(\''
+                                + row.proId + '\',\'' + row.taskId
+                                + '\')">淘汰</a>';
+
+                            return viewPro + viewCheck + score + eliminate;
                         }
                     }]
             });
@@ -521,3 +509,48 @@ $(document).ready(function() {
 });
 
 // 注：回避功能由管理员在专业组管理页面操作，专家列表不显示回避按钮
+
+/**
+ * 导出淘汰名单为Excel（CSV格式，Excel可直接打开）
+ */
+function exportEliminateExcel() {
+    var taskId = $("#taskId").val();
+    $.ajax({
+        type: "GET",
+        url: prefix + "/getEliminateList",
+        data: { taskId: taskId, limit: 100000, offset: 0 },
+        success: function (data) {
+            if (!data || !data.rows || data.rows.length === 0) {
+                layer.msg('暂无淘汰数据', { icon: 2 });
+                return;
+            }
+            var rows = data.rows;
+            var sheetData = [['序号', '申报账号', '课题名称', '淘汰理由', '淘汰时间']];
+            rows.forEach(function (row, index) {
+                var created = '';
+                if (row.created) {
+                    var d = new Date(row.created);
+                    created = d.getFullYear() + '-'
+                        + ('0' + (d.getMonth() + 1)).slice(-2) + '-'
+                        + ('0' + d.getDate()).slice(-2) + ' '
+                        + ('0' + d.getHours()).slice(-2) + ':'
+                        + ('0' + d.getMinutes()).slice(-2);
+                }
+                sheetData.push([
+                    index + 1,
+                    row.proCode || '',
+                    row.topicName || '',
+                    row.reason || '',
+                    created
+                ]);
+            });
+            var ws = XLSX.utils.aoa_to_sheet(sheetData);
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, '淘汰名单');
+            XLSX.writeFile(wb, '淘汰名单.xlsx');
+        },
+        error: function () {
+            layer.msg('导出失败，请稍后重试', { icon: 2 });
+        }
+    });
+}

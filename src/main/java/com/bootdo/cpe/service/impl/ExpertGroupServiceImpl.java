@@ -79,23 +79,6 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
             result = expertGroupDao.save(expertGroupDO);
         }
         
-        // 保存成功后，触发自动回避检查（仅针对QC项目）
-        if (result > 0 && "QC".equals(expertGroupDO.getProType()) 
-            && StringUtils.isNotBlank(expertGroupDO.getTaskId())
-            && StringUtils.isNotBlank(expertGroupDO.getUserId())
-            && StringUtils.isNotBlank(expertGroupDO.getCompany())) {
-            try {
-                avoidanceService.autoAvoidByCompany(
-                    expertGroupDO.getTaskId(), 
-                    Integer.parseInt(expertGroupDO.getUserId()), 
-                    expertGroupDO.getCompany()
-                );
-            } catch (Exception e) {
-                // 自动回避失败不影响主流程，仅记录日志
-                e.printStackTrace();
-            }
-        }
-        
         return result;
     }
 
