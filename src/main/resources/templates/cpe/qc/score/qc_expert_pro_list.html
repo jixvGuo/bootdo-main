@@ -93,6 +93,10 @@
                             <button type="button" class="btn btn-success btn-sm" onclick="exportEliminateExcel()">
                                 <i class="fa fa-file-excel-o"></i> 导出Excel
                             </button>
+                            <button id="btnSubmitEliminate" type="button" class="btn btn-primary btn-sm" onclick="submitEliminate()">
+                                <i class="fa fa-check"></i> 确认提交淘汰名单
+                            </button>
+                            <span id="eliminateSubmittedTip" class="label label-success" style="display:none; margin-left:10px; font-size:13px;">淘汰名单已确认提交</span>
                         </div>
                         <table id="eliminateTable" data-mobile-responsive="true"></table>
                     </div>
@@ -110,6 +114,7 @@
     // 传递字典数据给JS，用于筛选下拉框
     window.projectTypes = /*[[${projectTypes}]]*/ [];
     window.classifications = /*[[${classifications}]]*/ [];
+    window.eliminateIsOver = /*[[${eliminateIsOver}]]*/ 0;
 </script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" async></script>
 <script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.13"></script>

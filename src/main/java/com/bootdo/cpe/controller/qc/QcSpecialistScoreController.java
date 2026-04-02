@@ -112,6 +112,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
     // 增加try-catch防止score_over列不存在时页面无法加载
 
     /** 每个专家最多淘汰的项目数 */
+    //  淘汰数量
     private static final int MAX_ELIMINATE_COUNT = 9;
 
     @RequestMapping("/toExpertProList")
@@ -162,6 +163,24 @@ public class QcSpecialistScoreController extends BaseQcProController {
         }
         map.put("scoreIsOver", scoreIsOver > 0 ? 1 : 0);
         map.put("userId", uid); // 传递用户ID给前端，用于回避功能
+        
+        // 查询当前专家是否已确认提交淘汰名单
+        int eliminateIsOver = 0;
+        try {
+            Map<String, Object> eliQuery = new HashMap<>();
+            eliQuery.put("userId", String.valueOf(uid));
+            eliQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            if (StringUtils.isNotBlank(currentTaskId)) {
+                eliQuery.put("taskId", currentTaskId);
+            }
+            List<ExpertGroupDO> eliList = expertGroupService.list(eliQuery);
+            if (!eliList.isEmpty() && eliList.get(0).getEliminateOver() != null) {
+                eliminateIsOver = eliList.get(0).getEliminateOver();
+            }
+        } catch (Exception e) {
+            eliminateIsOver = 0;
+        }
+        map.put("eliminateIsOver", eliminateIsOver);
         
         // 传递字典数据给前端，用于筛选下拉框
         try {
@@ -850,6 +869,74 @@ public class QcSpecialistScoreController extends BaseQcProController {
         r.put("count", count);
         r.put("max", MAX_ELIMINATE_COUNT);
         return r;
+    }
+
+    /**
+     * 确认提交淘汰名单
+     * 校验淘汰数量是否满足要求（>=MAX_ELIMINATE_COUNT），满足则标记 eliminate_over=1
+     */
+    @RequestMapping("/submitEliminate")
+    @ResponseBody
+    public R submitEliminate(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        
+        // 校验淘汰数量
+        Map<String, Object> countParams = new HashMap<>();
+        countParams.put("expertUid", uid);
+        countParams.put("taskId", taskId);
+        countParams.put("deleted", 0);
+        int count = qcExpertEliminateService.count(countParams);
+        if (count < MAX_ELIMINATE_COUNT) {
+            return R.error("淘汰数量不足，需要淘汰" + MAX_ELIMINATE_COUNT + "个项目，当前已淘汰" + count + "个");
+        }
+        
+        // 查找当前专家的 add_special_info 记录并更新 eliminate_over=1
+        Map<String, Object> expertQuery = new HashMap<>();
+        expertQuery.put("userId", String.valueOf(uid));
+        expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+        if (StringUtils.isNotBlank(taskId)) {
+            expertQuery.put("taskId", taskId);
+        }
+        List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+        if (expertList.isEmpty()) {
+            return R.error("未找到专家分配记录");
+        }
+        ExpertGroupDO expert = expertList.get(0);
+        expert.setEliminateOver(1);
+        int result = expertGroupService.update(expert);
+        if (result > 0) {
+            return R.ok("淘汰名单确认提交成功");
+        }
+        return R.error("提交失败");
+    }
+
+    /**
+     * 撤回淘汰名单确认提交
+     */
+    @RequestMapping("/cancelSubmitEliminate")
+    @ResponseBody
+    public R cancelSubmitEliminate(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        
+        Map<String, Object> expertQuery = new HashMap<>();
+        expertQuery.put("userId", String.valueOf(uid));
+        expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+        if (StringUtils.isNotBlank(taskId)) {
+            expertQuery.put("taskId", taskId);
+        }
+        List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+        if (expertList.isEmpty()) {
+            return R.error("未找到专家分配记录");
+        }
+        ExpertGroupDO expert = expertList.get(0);
+        expert.setEliminateOver(0);
+        int result = expertGroupService.update(expert);
+        if (result > 0) {
+            return R.ok("已撤回淘汰名单提交");
+        }
+        return R.error("撤回失败");
     }
 
     /**
