@@ -232,6 +232,22 @@ public class RoleAwardParamData {
                 paramData.setType("2");
                 return paramData;
             }
+            if (roleList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)) {
+                paramData.setIsAssociation(false);
+                paramData.setIsOutWorker(true);
+                paramData.setAwardId(awardIdInt);
+                paramData.setRoleId(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID);
+                paramData.setType("2");
+                return paramData;
+            }
+            if (roleList.contains(ROLE_SURVER_SPECALIST_ID)) {
+                paramData.setIsAssociation(false);
+                paramData.setIsSpecialist(true);
+                paramData.setAwardId(awardIdInt);
+                paramData.setRoleId(ROLE_SURVER_SPECALIST_ID);
+                paramData.setType("2");
+                return paramData;
+            }
         }
 
         // QC奖 (awardId=3)
@@ -313,9 +329,8 @@ public class RoleAwardParamData {
             }
         }
 
-        // 4. 无匹配角色，抛异常
-        System.out.println("error");
-        return null;
+        // 4. 无匹配角色，抛异常（避免上层NPE）
+        throw new CpeException(ExceptionEnum.AWARD_TASK_ROLE_NO_SEL_AWARD);
     }
 
     public static List<Long> getAwardNoExistsMenuIdListByAwardId(Integer awardId) {

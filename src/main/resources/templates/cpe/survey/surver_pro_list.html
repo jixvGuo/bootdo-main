@@ -10,8 +10,13 @@
             <div class="ibox">
                 <div class="ibox-title">
 					<button class="btn btn-success" onclick="printExcelPro()">导出excel</button>
+					<button class="btn btn-info" onclick="toGroupManage()" th:if="${isAssociationLeader}">
+						<i class="fa fa-th-large"></i>&nbsp;分组管理
+					</button>
 					<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
 					<input id="proSubType" name="proSubType" th:value="${proSubType}"  type="hidden">
+					<input type="hidden" id="isAssociationLeader" th:value="${isAssociationLeader ? '1' : '0'}">
+					<input type="hidden" id="isEnterpriseUser" th:value="${isEnterpriseUser ? '1' : '0'}">
 <!--
 					<div class="columns ui pull-right action input">
 						<div class="ui floating dropdown  icon button">

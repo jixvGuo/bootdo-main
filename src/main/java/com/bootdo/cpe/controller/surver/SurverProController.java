@@ -62,6 +62,13 @@ public class SurverProController extends BaseSurverController {
     public String toProList(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
         map.put("proSubType", params.get("proSubType"));
+        UserDO user = getUser();
+        List<Long> roleIdList = user.getRoleIds();
+        boolean isAssociationLeader = roleIdList != null && roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID);
+        boolean isEnterpriseUser = roleIdList != null && roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID);
+        boolean isAdmin = roleIdList != null && roleIdList.contains(ROLE_ADMIN_ID);
+        map.put("isAssociationLeader", isAssociationLeader || isAdmin);
+        map.put("isEnterpriseUser", isEnterpriseUser);
         return prefix + "/surver_pro_list";
     }
 
@@ -77,7 +84,12 @@ public class SurverProController extends BaseSurverController {
         UserDO user = getUser();
         Long uid = getUserId();
         List<Long> roleIdList = user.getRoleIds();
-        if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
+        if (roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)
+                || roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)
+                || roleIdList.contains(ROLE_SCIENCE_EXTERNAL_EMPLOYMENT_ID)) {
+            // 外聘人员：只看分派给自己的项目
+            params.put("ass_assign_uid", uid);
+        } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
             //todo 临时使用协会联系人的用户id
             params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
         } else if (roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID)) {

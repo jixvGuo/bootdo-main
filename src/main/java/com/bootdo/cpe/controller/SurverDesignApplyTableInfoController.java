@@ -40,7 +40,6 @@ import com.bootdo.common.utils.R;
 public class SurverDesignApplyTableInfoController extends BaseSurverController {
 	@Autowired
 	private SurverDesignApplyTableInfoService surverDesignApplyTableInfoService;
-
 	@Autowired
 	private AwardEnterpriseProjectCommonService awardEnterpriseProjectCommonService;
 	@Autowired

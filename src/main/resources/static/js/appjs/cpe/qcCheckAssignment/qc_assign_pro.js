@@ -103,10 +103,15 @@ function assignPro() {
     var data = {"taskId": taskId, "proIds": proIds, "asWorkerName": asWorkerName , "awardType": awardType};
 
     console.log("分配的数据" + JSON.stringify(data));
+    var assignUrl = $("#assignUrl").val();
+    if (!assignUrl) {
+        assignUrl = (awardType === 'surver_pro') ? "/cpe/suverProcess/assignPro" : "/qcProcess/assignPro";
+    }
+
     $.ajax({
         cache: true,
         type: "POST",
-        url: "/qcProcess/assignPro",
+        url: assignUrl,
         data: data, // 你的formid
         async: false,
         error: function (request) {

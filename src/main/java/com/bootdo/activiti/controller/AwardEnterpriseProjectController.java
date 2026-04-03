@@ -70,10 +70,8 @@ import static com.bootdo.common.config.Constant.*;
 public class AwardEnterpriseProjectController extends BaseScienceProController {
     @Autowired
     private AwardEnterpriseProjectService awardEnterpriseProjectService;
-
     @Autowired
     private ExpertGroupService expertGroupService;
-
     @Autowired
     private DictService dictService;
     @Autowired
@@ -129,7 +127,6 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
         map.put("isReview", isReview);
         return "act/award/enterprise_doc_award_pro_list";
     }
-
 
     /**
      * 跳转到要个人形式审查申报的项目列表
@@ -784,7 +781,7 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
     public String groupEdit(@PathVariable("taskId") String taskId,
                             @PathVariable("groupid") Integer groupid, ModelMap map) {
         map.put("taskId", taskId);
-        QcGroupDO group = qcGroupService.get(groupid);
+        QcGroupDO group = qcGroupService.get(taskId,groupid);
         map.put("group", group);
         return "act/award/group_form";
     }
@@ -902,7 +899,7 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
 
             int count = awardEnterpriseProjectService.countProByGroupId(params);
             if (count > 0) {
-                QcGroupDO group = qcGroupService.get(groupid);
+                QcGroupDO group = qcGroupService.get(taskId,groupid);
                 errorMessages.add("分组【" + (group != null ? group.getName() : groupid) + "】下已有 " + count + " 个项目，无法删除！");
                 continue;
             }

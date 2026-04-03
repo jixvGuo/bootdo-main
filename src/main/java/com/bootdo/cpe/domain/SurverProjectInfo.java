@@ -52,9 +52,19 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
     private String declareAccount;
 
     /**
+     * 分组名称
+     */
+    private String qcGroupName;
+
+    /**
      * 人员名单（贡献主要人员逗号拼接）
      */
     private String memberList;
+
+    /**
+     * 最新形审结果
+     */
+    private String latestReviewResult;
 
     public int getId() {
         return id;
@@ -146,12 +156,28 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
         this.declareAccount = declareAccount;
     }
 
+    public String getQcGroupName() {
+        return qcGroupName;
+    }
+
+    public void setQcGroupName(String qcGroupName) {
+        this.qcGroupName = qcGroupName;
+    }
+
     public String getMemberList() {
         return memberList;
     }
 
     public void setMemberList(String memberList) {
         this.memberList = memberList;
+    }
+
+    public String getLatestReviewResult() {
+        return latestReviewResult;
+    }
+
+    public void setLatestReviewResult(String latestReviewResult) {
+        this.latestReviewResult = latestReviewResult;
     }
 
 }

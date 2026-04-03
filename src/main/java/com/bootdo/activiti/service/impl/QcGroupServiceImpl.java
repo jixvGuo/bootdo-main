@@ -15,8 +15,8 @@ public class QcGroupServiceImpl implements QcGroupService {
     private QcGroupDao qcGroupDao;
 
     @Override
-    public QcGroupDO get(Integer groupid) {
-        return qcGroupDao.get(groupid);
+    public QcGroupDO get(String taskId,Integer groupid) {
+        return qcGroupDao.get(taskId, groupid);
     }
 
     @Override

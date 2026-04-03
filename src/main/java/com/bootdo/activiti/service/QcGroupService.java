@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface QcGroupService {
-    QcGroupDO get(Integer groupid);
+    QcGroupDO get(String taskId,Integer groupid);
 
     List<QcGroupDO> list(Map<String, Object> map);
 

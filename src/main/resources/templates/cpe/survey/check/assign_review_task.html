@@ -8,20 +8,19 @@
         <form class="ui form">
             <input id="taskId" name="taskId" type="hidden" th:value="${taskId}">
             <input id="proIds" name="proIds" type="hidden">
+            <input id="assignUrl" type="hidden" value="/cpe/suverProcess/assignPro">
+            <input type="hidden" name="awardSubType" id="awardSubType" value="">
 
             <div class="ui two fields">
                 <div class="ui field">
-                    <label>奖项</label>
-                    <div class="ui selection dropdown" id="awardTypeMenu">
-                        <input type="hidden" name="awardSubType" id="awardSubType" value="">
+                    <label>分组</label>
+                    <div class="ui selection dropdown" id="qcGroupMenu">
+                        <input type="hidden" name="qcGroupName" id="qcGroupName" value="">
                         <i class="dropdown icon"></i>
-                        <div class="default text" id="reward">选择奖项</div>
-                        <div class="menu">
-<!--                            <div class="item" data-value="consulting">石油工程建设优秀咨询奖</div>-->
-                            <div class="item" data-value="standard">石油工程建设优秀标准设计奖</div>
-                            <div class="item" data-value="software">石油工程建设优秀勘察设计计算机软件奖</div>
-                            <div class="item" data-value="design">石油工程建设优秀设计奖</div>
-                            <div class="item" data-value="contribution">石油工程建设优秀勘察奖</div>
+                        <div class="default text">分组</div>
+                        <div class="menu" id="groupMenu">
+                            <div class="item" data-value="">全部分组</div>
+                            <div class="item" data-value="__NO_GROUP__">未分组</div>
                         </div>
                     </div>
                 </div>
@@ -54,8 +53,10 @@
                         <th>编号</th>
                         <th>项目编号</th>
                         <th>名称</th>
+                        <th>项目类别</th>
                         <th>企业名称</th>
                         <th>专业</th>
+                        <th>分组</th>
                     </tr>
                     </thead>
                     <tbody id="lefttbody">
@@ -69,8 +70,10 @@
                         <td th:text="${externalList.id}"></td>
                         <td th:text="${externalList.proCode}"></td>
                         <td th:text="${externalList.taskName}"></td>
+                        <td th:text="${externalList.proSubTypeStr}"></td>
                         <td th:text="${externalList.enterpriseName}"></td>
                         <td th:text="${externalList.major}"></td>
+                        <td th:text="${externalList.qcGroupname}"></td>
                     </tr>
                     </tbody>
                 </table>
@@ -100,8 +103,10 @@
                         <th>编号</th>
                         <th>项目编号</th>
                         <th>名称</th>
+                        <th>项目类别</th>
                         <th>企业名称</th>
                         <th>专业</th>
+                        <th>分组</th>
                     </tr>
 
 
@@ -118,8 +123,10 @@
                         <td id="external" th:text="${externalList.serNum}"></td>
                         <td th:text="${externalList.proCode}"></td>
                         <td th:text="${externalList.taskName}"></td>
+                        <td th:text="${externalList.proSubTypeStr}"></td>
                         <td th:text="${externalList.enterpriseName}"></td>
                         <td th:text="${externalList.major}"></td>
+                        <td th:text="${externalList.qcGroupname}"></td>
                     </tr>
                     </tbody>
                 </table>
@@ -139,6 +146,7 @@
     </div>
 </div>
 <input type="hidden" id="firstWorkerName" th:value="${firstWorkerName}"/>
+<input type="hidden" id="selAwardType" value="surver_pro"/>
 <div th:include="include::footer"></div>
 
 <script type="text/javascript" src="/js/semantic/semantic.min.js"></script>
@@ -146,9 +154,18 @@
 
 <script type="text/javascript">
 
-    $("#awardTypeMenu").dropdown({
+    // 防止循环触发的标志位
+    var isUpdating = false;
+
+    // 页面不区分奖项，统一按勘察奖全量查询
+    $("#awardSubType").val("");
+
+    $('#qcGroupMenu').dropdown({
         onChange: (value, text, $choice) => {
-            console.log("---->awardTypeMenu ",value, text, $choice);
+            if (isUpdating) return;
+            isUpdating = true;
+
+            console.log("---->qcGroupMenu ",value, text, $choice);
             var asWorkerName = $("#asWorkerName").val();
             $.ajax({
                 url:'/cpe/suverProcess/queryAssignPro',
@@ -156,34 +173,44 @@
                 data:{
                     asWorkerName: asWorkerName,
                     awardType:'surver_pro',
-                    awardSubType: value,
+                    qcGroupName: value,
                     taskId: $("#taskId").val()
                 },
                 success:function (data) {
-                    console.log("=awardTypeMenu====>data=", data);
+                    console.log("==qcGroupMenu===>data=", data);
                     initSelContion(data.noAssignList, 'lefttbody', 'leftthead');
                     initSelContion(data.assignList, 'righttbody', 'rightthead');
+                },
+                complete: function() {
+                    isUpdating = false;
                 }
             });
         }
     });
+
     $('#asWorkerMenu').dropdown({
         onChange: (value, text, $choice) => {
+            if (isUpdating) return;
+            isUpdating = true;
+
             console.log("---->asWorkerMenu ",value, text, $choice);
-            var major = $("#awardType").val();
+            var qcGroupName = $("#qcGroupName").val();
             $.ajax({
-                url:'/qcProcess/queryAssignPro',
+                url:'/cpe/suverProcess/queryAssignPro',
                 type: "POST",
                 data:{
                     asWorkerName: value,
-                    major: major,
-                    awardType:'qc_group',
+                    awardType:'surver_pro',
+                    qcGroupName: qcGroupName,
                     taskId: $("#taskId").val()
                 },
                 success:function (data) {
                     console.log("==asWorkerMenu===>data=", data);
                     initSelContion(data.noAssignList, 'lefttbody', 'leftthead');
                     initSelContion(data.assignList, 'righttbody', 'rightthead');
+                },
+                complete: function() {
+                    isUpdating = false;
                 }
             });
         }
@@ -193,22 +220,22 @@
         var trStr = "";
         for (var i = 0; i < proList.length; i++) {
             var obj = proList[i];
-            trStr += "<tr> " +
+            trStr += "<tr data-pro-id='" + obj.id + "'> " +
                 "                        <td name=\"option\"> " +
                 "                            <div class=\"ui fitted checkbox\"> " +
                 "                                <input type=\"checkbox\"> " +
                 "                                <label></label> " +
                 "                            </div> " +
                 "                        </td> " +
-                " <input type='hidden' name='proId' value='" + obj.id + "' />" +
                 "                        <td>" + obj.serNum + "</td> " +
                 "                        <td>" + obj.proCode + "</td> " +
                 "                        <td>" + obj.taskName + "</td> " +
+                "                        <td>" + (obj.proSubTypeStr || '') + "</td> " +
                 "                        <td>" + obj.enterpriseName + "</td> " +
                 "                        <td>" + obj.major + "</td> " +
+                "                        <td>" + (obj.qcGroupname || '') + "</td> " +
                 "                    </tr>";
         }
-
 
         $("#" + tbodyId).html(trStr);
 
@@ -221,8 +248,32 @@
         });
     }
 
+    // 加载分组列表（复用项目分组字段）
+    function loadSurverGroups() {
+        var taskId = $("#taskId").val();
+        $.ajax({
+            url:'/cpe/suverProcess/getSurverGroups',
+            type: "POST",
+            data:{
+                taskId: taskId,
+                awardType: 'surver_pro'
+            },
+            success:function (data) {
+                var html = '<div class="item" data-value="">全部分组</div>' +
+                    '<div class="item" data-value="__NO_GROUP__">未分组</div>';
+                if(data && data.code === 0 && data.list){
+                    for (var i = 0; i < data.list.length; i++) {
+                        var g = data.list[i] || '';
+                        html += '<div class="item" data-value="' + g + '">' + g + '</div>';
+                    }
+                }
+                $("#groupMenu").html(html);
+            }
+        });
+    }
+
     $("#externalMenu").parent().dropdown('set selected', $("#firstWorkerName").val());
-    $("#awardType").parent().dropdown('set selected', 'science');
+    loadSurverGroups();
 
     $('#leftthead').click(function (e) {
         if ($(this).find("input").is(':checked')) {

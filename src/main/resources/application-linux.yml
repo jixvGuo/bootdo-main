@@ -14,7 +14,7 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driverClassName: com.mysql.jdbc.Driver
-    url: jdbc:mysql://172.17.237.57:3128/boot_do?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://123.57.10.88:3128/boot_do?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: boot_do        # 替换为您的数据库用户名
     password: bootdo5767 # 替换为您的数据库密码
     #    username: admin           # 替换为您的数据库用户名

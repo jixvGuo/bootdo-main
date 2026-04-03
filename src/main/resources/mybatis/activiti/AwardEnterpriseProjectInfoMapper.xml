@@ -122,7 +122,17 @@
             <if test="awardType == 'qc_group'">
                 qg.group_name task_name,
             </if>
+            <if test="awardType == 'surver_pro'">
+                pro.chengguo task_name,
+            </if>
             pro.qc_group_name,
+            case pro.pro_sub_type
+                when 'standard' then '优秀标准设计奖'
+                when 'software' then '优秀勘察设计计算机软件奖'
+                when 'design' then '优秀设计奖'
+                when 'contribution' then '优秀勘察奖'
+                else pro.pro_sub_type
+            end proSubTypeStr,
             IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) proCode,
             IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) proCode,
             <if test="awardType == 'qc_group'">
@@ -791,14 +801,15 @@
 	</select>
     <select id="getProGroupList" resultType="java.lang.String">
         SELECT DISTINCT
-           pro_group_name
+           ifnull(qc_group_name, pro_group_name)
         FROM
            ass_award_enterprise_project
         <where>
             <if test="proType != null and proType != ''">AND pro_type = #{proType}</if>
             <if test="proSubType != null and proSubType != ''">AND pro_sub_type = #{proSubType}</if>
             AND publish_task_id = #{taskId}
-            AND pro_group_name IS NOT NULL
+            AND ifnull(qc_group_name, pro_group_name) IS NOT NULL
+            AND ifnull(qc_group_name, pro_group_name) != ''
         </where>
     </select>
 

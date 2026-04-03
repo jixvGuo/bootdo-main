@@ -79,6 +79,13 @@
 			<if test="name != null and name != ''">and task_name like CONCAT('%',#{name},'%')</if>
 		    <if test="isOutWorker">
                and now() between pt.check_start_time and pt.check_end_time
+               and exists(
+                   select 1
+                   from ass_award_enterprise_project pro
+                   join ass_award_assign_project ap on ap.pro_id = pro.id
+                   where pro.publish_task_id = pt.id
+                     and ap.uid = #{specialUid}
+               )
 			</if>
 			<if test="isSpecialist">
                 and exists(SELECT * FROM add_special_info where user_id = #{specialUid} and task_id = pt.id and deleted = 0)
@@ -158,6 +165,13 @@
 
 			<if test="isOutWorker">
 				and now() between check_start_time and check_end_time
+				and exists(
+					select 1
+					from ass_award_enterprise_project pro
+					join ass_award_assign_project ap on ap.pro_id = pro.id
+					where pro.publish_task_id = pt.id
+					  and ap.uid = #{specialUid}
+				)
 			</if>
 
 			<if test="isSpecialist">

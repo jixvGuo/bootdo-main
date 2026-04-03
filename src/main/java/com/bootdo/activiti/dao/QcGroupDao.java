@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface QcGroupDao {
-    QcGroupDO get(Integer groupid);
+    QcGroupDO get(@Param("taskId") String taskId, @Param("groupid") Integer groupid);
 
     List<QcGroupDO> list(Map<String, Object> map);
 

@@ -82,8 +82,37 @@ function load() {
                         title: '申报联系方式'
                     },
                     {
+                        field: 'qcGroupName',
+                        title: '分组',
+                        formatter: function(value, row, index) {
+                            var groupName = value || '未分组';
+                            if ($("#isAssociationLeader").val() === '1') {
+                                return '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                                    '<span class="group-name-' + row.proId + '" style="flex:1;overflow:hidden;text-overflow:ellipsis;">' + groupName + '</span>' +
+                                    '<button class="btn btn-xs btn-primary" onclick="showGroupSelect(' + row.proId + ')" style="margin-left:10px;white-space:nowrap;">选择分组</button>' +
+                                    '</div>';
+                            }
+                            return '<span class="group-name-' + row.proId + '">' + groupName + '</span>';
+                        }
+                    },
+                    {
                         field: 'applyStat',
                         title: '状态'
+                    },
+                    {
+                        field: 'latestReviewResult',
+                        title: '形审结果',
+                        formatter: function (value, row, index) {
+                            var text = value;
+                            if (!text || text === '') {
+                                if (!row.checkStartTime) {
+                                    text = '形审未开始';
+                                } else {
+                                    text = '暂无形审结果';
+                                }
+                            }
+                            return '<a href="javascript:void(0)" onclick="showReviewRecordList(' + row.proId + ',\'' + (row.proSubType || '') + '\')">' + text + '</a>';
+                        }
                     },
                     {
                         title: '操作',
@@ -97,9 +126,9 @@ function load() {
                             let rs_cancel_review_h = s_cancel_review_h;
                             let rs_download_doc_h = s_download_doc_h;
                             let rs_download_zip_h = s_download_zip_h;
-                            if (!row.isReview) {
-                                rs_review_h = 'hidden';
-                            }
+                            var isLeader = $("#isAssociationLeader").val() === '1';
+                            var stat = row.proStat || '';
+                            var isReviewResultStat = stat === 'partake_award' || stat === 'improve_partake' || stat === 'no_award' || stat === 'defer_score';
                             if (!row.isEdit) {
                                 //不能编辑操作
                                 rs_edit_h = 'hidden';
@@ -107,6 +136,10 @@ function load() {
                             }
                             if (!row.isCancelReview) {
                                 rs_cancel_review_h = 'hidden';
+                            }
+                            // 领导同QC：审核中/已出审查结论时允许“驳回”
+                            if (isLeader && (stat === 'check' || isReviewResultStat)) {
+                                rs_cancel_review_h = '';
                             }
                             if (!row.isDownloadProDoc) {
                                 rs_download_doc_h = 'hidden';
@@ -151,15 +184,22 @@ function load() {
 
                             let subCheckIsHide = row.isSubCheck == 1 ? '' : 'hidden';
                             var h = '<a class="btn btn-success ' + rs_edit_h + ' ' + subCheckIsHide + '" href="#" onclick="subCheck(' + row.proId + ')" title="提交审核"  mce_href="#">提交审核</a> ';
-                            var cancelCheck = '<a class="btn btn-success ' + rs_cancel_review_h + '" href="#" onclick="cancelCheck(' + row.proId + ')" title="表单审核撤回"  mce_href="#">回收</a> ';
+                            var cancelBtnText = $("#isEnterpriseUser").val() === '1' ? '回收' : '驳回';
+                            var cancelCheck = '<a class="btn btn-success ' + rs_cancel_review_h + '" href="#" onclick="cancelCheck(' + row.proId + ')" title="表单审核' + cancelBtnText + '"  mce_href="#">' + cancelBtnText + '</a> ';
 
-                            var j = '<a class="btn btn-success  ' + rs_review_h + '" href="#" title="形式检查"  mce_href="#" onclick="reviewUploadDoc(\''
+                            var reviewHide = rs_review_h;
+                            // 未提交状态不显示形式审查按钮
+                            if (!row.proStat || row.proStat === '') {
+                                reviewHide = 'hidden';
+                            }
+                            var j = '<a class="btn btn-success  ' + reviewHide + '" href="#" title="形式检查"  mce_href="#" onclick="reviewUploadDoc(\''
                                 + row.id
                                 + '\',\''
                                 + row.proId
                                 + '\',\''
                                 + row.proSubType
                                 + '\')">形式审查</a> ';
+
 
                             var specialistScore = '<a class="btn btn-warning btn-sm  " href="#" title="评分"  mce_href="#" onclick="specialistScore (\''
                                 + row.proId
@@ -250,6 +290,76 @@ function printExcelPro() {
     var taskId = $("#taskId").val();
     var proSubType = $("#proSubType").val();
     window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId) + "&proSubType=" + encodeURIComponent(proSubType);
+}
+
+function toGroupManage() {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        layer.msg("缺少任务ID");
+        return;
+    }
+    page('/enterprise_pro/to_group_manage/' + taskId, '分组管理', 20220601, true);
+}
+
+function showGroupSelect(proId) {
+    var taskId = $("#taskId").val();
+    $.ajax({
+        url: "/enterprise_pro/group/list",
+        type: "get",
+        data: {
+            taskId: taskId,
+            limit: 100,
+            offset: 0
+        },
+        success: function(data) {
+            if (data.rows && data.rows.length > 0) {
+                var optionsHtml = '<option value="">请选择分组</option>';
+                data.rows.forEach(function(group) {
+                    optionsHtml += '<option value="' + group.groupid + '">' + group.name + '</option>';
+                });
+
+                layer.open({
+                    type: 1,
+                    title: '选择分组',
+                    area: ['400px', '300px'],
+                    content: '<div style="padding:20px;">' +
+                        '<select id="groupSelect" class="form-control">' + optionsHtml + '</select>' +
+                        '<div style="margin-top:20px;text-align:center;">' +
+                        '<button class="btn btn-primary" onclick="confirmGroupSelect(' + proId + ')">确定</button> ' +
+                        '<button class="btn btn-default" onclick="layer.closeAll()">取消</button>' +
+                        '</div></div>'
+                });
+            } else {
+                layer.msg('暂无分组，请先在分组管理中创建分组');
+            }
+        }
+    });
+}
+
+function confirmGroupSelect(proId) {
+    var groupId = $("#groupSelect").val();
+    if (!groupId) {
+        layer.msg('请选择分组');
+        return;
+    }
+
+    $.ajax({
+        url: "/enterprise_pro/assign_to_group",
+        type: "post",
+        data: {
+            proId: proId,
+            groupId: groupId
+        },
+        success: function(r) {
+            if (r.code == 0) {
+                layer.msg('分配成功');
+                layer.closeAll();
+                reLoad();
+            } else {
+                layer.msg(r.msg);
+            }
+        }
+    });
 }
 
 
@@ -384,6 +494,45 @@ function reviewUploadDoc(id, proId, proSubType) {
         title = '优秀勘察奖形式审查';
     }
     page(url + "proId=" + proId + "&proSubType=" + proSubType, title, 20220414, true);
+}
+
+function showReviewRecordList(proId, proSubType) {
+    $.ajax({
+        url: "/cpe/suverProcess/list/reviewRecords",
+        type: "get",
+        data: {proId: proId, proSubType: proSubType},
+        success: function(r) {
+            if (r.code !== 0) {
+                layer.msg(r.msg || "获取形审记录失败");
+                return;
+            }
+            var records = r.data || [];
+            if (!records || records.length === 0) {
+                layer.msg("暂无形审记录");
+                return;
+            }
+
+            var html = '<div style="padding:16px;max-height:400px;overflow-y:auto;">';
+            for (var i = 0; i < records.length; i++) {
+                var record = records[i];
+                html += '<div style="border:1px solid #ddd;margin-bottom:10px;padding:10px;border-radius:4px;background:#fff;">';
+                html += '<p><b>形审结果:</b> ' + (record.reviewResult || '无') + '</p>';
+                html += '<p><b>形审时间:</b> ' + (record.created || record.reviewTime || '') + '</p>';
+                html += '<p><b>形审人员:</b> ' + (record.optUid || record.reviewerName || '未知') + '</p>';
+                html += '<p><b>形审评语:</b></p>';
+                html += '<div style="border:1px solid #eee;padding:8px;min-height:80px;background:#f9f9f9;">' + (record.remarks || record.opinionDesc || '暂无评语') + '</div>';
+                html += '</div>';
+            }
+            html += '</div>';
+
+            layer.open({
+                type: 1,
+                title: "形审记录列表",
+                area: ['600px', '500px'],
+                content: html
+            });
+        }
+    });
 }
 
 /***

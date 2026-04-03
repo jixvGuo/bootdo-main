@@ -16,8 +16,14 @@ import com.bootdo.cpe.dto.QcProDataDto;
 import com.bootdo.cpe.service.ExpertGroupService;
 import com.bootdo.cpe.service.QcAwardService;
 import com.bootdo.cpe.service.QcReviewResultRecordService;
+import com.bootdo.cpe.service.SurverReviewDesignResultService;
+import com.bootdo.cpe.service.SurverReviewSoftResultService;
+import com.bootdo.cpe.service.SurverReviewStandardResultService;
+import com.bootdo.cpe.service.SurverReviewConsultResultService;
+import com.bootdo.cpe.service.SurverReviewSurverResultService;
 import com.bootdo.system.domain.UserDO;
 import com.bootdo.system.service.UserService;
+import org.apache.shiro.authz.annotation.Logical;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -30,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.bootdo.common.config.Constant.ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID;
@@ -57,6 +64,16 @@ public class SurverProcessController extends BaseSurverController {
     private QcReviewResultRecordService qcReviewResultRecordService;
     @Autowired
     private ExpertGroupService expertGroupService;
+    @Autowired
+    private SurverReviewDesignResultService surverReviewDesignResultService;
+    @Autowired
+    private SurverReviewSoftResultService surverReviewSoftResultService;
+    @Autowired
+    private SurverReviewStandardResultService surverReviewStandardResultService;
+    @Autowired
+    private SurverReviewConsultResultService surverReviewConsultResultService;
+    @Autowired
+    private SurverReviewSurverResultService surverReviewSurverResultService;
 
 
        /**
@@ -67,7 +84,7 @@ public class SurverProcessController extends BaseSurverController {
      */
     @RequestMapping("/cancelCheck")
     @ResponseBody
-    @RequiresPermissions("cpe:surverApplyInfo:cancelReview")
+    // @RequiresPermissions(value = {"cpe:surverApplyInfo:cancelReview", "cpe:surverApplyInfo:review"}, logical = Logical.OR)
     public R cancelCheckPro(Integer proId) {
         if (proId != null && proId > 0 && qcAwardService.updateProApply(proId) > 0) {
             return R.ok();
@@ -205,6 +222,13 @@ public class SurverProcessController extends BaseSurverController {
     public R queryAssignProList(@RequestParam Map<String, Object> params, ModelMap map) {
         packageAwardTaskId(map, params);
         String asWorkerName = (String) params.get("asWorkerName");
+        String qcGroupName = (String) params.get("qcGroupName");
+        // 处理"未分组"的特殊标识
+        if ("__NO_GROUP__".equals(qcGroupName)) {
+            params.put("qcGroupName", "");
+            params.put("noGroup", true);
+        }
+
         Map<String,Object> userParamMap = new HashMap<>();
         userParamMap.put("username", asWorkerName);
         List<UserDO> userList = userService.list(userParamMap);
@@ -232,6 +256,16 @@ public class SurverProcessController extends BaseSurverController {
         return R.ok(result);
     }
 
+    @RequestMapping("/getSurverGroups")
+    @ResponseBody
+    public R getSurverGroups(@RequestParam Map<String, Object> params, ModelMap map) {
+        packageAwardTaskId(map, params);
+        // 分组管理写入的是 qc_group_name（同时兼容旧字段 pro_group_name）
+        params.put("proType", EnumProjectType.SURVER_PRO.getProType());
+        List<String> groupList = awardEnterpriseProjectService.getProGroupList(params);
+        return R.ok().put("list", groupList);
+    }
+
 
     @RequestMapping("/assignPro")
     @ResponseBody
@@ -246,27 +280,77 @@ public class SurverProcessController extends BaseSurverController {
         }
         String[] workerNameArr = asWorkerName.split(",");
         List<Long> workerUidList = userService.getUidsByLoginUserNames(workerNameArr);
-        String proIds = params.get("proIds").toString();
+        String proIds = params.get("proIds") == null ? "" : params.get("proIds").toString();
+        String awardType = params.get("awardType").toString();
+
+        // 先清空该外聘人员在当前任务+奖项下的历史分派（支持“取消分配”）
+        awardEnterpriseProjectService.removeByExtUid(workerUidList, taskId, awardType);
+
+        // 右侧为空：表示清空
         if (StringUtils.isBlank(proIds)) {
-            return R.error(2, "请选择要分派的项目");
+            return R.ok("分派已更新（已清空）");
         }
+
         String[] proIdArr = proIds.split(",");
         List<AssignProjectDataDo> assignProjectDataDoList = new ArrayList<>();
         for (long wuid : workerUidList) {
             for (String proId : proIdArr) {
-                long pid = Long.parseLong(proId);
-                AssignProjectDataDo assignData = new AssignProjectDataDo(assignUid, wuid, pid);
-                assignProjectDataDoList.add(assignData);
+                if (StringUtils.isNotBlank(proId)) {
+                    long pid = Long.parseLong(proId.trim());
+                    AssignProjectDataDo assignData = new AssignProjectDataDo(assignUid, wuid, pid);
+                    assignProjectDataDoList.add(assignData);
+                }
             }
         }
 
-        String awardType = params.get("awardType").toString();
-        awardEnterpriseProjectService.removeByExtUid(workerUidList, taskId, awardType);
+        if (assignProjectDataDoList.isEmpty()) {
+            return R.ok("分派已更新");
+        }
+
         awardEnterpriseProjectService.assignPro(assignProjectDataDoList);
 
-        return R.ok();
+        return R.ok("分派已更新");
     }
 
+    /**
+     * 勘察奖形审记录（同QC）
+     */
+    @RequestMapping("/list/reviewRecords")
+    @ResponseBody
+    public R listReviewRecords(Integer proId, String proSubType) {
+        if (proId == null) {
+            return R.error("缺少项目ID");
+        }
+        Map<String, Object> params = new HashMap<>();
+        params.put("proId", proId);
+        params.put("sort", "id");
+        params.put("order", "desc");
+        params.put("offset", 0);
+        params.put("limit", 200);
 
+        List<?> records;
+        if ("design".equals(proSubType)) {
+            records = surverReviewDesignResultService.list(params);
+        } else if ("software".equals(proSubType)) {
+            records = surverReviewSoftResultService.list(params);
+        } else if ("standard".equals(proSubType)) {
+            records = surverReviewStandardResultService.list(params);
+        } else if ("consulting".equals(proSubType)) {
+            records = surverReviewConsultResultService.list(params);
+        } else if ("contribution".equals(proSubType)) {
+            records = surverReviewSurverResultService.list(params);
+        } else {
+            // 未传子类时，兼容汇总全部子类
+            List<Object> all = new ArrayList<>();
+            all.addAll((List<?>) surverReviewDesignResultService.list(params));
+            all.addAll((List<?>) surverReviewSoftResultService.list(params));
+            all.addAll((List<?>) surverReviewStandardResultService.list(params));
+            all.addAll((List<?>) surverReviewConsultResultService.list(params));
+            all.addAll((List<?>) surverReviewSurverResultService.list(params));
+            records = all;
+        }
+
+        return R.ok().put("data", records == null ? Collections.emptyList() : records);
+    }
 
 }

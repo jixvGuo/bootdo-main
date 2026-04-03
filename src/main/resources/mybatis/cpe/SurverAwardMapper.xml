@@ -25,6 +25,15 @@
                pro.pro_stat,
                pro.pro_result_code proCode,
                pro.declare_account declareAccount,
+               ifnull(pro.qc_group_name, pro.pro_group_name) qcGroupName,
+               case pro.pro_sub_type
+                   when 'design' then (select r.review_result from ass_surver_review_design_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'software' then (select r.review_result from ass_surver_review_soft_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'standard' then (select r.review_result from ass_surver_review_standard_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'consulting' then (select r.review_result from ass_surver_review_consult_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'contribution' then (select r.review_result from ass_surver_review_surver_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   else ''
+               end latestReviewResult,
                case
                    when pro.pro_sub_type = 'design' then (
                        select group_concat(sdu.username separator '、')

@@ -97,11 +97,7 @@ public class SurverReviewSoftResultController  extends BaseSurverController {
 	@RequiresPermissions("cpe:surverReview:add")
 	public R save( SurverReviewSoftResultDO surverReviewSoftResult){
 		Integer proId = surverReviewSoftResult.getProId();
-		//更新项目状态值
-		Map<String,Object> proStatParams = new HashMap<>();
-		proStatParams.put("proId", proId);
-		proStatParams.put("reviewResult", surverReviewSoftResult.getReviewResult());
-		petroleumEngineeringService.updateProStat(proStatParams);
+		// 仅保存形式审查结果记录，不再根据形审结果改项目状态
 
 		//发送系统通知给用户
 		long proCreateUid = projectCommonService.getProCreateUid(proId);
@@ -125,14 +121,8 @@ public class SurverReviewSoftResultController  extends BaseSurverController {
 
 		Long uid = getUserId();
 		surverReviewSoftResult.setOptUid(uid.intValue());
-		Integer id = surverReviewSoftResult.getId();
-		if(id != null && id > 0) {
-		    reviewId = id;
-			notifyService.saveProReviewNotifyShip(notifyId, proId, reviewId, EnumProjectType.SURVER_PRO.getProType());
-
-			int rst = surverReviewSoftResultService.update(surverReviewSoftResult);
-			return rst > 0 ? R.ok() : R.error();
-		}
+		// 允许多次审查：每次提交都新增记录，不覆盖历史
+		surverReviewSoftResult.setId(null);
 		if(surverReviewSoftResultService.save(surverReviewSoftResult)>0){
 			reviewId = surverReviewSoftResult.getId();
 			notifyService.saveProReviewNotifyShip(notifyId, proId, reviewId, EnumProjectType.SURVER_PRO.getProType());

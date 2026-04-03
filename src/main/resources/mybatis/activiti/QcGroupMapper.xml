@@ -10,7 +10,7 @@
     </resultMap>
 
     <select id="get" resultMap="qcGroup">
-        SELECT * FROM ass_qc_group WHERE groupid = #{value}
+        SELECT * FROM ass_qc_group WHERE taskid = #{taskId} AND groupid = #{groupid}
     </select>
 
     <select id="list" resultMap="qcGroup">

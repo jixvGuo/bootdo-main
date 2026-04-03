@@ -22,7 +22,10 @@ public class ScienceAssignExternalProInfo {
 
     private String qcGroupname;
     private String applyAccount;
-
+    /**
+     * 项目类别（勘察奖子类别）
+     */
+    private String proSubTypeStr;
 
 
     /**
@@ -100,5 +103,13 @@ public class ScienceAssignExternalProInfo {
 
     public void setQcGroupname(String qcGroupname) {
         this.qcGroupname = qcGroupname;
+    }
+
+    public String getProSubTypeStr() {
+        return proSubTypeStr;
+    }
+
+    public void setProSubTypeStr(String proSubTypeStr) {
+        this.proSubTypeStr = proSubTypeStr;
     }
 }

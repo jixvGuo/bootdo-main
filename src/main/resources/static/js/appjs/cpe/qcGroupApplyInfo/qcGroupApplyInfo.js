@@ -347,7 +347,7 @@ function resolveOps(stage, proStat, row) {
     }
     if (isLeader) {
         // ops.edit = false;  // 原代码：领导角色禁用编辑
-        ops.edit = true;      // 新代码：领导角色也始终显示编辑按钮
+        ops.edit = false;      // 新代码：领导角色也始终显示编辑按钮
         ops.remove = false;
         ops.print = true;
         ops.download = true;
