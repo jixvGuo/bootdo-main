@@ -33,32 +33,32 @@
                         </div>
 
                         <!-- 查询筛选条件 -->
-<!--                        <div id="filterToolbar" style="margin-bottom: 10px; padding: 15px; background: #f5f5f5; border-radius: 4px;">-->
-<!--                            <div class="row">-->
-<!--                                <div class="col-sm-3">-->
-<!--                                    <input type="text" class="form-control" id="filter_proCode" placeholder="申报账号筛选">-->
-<!--                                </div>-->
-<!--                                <div class="col-sm-3">-->
-<!--                                    <input type="text" class="form-control" id="filter_topicName" placeholder="课题名称筛选">-->
-<!--                                </div>-->
-<!--                                <div class="col-sm-3">-->
-<!--                                    <input type="text" class="form-control" id="filter_groupName" placeholder="小组名称筛选">-->
-<!--                                </div>-->
-<!--                                <div class="col-sm-3">-->
-<!--                                    <input type="text" class="form-control" id="filter_companyName" placeholder="单位名称筛选">-->
-<!--                                </div>-->
-<!--                            </div>-->
-<!--                            <div class="row" style="margin-top: 10px;">-->
-<!--                                <div class="col-sm-3">-->
-<!--                                    <select class="form-control" id="filter_topicType">-->
-<!--                                        <option value="">课题类型 - 全部</option>-->
-<!--                                    </select>-->
-<!--                                </div>-->
-<!--                                <div class="col-sm-3">-->
-<!--                                    <select class="form-control" id="filter_professionalScope">-->
-<!--                                        <option value="">分类类型 - 全部</option>-->
-<!--                                    </select>-->
-<!--                                </div>-->
+                        <div id="filterToolbar" style="margin-bottom: 10px; padding: 15px; background: #f5f5f5; border-radius: 4px;">
+                            <div class="row">
+                                <div class="col-sm-3">
+                                    <input type="text" class="form-control" id="filter_proCode" placeholder="申报账号筛选">
+                                </div>
+                                <div class="col-sm-3">
+                                    <input type="text" class="form-control" id="filter_topicName" placeholder="课题名称筛选">
+                                </div>
+                                <div class="col-sm-3">
+                                    <input type="text" class="form-control" id="filter_groupName" placeholder="小组名称筛选">
+                                </div>
+                                <div class="col-sm-3">
+                                    <input type="text" class="form-control" id="filter_companyName" placeholder="单位名称筛选">
+                                </div>
+                            </div>
+                            <div class="row" style="margin-top: 10px;">
+                                <div class="col-sm-3">
+                                    <select class="form-control" id="filter_topicType">
+                                        <option value="">课题类型 - 全部</option>
+                                    </select>
+                                </div>
+                                <div class="col-sm-3">
+                                    <select class="form-control" id="filter_professionalScope">
+                                        <option value="">分类类型 - 全部</option>
+                                    </select>
+                                </div>
 <!--                                <div class="col-sm-3">-->
 <!--                                    <select class="form-control" id="avoidanceFilter">-->
 <!--                                        <option value="">回避状态 - 全部</option>-->
@@ -69,14 +69,14 @@
 <!--                                <div class="col-sm-3">-->
 <!--                                    <input type="text" name="keyWord" class="form-control" placeholder="全局关键字搜索（申报账号/课题/小组/单位）">-->
 <!--                                </div>-->
-<!--                            </div>-->
-<!--                            <div class="row" style="margin-top: 10px;">-->
-<!--                                <div class="col-sm-12" style="text-align: right;">-->
-<!--                                    <button class="btn btn-primary" onclick="applyFilters()">筛选</button>-->
-<!--                                    <button class="btn btn-default" onclick="clearFilters()">重置</button>-->
-<!--                                </div>-->
-<!--                            </div>-->
-<!--                        </div>-->
+                            </div>
+                            <div class="row" style="margin-top: 10px;">
+                                <div class="col-sm-12" style="text-align: right;">
+                                    <button class="btn btn-primary" onclick="applyFilters()">筛选</button>
+                                    <button class="btn btn-default" onclick="clearFilters()">重置</button>
+                                </div>
+                            </div>
+                        </div>
 
                         <!--  打分项目table   -->
                         <!--  表示启用移动端响应式适配   -->
@@ -93,6 +93,10 @@
                             <button type="button" class="btn btn-success btn-sm" onclick="exportEliminateExcel()">
                                 <i class="fa fa-file-excel-o"></i> 导出Excel
                             </button>
+                            <button id="btnSubmitEliminate" type="button" class="btn btn-primary btn-sm" onclick="submitEliminate()">
+                                <i class="fa fa-check"></i> 确认提交淘汰名单
+                            </button>
+                            <span id="eliminateSubmittedTip" class="label label-success" style="display:none; margin-left:10px; font-size:13px;">淘汰名单已确认提交</span>
                         </div>
                         <table id="eliminateTable" data-mobile-responsive="true"></table>
                     </div>
@@ -110,6 +114,7 @@
     // 传递字典数据给JS，用于筛选下拉框
     window.projectTypes = /*[[${projectTypes}]]*/ [];
     window.classifications = /*[[${classifications}]]*/ [];
+    window.eliminateIsOver = /*[[${eliminateIsOver}]]*/ 0;
 </script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" async></script>
 <script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.13"></script>

@@ -56,6 +56,11 @@ public class ExpertGroupDO implements Serializable {
     private String proType;
 
     /**
+     * 淘汰确认提交状态：0-未提交，1-已提交
+     */
+    private Integer eliminateOver;
+
+    /**
      * 新增：已分派的项目ID列表（用于页面回显，不存数据库）
      */
     private List<Integer> assignedProjectIds;
@@ -187,6 +192,14 @@ public class ExpertGroupDO implements Serializable {
             expertSignUrl = expertSignUrl.trim();
         }
         this.expertSignUrl = expertSignUrl;
+    }
+
+    public Integer getEliminateOver() {
+        return eliminateOver;
+    }
+
+    public void setEliminateOver(Integer eliminateOver) {
+        this.eliminateOver = eliminateOver;
     }
 
     public String getProType() {

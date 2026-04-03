@@ -52,7 +52,8 @@
         `bank_account`,
         `phone`,`login_account`,`expert_name`,
          (SELECT url FROM sys_file where id = asi.signature_id limit 1) expertSignUrl,
-         pro_type
+         pro_type,
+         IFNULL(eliminate_over, 0) as eliminateOver
                from add_special_info asi
         <where>
             <if test="id != null and id != ''">and id = #{id}</if>
@@ -164,6 +165,7 @@
             <if test="phone != null">`phone` = #{phone},</if>
             <if test="loginAccount != null">`login_account` = #{loginAccount},</if>
             <if test="expertName != null">`expert_name` = #{expertName},</if>
+            <if test="eliminateOver != null">`eliminate_over` = #{eliminateOver},</if>
 
         </set>
         where id = #{id}

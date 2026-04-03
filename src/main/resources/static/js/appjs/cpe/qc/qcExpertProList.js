@@ -7,6 +7,8 @@ var eliminateTableLoaded = false;
 $(function () {
     load();
     loadEliminateCount();
+    // 初始化淘汰确认提交状态
+    updateEliminateSubmitUI();
 });
 
 function load() {
@@ -111,10 +113,15 @@ function load() {
                                     + '\')">评分</a> ';
                             }
 
-                            // 淘汰按钮无论是否回避都显示
-                            var eliminate = '<a class="btn btn-danger btn-sm" href="#" title="淘汰" onclick="eliminateProject(\''
-                                + row.proId + '\',\'' + row.taskId
-                                + '\')">淘汰</a>';
+                            // 淘汰按钮：确认提交后禁用
+                            var eliminate = '';
+                            if (window.eliminateIsOver == 1) {
+                                eliminate = '<a class="btn btn-default btn-sm disabled" style="cursor:default;pointer-events:none;">淘汰已锁定</a>';
+                            } else {
+                                eliminate = '<a class="btn btn-danger btn-sm" href="#" title="淘汰" onclick="eliminateProject(\''
+                                    + row.proId + '\',\'' + row.taskId
+                                    + '\')">淘汰</a>';
+                            }
 
                             return viewPro + viewCheck + score + eliminate;
                         }
@@ -292,6 +299,9 @@ function loadEliminateTable() {
                     field: 'id',
                     align: 'center',
                     formatter: function (value, row, index) {
+                        if (window.eliminateIsOver == 1) {
+                            return '<a class="btn btn-default btn-sm disabled" style="cursor:default;pointer-events:none;">已锁定</a>';
+                        }
                         return '<a class="btn btn-warning btn-sm" href="#" onclick="cancelEliminate(\'' + row.id + '\')">撤销淘汰</a>';
                     }
                 }
@@ -509,6 +519,50 @@ $(document).ready(function() {
 });
 
 // 注：回避功能由管理员在专业组管理页面操作，专家列表不显示回避按钮
+
+// ==================== 淘汰确认提交功能 ====================
+
+/**
+ * 更新淘汰提交按钮的UI状态
+ */
+function updateEliminateSubmitUI() {
+    if (window.eliminateIsOver == 1) {
+        $("#btnSubmitEliminate").prop('disabled', true).removeClass('btn-primary').addClass('btn-default').html('<i class="fa fa-check"></i> 已提交');
+        $("#eliminateSubmittedTip").show();
+    }
+}
+
+/**
+ * 确认提交淘汰名单
+ */
+function submitEliminate() {
+    layer.confirm('提交后将无法再撤销淘汰名单中的项目，是否确认提交？', {
+        btn: ['确定', '取消']
+    }, function () {
+        $.ajax({
+            type: "POST",
+            url: prefix + "/submitEliminate",
+            data: { taskId: $("#taskId").val() },
+            success: function (data) {
+                if (data.code == 0) {
+                    layer.msg('淘汰名单确认提交成功', { icon: 1 });
+                    window.eliminateIsOver = 1;
+                    updateEliminateSubmitUI();
+                    // 刷新淘汰表格，禁用撤销按钮
+                    if (eliminateTableLoaded) {
+                        $('#eliminateTable').bootstrapTable('refresh');
+                    }
+                } else {
+                    layer.alert(data.msg);
+                }
+            },
+            error: function () {
+                layer.msg('操作失败，请稍后重试', { icon: 2 });
+            }
+        });
+    });
+}
+
 
 /**
  * 导出淘汰名单为Excel（CSV格式，Excel可直接打开）
