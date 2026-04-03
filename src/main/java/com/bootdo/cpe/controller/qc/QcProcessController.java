@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.bootdo.cpe.domain.QcGroupApplyInfoDO;
 import com.bootdo.cpe.domain.QcGroupMember;
 import com.bootdo.cpe.service.QcGroupApplyInfoService;
+import com.bootdo.cpe.service.QcExpertEliminateConfirmedService;
 import com.bootdo.cpe.service.QcGroupMemberService;
 import static com.bootdo.common.config.Constant.ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
 import static com.bootdo.common.config.Constant.ROLE_QC_SPECIALIST_ID;
@@ -88,6 +89,8 @@ public class QcProcessController extends BaseQcProController {
     private com.bootdo.cpe.service.QcExpertAvoidanceService qcExpertAvoidanceService;
     @Autowired
     private com.bootdo.cpe.service.QcExpertEliminateService qcExpertEliminateService;
+    @Autowired
+    private QcExpertEliminateConfirmedService qcExpertEliminateConfirmedService;
     /**
      * 去分配项目给工作人员
      *
@@ -412,9 +415,44 @@ public class QcProcessController extends BaseQcProController {
         return prefix + "/score/major_group_admin";
     }
 
+    // 原代码：重置时无条件将所有专家的eliminateOver设为0，导致已确认提交的专家需要二次提交
+    // /**
+    //  * 重置所有专家的淘汰记录（管理员操作）
+    //  * 将 ass_qc_expert_eliminate 记录软删除，并重置所有专家的 eliminate_over=0
+    //  */
+    // @ResponseBody
+    // @RequestMapping("/resetAllEliminate")
+    // public R resetAllEliminate(@RequestParam Map<String, Object> params) {
+    //     String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+    //     if (StringUtils.isBlank(taskId)) {
+    //         return R.error("任务ID不能为空");
+    //     }
+    //     try {
+    //         int deletedCount = qcExpertEliminateService.batchSoftDeleteByTaskId(taskId);
+    //         Map<String, Object> expertQuery = new HashMap<>();
+    //         expertQuery.put("taskId", taskId);
+    //         expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+    //         List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+    //         int resetCount = 0;
+    //         for (ExpertGroupDO expert : expertList) {
+    //             if (expert.getEliminateOver() != null && expert.getEliminateOver() == 1) {
+    //                 expert.setEliminateOver(0);
+    //                 expertGroupService.update(expert);
+    //                 resetCount++;
+    //             }
+    //         }
+    //         return R.ok("已撤销" + deletedCount + "条淘汰记录，重置" + resetCount + "位专家的淘汰提交状态");
+    //     } catch (Exception e) {
+    //         e.printStackTrace();
+    //         return R.error("操作失败：" + e.getMessage());
+    //     }
+    // }
+
     /**
-     * 重置所有专家的淘汰记录（管理员操作）
-     * 将 ass_qc_expert_eliminate 记录软删除，并重置所有专家的 eliminate_over=0
+     * 新代码：重置所有专家的淘汰记录（管理员操作）
+     * 将 ass_qc_expert_eliminate 记录软删除
+     * 仅重置尚未首次确认提交的专家的 eliminate_over=0
+     * 已有快照数据（首次确认过）的专家保持 eliminate_over=1，无需二次提交
      */
     @ResponseBody
     @RequestMapping("/resetAllEliminate")
@@ -427,21 +465,36 @@ public class QcProcessController extends BaseQcProController {
             // 1. 批量软删除该任务下所有淘汰记录
             int deletedCount = qcExpertEliminateService.batchSoftDeleteByTaskId(taskId);
             
-            // 2. 重置该任务下所有专家的 eliminate_over=0
+            // 2. 仅重置尚未首次确认的专家的 eliminate_over=0
             Map<String, Object> expertQuery = new HashMap<>();
             expertQuery.put("taskId", taskId);
             expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
             List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
             int resetCount = 0;
+            int skippedCount = 0;
             for (ExpertGroupDO expert : expertList) {
                 if (expert.getEliminateOver() != null && expert.getEliminateOver() == 1) {
-                    expert.setEliminateOver(0);
-                    expertGroupService.update(expert);
-                    resetCount++;
+                    // 检查快照表中是否已有该专家的首次确认数据
+                    if (StringUtils.isBlank(expert.getUserId())) {
+                        continue;
+                    }
+                    Map<String, Object> confirmedCheck = new HashMap<>();
+                    confirmedCheck.put("expertUid", Long.valueOf(expert.getUserId()));
+                    confirmedCheck.put("taskId", taskId);
+                    int confirmedCount = qcExpertEliminateConfirmedService.count(confirmedCheck);
+                    if (confirmedCount > 0) {
+                        // 已有首次确认快照，不重置eliminateOver，专家无需二次提交
+                        skippedCount++;
+                    } else {
+                        // 未首次确认，重置eliminateOver
+                        expert.setEliminateOver(0);
+                        expertGroupService.update(expert);
+                        resetCount++;
+                    }
                 }
             }
             
-            return R.ok("已撤销" + deletedCount + "条淘汰记录，重置" + resetCount + "位专家的淘汰提交状态");
+            return R.ok("已撤销" + deletedCount + "条淘汰记录，重置" + resetCount + "位专家的淘汰提交状态，" + skippedCount + "位已确认专家保持锁定");
         } catch (Exception e) {
             e.printStackTrace();
             return R.error("操作失败：" + e.getMessage());

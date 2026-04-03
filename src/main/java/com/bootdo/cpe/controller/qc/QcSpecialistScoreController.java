@@ -6,6 +6,7 @@ import com.bootdo.cpe.domain.EnumProjectType;
 import com.bootdo.cpe.domain.ExpertGroupDO;
 import com.bootdo.cpe.domain.QcAppraiseActiveScoreDO;
 import com.bootdo.cpe.domain.QcExpertEliminateDO;
+import com.bootdo.cpe.domain.QcExpertEliminateConfirmedDO;
 import com.bootdo.cpe.domain.QcProStatEnum;
 import com.bootdo.cpe.domain.QcReviewResultRecordDO;
 import com.bootdo.cpe.domain.QcResultInnovateScoreDO;
@@ -16,6 +17,7 @@ import com.bootdo.cpe.service.QcAppraiseActiveScoreService;
 import com.bootdo.cpe.service.QcAwardService;
 import com.bootdo.cpe.service.QcExpertAvoidanceService;
 import com.bootdo.cpe.service.QcExpertEliminateService;
+import com.bootdo.cpe.service.QcExpertEliminateConfirmedService;
 import com.bootdo.cpe.service.QcGroupApplyInfoService;
 import com.bootdo.cpe.service.QcResultInnovateScoreService;
 import com.bootdo.cpe.service.QcResultSolveScoreService;
@@ -65,6 +67,8 @@ public class QcSpecialistScoreController extends BaseQcProController {
     private QcExpertAvoidanceService avoidanceService;
     @Autowired
     private DictService dictService;
+    @Autowired
+    private QcExpertEliminateConfirmedService qcExpertEliminateConfirmedService;
     @Autowired
     private ExpertGroupService expertGroupService;
 
@@ -812,6 +816,43 @@ public class QcSpecialistScoreController extends BaseQcProController {
         return R.ok().put("list", list);
     }
 
+    /**
+     * 获取首次确认提交的淘汰项目列表（快照数据）
+     * 用于管理员/外聘人员导出淘汰名单，数据来自快照表，不受后续更新分组/重新淘汰影响
+     * 如果快照表无数据（线上还未确认提交过），则降级读取当前有效淘汰记录
+     */
+    @RequestMapping("/getConfirmedEliminatedProjects")
+    @ResponseBody
+    public R getConfirmedEliminatedProjects(@RequestParam String taskId,
+                                             @RequestParam(value = "qcGroupName", required = false) String qcGroupName) {
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+
+        // 先查快照表
+        Map<String, Object> confirmedParams = new HashMap<>();
+        confirmedParams.put("taskId", taskId);
+        if (StringUtils.isNotBlank(qcGroupName)) {
+            confirmedParams.put("qcGroupName", qcGroupName);
+        }
+        List<QcExpertEliminateConfirmedDO> confirmedList = qcExpertEliminateConfirmedService.list(confirmedParams);
+
+        if (confirmedList != null && !confirmedList.isEmpty()) {
+            // 快照表有数据，返回快照数据
+            return R.ok().put("list", confirmedList).put("source", "confirmed");
+        }
+
+        // 快照表无数据，降级读取当前有效淘汰记录（兼容线上还未确认提交的场景）
+        Map<String, Object> params = new HashMap<>();
+        params.put("taskId", taskId);
+        params.put("deleted", 0);
+        if (StringUtils.isNotBlank(qcGroupName)) {
+            params.put("qcGroupName", qcGroupName);
+        }
+        List<QcExpertEliminateDO> list = qcExpertEliminateService.list(params);
+        return R.ok().put("list", list).put("source", "current");
+    }
+
     // ==================== 原代码：撤销淘汰会恢复项目状态 ====================
     // /**
     //  * 撤销淘汰
@@ -936,9 +977,52 @@ public class QcSpecialistScoreController extends BaseQcProController {
         return r;
     }
 
+    // 原代码：确认提交时仅更新eliminate_over状态，不保存快照
+    // /**
+    //  * 确认提交淘汰名单
+    //  * 校验淘汰数量是否满足要求（>=MAX_ELIMINATE_COUNT），满足则标记 eliminate_over=1
+    //  */
+    // @RequestMapping("/submitEliminate")
+    // @ResponseBody
+    // public R submitEliminate(@RequestParam Map<String, Object> params) {
+    //     Long uid = getUserId();
+    //     String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+    //     
+    //     // 校验淘汰数量
+    //     Map<String, Object> countParams = new HashMap<>();
+    //     countParams.put("expertUid", uid);
+    //     countParams.put("taskId", taskId);
+    //     countParams.put("deleted", 0);
+    //     int count = qcExpertEliminateService.count(countParams);
+    //     if (count < MAX_ELIMINATE_COUNT) {
+    //         return R.error("淘汰数量不足，需要淘汰" + MAX_ELIMINATE_COUNT + "个项目，当前已淘汰" + count + "个");
+    //     }
+    //     
+    //     // 查找当前专家的 add_special_info 记录并更新 eliminate_over=1
+    //     Map<String, Object> expertQuery = new HashMap<>();
+    //     expertQuery.put("userId", String.valueOf(uid));
+    //     expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+    //     if (StringUtils.isNotBlank(taskId)) {
+    //         expertQuery.put("taskId", taskId);
+    //     }
+    //     List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+    //     if (expertList.isEmpty()) {
+    //         return R.error("未找到专家分配记录");
+    //     }
+    //     ExpertGroupDO expert = expertList.get(0);
+    //     expert.setEliminateOver(1);
+    //     int result = expertGroupService.update(expert);
+    //     if (result > 0) {
+    //         return R.ok("淘汰名单确认提交成功");
+    //     }
+    //     return R.error("提交失败");
+    // }
+
     /**
-     * 确认提交淘汰名单
-     * 校验淘汰数量是否满足要求（>=MAX_ELIMINATE_COUNT），满足则标记 eliminate_over=1
+     * 新代码：确认提交淘汰名单
+     * 1. 校验淘汰数量是否满足要求
+     * 2. 如果快照表中该专家+任务没有记录（首次确认），则将当前有效淘汰记录复制到快照表
+     * 3. 标记 eliminate_over=1
      */
     @RequestMapping("/submitEliminate")
     @ResponseBody
@@ -954,6 +1038,16 @@ public class QcSpecialistScoreController extends BaseQcProController {
         int count = qcExpertEliminateService.count(countParams);
         if (count < MAX_ELIMINATE_COUNT) {
             return R.error("淘汰数量不足，需要淘汰" + MAX_ELIMINATE_COUNT + "个项目，当前已淘汰" + count + "个");
+        }
+        
+        // 首次确认提交时，将当前有效淘汰记录保存到快照表（后续更新分组/重新淘汰不影响快照）
+        Map<String, Object> confirmedCountParams = new HashMap<>();
+        confirmedCountParams.put("expertUid", uid);
+        confirmedCountParams.put("taskId", taskId);
+        int confirmedCount = qcExpertEliminateConfirmedService.count(confirmedCountParams);
+        if (confirmedCount == 0) {
+            // 快照表中无数据，说明是首次确认，批量复制
+            qcExpertEliminateConfirmedService.batchSaveFromEliminate(uid, taskId);
         }
         
         // 查找当前专家的 add_special_info 记录并更新 eliminate_over=1

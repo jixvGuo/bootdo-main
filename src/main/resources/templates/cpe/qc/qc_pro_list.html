@@ -358,14 +358,30 @@
 		});
 	}
 
+	// 原代码：读取当前有效淘汰记录（会被更新分组/重新淘汰影响）
+	// function loadEliminatedProjects(taskId) {
+	// 	$.ajax({
+	// 		type: "GET",
+	// 		url: "/qcScore/getEliminatedProjects",
+	// 		data: { taskId: taskId, onlyMine: '0' },
+	// 		success: function(data) {
+	// 			if (data && data.code === 0 && data.list) {
+	// 				renderEliminatedTable(data.list);
+	// 			} else {
+	// 				$("#eliminatedTableBody").html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
+	// 			}
+	// 		},
+	// 		error: function() {
+	// 			layer.alert("加载淘汰项目失败");
+	// 		}
+	// 	});
+	// }
+	// 新代码：读取快照表数据（首次确认提交的淘汰数据），不受更新分组影响
 	function loadEliminatedProjects(taskId) {
 		$.ajax({
 			type: "GET",
-			url: "/qcScore/getEliminatedProjects",
-			// 原代码：外聘人员传onlyMine=1，但外聘人员非打分专家，查不到数据
-			// data: { taskId: taskId, onlyMine: window.isExternalExpert ? '1' : '0' },
-			// 新代码：外聘人员与管理员一样查看全部淘汰项目，onlyMine始终为0
-			data: { taskId: taskId, onlyMine: '0' },
+			url: "/qcScore/getConfirmedEliminatedProjects",
+			data: { taskId: taskId },
 			success: function(data) {
 				if (data && data.code === 0 && data.list) {
 					renderEliminatedTable(data.list);
