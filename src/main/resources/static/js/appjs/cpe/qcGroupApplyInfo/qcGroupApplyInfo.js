@@ -97,7 +97,8 @@ function clearFilters() {
  */
 function normalizeProStat(proStat) {
     var stat = (proStat || "").toLowerCase();
-    if (stat === "check") return "CHECKING";
+    // score/experts_score在项目列表页等同审核中
+    if (stat === "check" || stat === "score" || stat === "experts_score") return "CHECKING";
     if (stat === "reject") return "REJECTED";
     return "UNSUBMITTED";
 }

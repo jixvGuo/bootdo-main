@@ -345,6 +345,10 @@ public class QcBaseProjectInfoDO {
                 break;
             }
         }
+        // score/experts_score在项目列表页（管理员/企业端）统一显示为"审核中"
+        if ("score".equals(this.proStat) || "experts_score".equals(this.proStat)) {
+            this.applyStat = QcProStatEnum.CHECK.getStatDesc();
+        }
 
         // 2) 时间独立判断
         boolean applyStarted = StringUtils.isNotBlank(this.applyStartDate) && isStart(this.applyStartDate);
@@ -353,7 +357,8 @@ public class QcBaseProjectInfoDO {
         boolean checkEnded = StringUtils.isNotBlank(this.checkEndTime) && isTimeout(this.checkEndTime);
 
         boolean isReject = QcProStatEnum.REJECT.getProStat().equals(this.proStat);
-        boolean isChecking = QcProStatEnum.CHECK.getProStat().equals(this.proStat);
+        boolean isChecking = QcProStatEnum.CHECK.getProStat().equals(this.proStat)
+                || "score".equals(this.proStat) || "experts_score".equals(this.proStat);
         boolean isNotSubmitted = StringUtils.isBlank(this.proStat);
         boolean isReviewResultStat =
         QcProStatEnum.PARTAKE_AWARD.getProStat().equals(this.proStat)

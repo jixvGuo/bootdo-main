@@ -123,7 +123,11 @@ function load() {
                                     + '\')">淘汰</a>';
                             }
 
-                            return viewPro + viewCheck + score + eliminate;
+                            var recommend = '<a class="btn btn-info btn-sm" href="#" title="主评意见" onclick="openRecommend(\''
+                                + row.proId + '\',\'' + row.taskId + '\',\'' + (row.topicType || '') 
+                                + '\')">主评意见</a> ';
+
+                            return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate;
                         }
                     }]
             });
@@ -605,6 +609,82 @@ function exportEliminateExcel() {
         },
         error: function () {
             layer.msg('导出失败，请稍后重试', { icon: 2 });
+        }
+    });
+}
+
+// ==================== 主评意见功能 ====================
+
+/**
+ * 打开主评意见弹窗
+ */
+function openRecommend(proId, taskId, topicType) {
+    var html = '<div style="padding:20px;">'
+        + '<div style="margin-bottom:15px;">'
+        + '<label style="display:block;margin-bottom:5px;font-weight:bold;">推荐意见等级</label>'
+        + '<select id="rec_recommendLevel" class="form-control">'
+        + '<option value="">请选择</option>'
+        + '<option value="优秀">优秀</option>'
+        + '<option value="良好">良好</option>'
+        + '<option value="合格">合格</option>'
+        + '<option value="不合格">不合格</option>'
+        + '</select>'
+        + '</div>'
+        + '<div style="margin-bottom:15px;">'
+        + '<label style="display:block;margin-bottom:5px;font-weight:bold;">评价意见</label>'
+        + '<textarea id="rec_sumRecommend" class="form-control" rows="6" placeholder="请输入评价意见..."></textarea>'
+        + '</div>'
+        + '</div>';
+
+    var layerIndex = layer.open({
+        type: 1,
+        title: '主评意见',
+        area: ['500px', '400px'],
+        content: html,
+        btn: ['保存', '取消'],
+        success: function () {
+            // 加载已有的主评意见
+            $.ajax({
+                type: 'GET',
+                url: prefix + '/getRecommend',
+                data: { proId: proId, taskId: taskId, topicType: topicType },
+                success: function (r) {
+                    if (r && r.code == 0) {
+                        if (r.recommendLevel) {
+                            $('#rec_recommendLevel').val(r.recommendLevel);
+                        }
+                        if (r.sumRecommend) {
+                            $('#rec_sumRecommend').val(r.sumRecommend);
+                        }
+                    }
+                }
+            });
+        },
+        yes: function (index) {
+            var recommendLevel = $('#rec_recommendLevel').val();
+            var sumRecommend = $('#rec_sumRecommend').val();
+            $.ajax({
+                type: 'POST',
+                url: prefix + '/saveRecommend',
+                data: {
+                    proId: proId,
+                    taskId: taskId,
+                    topicType: topicType,
+                    recommendLevel: recommendLevel,
+                    sumRecommend: sumRecommend
+                },
+                success: function (r) {
+                    if (r && r.code == 0) {
+                        layer.msg('保存成功', { icon: 1 });
+                        layer.close(index);
+                    } else {
+                        layer.alert(r.msg || '保存失败');
+                    }
+                },
+                error: function () {
+                    layer.alert('保存失败，请稍后重试');
+                }
+            });
         }
     });
 }

@@ -24,6 +24,7 @@ public class QcExpertEliminateDO implements Serializable {
     private String companyName;
     private String proCode;
     private String expertName;
+    private String qcGroupName;
 
     public Integer getId() {
         return id;
@@ -127,5 +128,13 @@ public class QcExpertEliminateDO implements Serializable {
 
     public void setExpertName(String expertName) {
         this.expertName = expertName;
+    }
+
+    public String getQcGroupName() {
+        return qcGroupName;
+    }
+
+    public void setQcGroupName(String qcGroupName) {
+        this.qcGroupName = qcGroupName;
     }
 }

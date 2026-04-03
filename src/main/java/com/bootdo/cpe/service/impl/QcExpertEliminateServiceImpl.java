@@ -3,6 +3,7 @@ package com.bootdo.cpe.service.impl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,5 +44,12 @@ public class QcExpertEliminateServiceImpl implements QcExpertEliminateService {
     @Override
     public int remove(Integer id) {
         return qcExpertEliminateDao.remove(id);
+    }
+
+    @Override
+    public int batchSoftDeleteByTaskId(String taskId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("taskId", taskId);
+        return qcExpertEliminateDao.batchSoftDeleteByTaskId(params);
     }
 }

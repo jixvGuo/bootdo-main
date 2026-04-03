@@ -15,27 +15,6 @@
                 <div class="ibox float-e-margins">
                     <div class="ibox-content">
                         <ul class="folder-list" style="padding: 0">
-                            <!--  原代码   -->
-                            <!-- <li>
-                                <a href="javascript:showMajorAccount('')" style="display:inline-block"><i class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a>
-                            </li>
-                            <li>
-                                <a href="javascript:showMajorAccount('管理')" style="display:inline-block"><i class="fa fa-folder"></i> 管理&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('管理');" style="display:inline-block"><i class="fa fa-plus"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:showMajorAccount('管理类')" style="display:inline-block"><i class="fa fa-folder"></i> 管理类&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('管理类');" style="display:inline-block"><i class="fa fa-plus"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:showMajorAccount('监理')" style="display:inline-block"><i class="fa fa-folder"></i> 监理&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('监理');" style="display:inline-block"><i class="fa fa-plus"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:showMajorAccount('监理、管理')" style="display:inline-block"><i class="fa fa-folder"></i> 监理、管理&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('监理、管理');" style="display:inline-block"><i class="fa fa-plus"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:showMajorAccount('勘察设计')" style="display:inline-block"><i class="fa fa-folder"></i> 勘察设计&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('勘察设计');" style="display:inline-block"><i class="fa fa-plus"></i></a>
-                            </li>
-                            <li>
-                                <a href="javascript:showMajorAccount('施工')" style="display:inline-block"><i class="fa fa-folder"></i> 施工&nbsp;&nbsp;&nbsp;&nbsp;</a><a href="javascript:add('施工');" style="display:inline-block"><i class="fa fa-plus"></i></a> -->
                             <!--   显示全部   -->
                             <li>
                                 <a href="javascript:showMajorAccount('')" style="display:inline-block"><i class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a>
@@ -57,7 +36,14 @@
             <div class="col-sm-9">
                 <div class="ibox float-e-margins">
                     <div class="ibox-title">
-                        <h5>已分配：</h5>
+                        <h5 style="display:inline-block;">已分配：</h5>
+                        <button type="button" class="btn btn-warning btn-sm" onclick="resetAllEliminate()" style="margin-left:15px;">
+                            <!-- 更新分组（就是重置淘汰）-->
+                            <i class="fa fa-refresh"></i> 更新分组
+                        </button>
+<!--                        <button type="button" class="btn btn-danger btn-sm" onclick="showGroupEliminated()" style="margin-left:10px;">-->
+<!--                            <i class="fa fa-ban"></i> 导出淘汰-->
+<!--                        </button>-->
                     </div>
                     <div class="ibox-content">
                         <table class="table table-bordered">
@@ -116,13 +102,21 @@
         <input type="hidden" id="currentExpertUserId" />
         
         <!-- 筛选条件 -->
-        <div class="row" style="margin-bottom: 15px;">
+        <div class="row" style="margin-bottom: 10px;">
             <div class="col-sm-3">
                 <input type="text" class="form-control" id="avoidance_filter_topicName" placeholder="项目名称">
             </div>
             <div class="col-sm-3">
                 <input type="text" class="form-control" id="avoidance_filter_proCode" placeholder="申报账号">
             </div>
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="avoidance_filter_unitName" placeholder="申报单位">
+            </div>
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="avoidance_filter_groupDesc" placeholder="完成单位">
+            </div>
+        </div>
+        <div class="row" style="margin-bottom: 15px;">
             <div class="col-sm-3">
                 <select class="form-control" id="avoidance_filter_status">
                     <option value="">状态 - 全选</option>
@@ -141,17 +135,43 @@
                 <tr>
                     <th>项目名称</th>
                     <th>申报账号</th>
+                    <th>申报单位</th>
+                    <th>完成单位</th>
                     <th>状态</th>
                     <th>回避状态</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody id="avoidanceTableBody">
-                <tr><td colspan="5" class="text-center">加载中...</td></tr>
+                <tr><td colspan="7" class="text-center">加载中...</td></tr>
             </tbody>
         </table>
     </div>
     
+    <!-- 淘汰名单弹窗 -->
+    <div id="eliminatedModal" style="display:none; padding: 20px;">
+        <div style="margin-bottom:10px;">
+            <span id="eliminatedGroupTitle" style="font-weight:bold;"></span>
+            <button class="btn btn-success btn-sm" onclick="exportGroupEliminatedExcel()" style="margin-left:15px;"><i class="fa fa-download"></i> 导出Excel</button>
+        </div>
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>申报账号</th>
+                    <th>课题名称</th>
+                    <th>小组名称</th>
+                    <th>申报单位</th>
+                    <th>专家名称</th>
+                    <th>淘汰意见</th>
+                </tr>
+            </thead>
+            <tbody id="eliminatedTableBody">
+                <tr><td colspan="7" class="text-center">暂无数据</td></tr>
+            </tbody>
+        </table>
+    </div>
+
     <div th:include="include :: footer"></div>
     <script type="text/javascript">
         $(document).ready(function () { $(".i-checks").iCheck({ checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green", }) });
@@ -164,7 +184,9 @@
             return mydate = (year.toString() + month.toString());
         }
 
+        var currentGroupName = '';
         function showMajorAccount(major) {
+            currentGroupName = major;
             $("#list tr").each(function(index, ele){
                 let mVal = $(this).find("input[name='major']").val()
                 if(major == mVal || major == '') {
@@ -437,7 +459,7 @@
             layer.open({
                 type: 1,
                 title: '专家回避管理 - ' + expertName,
-                area: ['900px', '600px'],
+                area: ['1100px', '600px'],
                 content: $('#avoidanceModal'),
                 success: function() {
                     // 加载该专家已分配的项目列表
@@ -486,7 +508,7 @@
             tbody.empty();
             
             if (!projects || projects.length === 0) {
-                tbody.html('<tr><td colspan="5" class="text-center">暂无分配项目</td></tr>');
+                tbody.html('<tr><td colspan="7" class="text-center">暂无分配项目</td></tr>');
                 return;
             }
             
@@ -504,7 +526,9 @@
                 
                 var row = '<tr>' +
                     '<td>' + (project.topicName || '-') + '</td>' +
-                    '<td>' + (project.applyAccount || '-') + '</td>' +
+                    '<td>' + (project.applyId || '-') + '</td>' +
+                    '<td>' + (project.unitName || '-') + '</td>' +
+                    '<td>' + (project.groupDesc || '-') + '</td>' +
                     '<td>' + statusText + '</td>' +
                     '<td>' + avoidanceStatus + '</td>' +
                     '<td>' + operationBtn + '</td>' +
@@ -518,12 +542,18 @@
          */
         function getProStatText(proStat) {
             var statMap = {
-                'not_apply': '未申报',
-                'apply_ing': '申报中',
-                'apply_done': '申报完成',
-                'score_ing': '评分中',
-                'score_done': '评分完成',
-                'eliminated': '已淘汰'
+                '': '未提交',
+                'check': '审核中',
+                'partake_award': '参评',
+                'no_award': '不评',
+                'delayed_award': '缓评',
+                'reject': '已驳回',
+                'improve_partake': '完善后参评',
+                'eliminated': '已淘汰',
+                'to_validate': '审核中',
+                'to_assign_experts': '分派专家',
+                'experts_score': '专家打分',
+                'score': '专家打分'
             };
             return statMap[proStat] || proStat || '-';
         }
@@ -534,6 +564,8 @@
         function applyAvoidanceFilters() {
             var filterTopicName = $("#avoidance_filter_topicName").val().toLowerCase();
             var filterProCode = $("#avoidance_filter_proCode").val().toLowerCase();
+            var filterUnitName = $("#avoidance_filter_unitName").val().toLowerCase();
+            var filterGroupDesc = $("#avoidance_filter_groupDesc").val().toLowerCase();
             var filterStatus = $("#avoidance_filter_status").val();
             
             var filteredProjects = allAvoidanceProjects.filter(function(project) {
@@ -543,7 +575,17 @@
                 }
                 
                 // 申报账号筛选
-                if (filterProCode && (!project.applyAccount || project.applyAccount.toLowerCase().indexOf(filterProCode) === -1)) {
+                if (filterProCode && (!project.applyId || project.applyId.toLowerCase().indexOf(filterProCode) === -1)) {
+                    return false;
+                }
+                
+                // 申报单位筛选
+                if (filterUnitName && (!project.unitName || project.unitName.toLowerCase().indexOf(filterUnitName) === -1)) {
+                    return false;
+                }
+                
+                // 完成单位筛选
+                if (filterGroupDesc && (!project.groupDesc || project.groupDesc.toLowerCase().indexOf(filterGroupDesc) === -1)) {
                     return false;
                 }
                 
@@ -570,6 +612,8 @@
         function clearAvoidanceFilters() {
             $("#avoidance_filter_topicName").val('');
             $("#avoidance_filter_proCode").val('');
+            $("#avoidance_filter_unitName").val('');
+            $("#avoidance_filter_groupDesc").val('');
             $("#avoidance_filter_status").val('');
             renderAvoidanceTable(allAvoidanceProjects);
         }
@@ -638,6 +682,133 @@
                     }
                 });
                 layer.close(index);
+            });
+        }
+        /**
+         * 更新分组（重置淘汰）：撤销所有专家的淘汰记录 + 重置淘汰提交状态
+         */
+        // ==================== 导出淘汰功能 ====================
+        var groupEliminatedData = [];
+        function showGroupEliminated() {
+            var taskId = $("#taskId").val();
+            var groupTitle = currentGroupName ? ('分组：' + currentGroupName) : '全部分组';
+            $("#eliminatedGroupTitle").text(groupTitle + ' - 淘汰项目列表');
+            layer.open({
+                type: 1,
+                title: '淘汰项目列表',
+                area: ['1000px', '600px'],
+                content: $('#eliminatedModal'),
+                success: function() {
+                    loadGroupEliminated(taskId, currentGroupName);
+                }
+            });
+        }
+
+        function loadGroupEliminated(taskId, qcGroupName) {
+            var reqData = { taskId: taskId };
+            if (qcGroupName) {
+                reqData.qcGroupName = qcGroupName;
+            }
+            $.ajax({
+                type: "GET",
+                url: "/qcScore/getEliminatedProjects",
+                data: reqData,
+                success: function(data) {
+                    if (data && data.code === 0 && data.list && data.list.length > 0) {
+                        groupEliminatedData = data.list;
+                        renderGroupEliminatedTable(data.list);
+                    } else {
+                        groupEliminatedData = [];
+                        $("#eliminatedTableBody").html('<tr><td colspan="7" class="text-center">暂无淘汰项目</td></tr>');
+                    }
+                },
+                error: function() {
+                    layer.alert("加载淘汰项目失败");
+                }
+            });
+        }
+
+        function renderGroupEliminatedTable(projects) {
+            var tbody = $("#eliminatedTableBody");
+            tbody.empty();
+            projects.forEach(function(item, index) {
+                var row = '<tr>' +
+                    '<td>' + (index + 1) + '</td>' +
+                    '<td>' + (item.proCode || '-') + '</td>' +
+                    '<td>' + (item.topicName || '-') + '</td>' +
+                    '<td>' + (item.groupName || '-') + '</td>' +
+                    '<td>' + (item.companyName || '-') + '</td>' +
+                    '<td>' + (item.expertName || '-') + '</td>' +
+                    '<td>' + (item.reason || '-') + '</td>' +
+                    '</tr>';
+                tbody.append(row);
+            });
+        }
+
+        function exportGroupEliminatedExcel() {
+            if (!groupEliminatedData || groupEliminatedData.length === 0) {
+                layer.msg('暂无数据可导出', { icon: 2 });
+                return;
+            }
+            function doExport() {
+                var header = ['序号', '申报账号', '课题名称', '小组名称', '申报单位', '专家名称', '淘汰意见'];
+                var sheetData = [header];
+                groupEliminatedData.forEach(function(item, index) {
+                    sheetData.push([
+                        index + 1,
+                        item.proCode || '',
+                        item.topicName || '',
+                        item.groupName || '',
+                        item.companyName || '',
+                        item.expertName || '',
+                        item.reason || ''
+                    ]);
+                });
+                var ws = XLSX.utils.aoa_to_sheet(sheetData);
+                ws['!cols'] = [
+                    { wch: 6 }, { wch: 18 }, { wch: 30 }, { wch: 20 },
+                    { wch: 25 }, { wch: 12 }, { wch: 40 }
+                ];
+                var wb = XLSX.utils.book_new();
+                var sheetName = currentGroupName ? (currentGroupName + '_淘汰名单') : '淘汰名单';
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                XLSX.writeFile(wb, sheetName + '.xlsx');
+            }
+            if (typeof XLSX !== 'undefined') {
+                doExport();
+            } else {
+                var s = document.createElement('script');
+                s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+                s.onload = function() { doExport(); };
+                s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', { icon: 2 }); };
+                document.head.appendChild(s);
+            }
+        }
+
+        function resetAllEliminate() {
+            var taskId = $("#taskId").val();
+            if (!taskId) {
+                layer.msg('任务ID为空', {icon: 2});
+                return;
+            }
+            layer.confirm('确定要撤销该任务下所有专家的淘汰记录吗？此操作不可恢复。', {
+                btn: ['确定', '取消']
+            }, function () {
+                $.ajax({
+                    type: "POST",
+                    url: "/qcProcess/resetAllEliminate",
+                    data: { taskId: taskId },
+                    success: function (data) {
+                        if (data.code == 0) {
+                            layer.msg(data.msg, {icon: 1});
+                        } else {
+                            layer.alert(data.msg);
+                        }
+                    },
+                    error: function () {
+                        layer.msg('操作失败，请稍后重试', {icon: 2});
+                    }
+                });
             });
         }
     </script>

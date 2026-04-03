@@ -15,6 +15,7 @@ import java.util.Set;
  */
 public enum QcProStatEnum {
     APPLYING("","未提交", true, false, false, false, false),
+    //  (审核中，申请结束，进入审核中) - 申请已结束，正式进入审核流程 / "审核中" 或 "形式审查中"
     CHECK("check","审核中", false, true, true, false, true),
     PARTAKE_AWARD("partake_award", "参评", false, false, false, true, true),
     NO_AWARD("no_award", "不评",true, false, false, true, true),
@@ -23,6 +24,7 @@ public enum QcProStatEnum {
     IMPROVE_PARTAKE("improve_partake", "完善后参评", true, false, false, true, true),
     ELIMINATED("eliminated", "已淘汰", false, false, false, true, true),
 
+    // (待审核中，申请尚未结束) - 项目刚提交，等待审核 / "待审核" 或 "待验证"
     TO_VALIDATE("to_validate","审核中", false, true, true, false, true),
     TO_ASSIGN_EXPERTS("to_assign_experts","分派专家", false, true, false, true, true),
     SCIENCE_EXPERTS_SCORE("experts_score","专家打分", false, true, false, false, true),

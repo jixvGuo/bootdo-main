@@ -86,6 +86,8 @@ public class QcProcessController extends BaseQcProController {
     private QcGroupMemberService qcGroupMemberService;
     @Autowired
     private com.bootdo.cpe.service.QcExpertAvoidanceService qcExpertAvoidanceService;
+    @Autowired
+    private com.bootdo.cpe.service.QcExpertEliminateService qcExpertEliminateService;
     /**
      * 去分配项目给工作人员
      *
@@ -94,9 +96,10 @@ public class QcProcessController extends BaseQcProController {
     @RequiresPermissions("asso:task:assign")
     @RequestMapping("/toAssign")
     public String toAssignPro(@RequestParam Map<String, Object> params, ModelMap map) {
-        // 原代码：long roleId = ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
+//         原代码：long roleId = ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
         // 新代码：分派专家时使用QC奖评审专家角色(85)查询专家列表
-        long roleId = ROLE_QC_SPECIALIST_ID;
+//        long roleId = ROLE_QC_SPECIALIST_ID;
+        long roleId = ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
         packageAwardTaskId(map, params);
         params.put("roleId", roleId);
 
@@ -407,6 +410,42 @@ public class QcProcessController extends BaseQcProController {
         map.put("selInfoList", selList);
 
         return prefix + "/score/major_group_admin";
+    }
+
+    /**
+     * 重置所有专家的淘汰记录（管理员操作）
+     * 将 ass_qc_expert_eliminate 记录软删除，并重置所有专家的 eliminate_over=0
+     */
+    @ResponseBody
+    @RequestMapping("/resetAllEliminate")
+    public R resetAllEliminate(@RequestParam Map<String, Object> params) {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+        try {
+            // 1. 批量软删除该任务下所有淘汰记录
+            int deletedCount = qcExpertEliminateService.batchSoftDeleteByTaskId(taskId);
+            
+            // 2. 重置该任务下所有专家的 eliminate_over=0
+            Map<String, Object> expertQuery = new HashMap<>();
+            expertQuery.put("taskId", taskId);
+            expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+            int resetCount = 0;
+            for (ExpertGroupDO expert : expertList) {
+                if (expert.getEliminateOver() != null && expert.getEliminateOver() == 1) {
+                    expert.setEliminateOver(0);
+                    expertGroupService.update(expert);
+                    resetCount++;
+                }
+            }
+            
+            return R.ok("已撤销" + deletedCount + "条淘汰记录，重置" + resetCount + "位专家的淘汰提交状态");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("操作失败：" + e.getMessage());
+        }
     }
 
     /**

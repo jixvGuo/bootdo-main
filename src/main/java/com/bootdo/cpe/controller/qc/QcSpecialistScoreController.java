@@ -113,7 +113,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
 
     /** 每个专家最多淘汰的项目数 */
     //  淘汰数量
-    private static final int MAX_ELIMINATE_COUNT = 9;
+    private static final int MAX_ELIMINATE_COUNT = 2;
 
     @RequestMapping("/toExpertProList")
     public String toExpertProList(@RequestParam Map<String, Object> params, ModelMap map) {
@@ -684,14 +684,25 @@ public class QcSpecialistScoreController extends BaseQcProController {
             return R.error("您最多只能淘汰" + MAX_ELIMINATE_COUNT + "个项目，当前已淘汰" + currentCount + "个");
         }
 
-        // 检查该项目是否已被该专家淘汰
-        Map<String, Object> checkParams = new HashMap<>();
-        checkParams.put("expertUid", uid);
-        checkParams.put("proId", proId);
-        checkParams.put("taskId", taskId);
-        checkParams.put("deleted", 0);
-        int exists = qcExpertEliminateService.count(checkParams);
-        if (exists > 0) {
+        // 原代码：仅检查deleted=0的记录，撤销后再淘汰会新增重复数据
+        // Map<String, Object> checkParams = new HashMap<>();
+        // checkParams.put("expertUid", uid);
+        // checkParams.put("proId", proId);
+        // checkParams.put("taskId", taskId);
+        // checkParams.put("deleted", 0);
+        // int exists = qcExpertEliminateService.count(checkParams);
+        // if (exists > 0) {
+        //     return R.error("该项目已被淘汰，请勿重复操作");
+        // }
+
+        // 新代码：先检查是否存在有效的淘汰记录（deleted=0），防止重复淘汰
+        Map<String, Object> activeCheckParams = new HashMap<>();
+        activeCheckParams.put("expertUid", uid);
+        activeCheckParams.put("proId", proId);
+        activeCheckParams.put("taskId", taskId);
+        activeCheckParams.put("deleted", 0);
+        int activeExists = qcExpertEliminateService.count(activeCheckParams);
+        if (activeExists > 0) {
             return R.error("该项目已被淘汰，请勿重复操作");
         }
 
@@ -708,15 +719,42 @@ public class QcSpecialistScoreController extends BaseQcProController {
             prevProStat = proList.get(0).getProStat();
         }
 
-        // 保存淘汰记录
-        QcExpertEliminateDO eliminate = new QcExpertEliminateDO();
-        eliminate.setExpertUid(uid);
-        eliminate.setProId(proId);
-        eliminate.setTaskId(taskId);
-        eliminate.setReason(reason);
-        eliminate.setPrevProStat(prevProStat);
-        eliminate.setDeleted(0);
-        qcExpertEliminateService.save(eliminate);
+        // 原代码：每次都新增记录，撤销后再淘汰会产生重复数据
+        // QcExpertEliminateDO eliminate = new QcExpertEliminateDO();
+        // eliminate.setExpertUid(uid);
+        // eliminate.setProId(proId);
+        // eliminate.setTaskId(taskId);
+        // eliminate.setReason(reason);
+        // eliminate.setPrevProStat(prevProStat);
+        // eliminate.setDeleted(0);
+        // qcExpertEliminateService.save(eliminate);
+
+        // 新代码：查找该专家+项目+任务的已撤销记录（deleted=1），存在则更新，不存在才新增
+        Map<String, Object> cancelledCheckParams = new HashMap<>();
+        cancelledCheckParams.put("expertUid", uid);
+        cancelledCheckParams.put("proId", proId);
+        cancelledCheckParams.put("taskId", taskId);
+        cancelledCheckParams.put("deleted", 1);
+        List<QcExpertEliminateDO> cancelledList = qcExpertEliminateService.list(cancelledCheckParams);
+        if (cancelledList != null && !cancelledList.isEmpty()) {
+            // 存在已撤销的记录，更新它而非新增
+            QcExpertEliminateDO existRecord = cancelledList.get(0);
+            existRecord.setReason(reason);
+            existRecord.setPrevProStat(prevProStat);
+            existRecord.setDeleted(0);
+            existRecord.setCreated(new java.util.Date());
+            qcExpertEliminateService.update(existRecord);
+        } else {
+            // 不存在任何记录，新增
+            QcExpertEliminateDO eliminate = new QcExpertEliminateDO();
+            eliminate.setExpertUid(uid);
+            eliminate.setProId(proId);
+            eliminate.setTaskId(taskId);
+            eliminate.setReason(reason);
+            eliminate.setPrevProStat(prevProStat);
+            eliminate.setDeleted(0);
+            qcExpertEliminateService.save(eliminate);
+        }
 
         // 【修改】不再更新项目状态，淘汰仅在专家端页面过滤显示
         // Map<String, Object> statParams = new HashMap<>();
@@ -731,9 +769,30 @@ public class QcSpecialistScoreController extends BaseQcProController {
      * 获取淘汰项目列表
      * 用于管理员查看某任务下所有被淘汰的项目
      */
+    // 原代码：不支持按专业组过滤
+    // @RequestMapping("/getEliminatedProjects")
+    // @ResponseBody
+    // public R getEliminatedProjects(@RequestParam String taskId,
+    //                                @RequestParam(value = "onlyMine", defaultValue = "0") String onlyMine) {
+    //     if (StringUtils.isBlank(taskId)) {
+    //         return R.error("任务ID不能为空");
+    //     }
+    //     Map<String, Object> params = new HashMap<>();
+    //     params.put("taskId", taskId);
+    //     params.put("deleted", 0);
+    //     if ("1".equals(onlyMine)) {
+    //         params.put("expertUid", getUserId());
+    //     }
+    //     List<QcExpertEliminateDO> list = qcExpertEliminateService.list(params);
+    //     return R.ok().put("list", list);
+    // }
+
+    // 新代码：增加qcGroupName参数，支持按专业组过滤淘汰记录
     @RequestMapping("/getEliminatedProjects")
     @ResponseBody
-    public R getEliminatedProjects(@RequestParam String taskId) {
+    public R getEliminatedProjects(@RequestParam String taskId,
+                                   @RequestParam(value = "onlyMine", defaultValue = "0") String onlyMine,
+                                   @RequestParam(value = "qcGroupName", required = false) String qcGroupName) {
         if (StringUtils.isBlank(taskId)) {
             return R.error("任务ID不能为空");
         }
@@ -741,6 +800,12 @@ public class QcSpecialistScoreController extends BaseQcProController {
         Map<String, Object> params = new HashMap<>();
         params.put("taskId", taskId);
         params.put("deleted", 0);
+        if ("1".equals(onlyMine)) {
+            params.put("expertUid", getUserId());
+        }
+        if (StringUtils.isNotBlank(qcGroupName)) {
+            params.put("qcGroupName", qcGroupName);
+        }
         
         List<QcExpertEliminateDO> list = qcExpertEliminateService.list(params);
         
@@ -1211,6 +1276,107 @@ public class QcSpecialistScoreController extends BaseQcProController {
             tag = qcResultInnovateScoreService.update(score);
         } else {
             tag = qcResultInnovateScoreService.save(score);
+        }
+        if (tag > 0) {
+            return R.ok("保存成功");
+        }
+        return R.error("保存失败");
+    }
+
+    /**
+     * 获取主屏意见（推荐意见等级 + 评价意见）
+     */
+    @RequestMapping("/getRecommend")
+    @ResponseBody
+    public R getRecommend(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String topicType = params.get("topicType") != null ? params.get("topicType").toString() : "";
+        if (StringUtils.isBlank(proIdStr) || StringUtils.isBlank(taskId)) {
+            return R.error("参数缺失");
+        }
+        Map<String, Object> queryParams = new HashMap<>();
+        queryParams.put("optUid", uid);
+        queryParams.put("proId", Integer.parseInt(proIdStr));
+        queryParams.put("taskId", taskId);
+
+        R r = R.ok();
+        if ("创新型".equals(topicType)) {
+            List<QcResultInnovateScoreDO> list = qcResultInnovateScoreService.list(queryParams);
+            if (list != null && !list.isEmpty()) {
+                r.put("recommendLevel", list.get(0).getRecommendLevel());
+                r.put("sumRecommend", list.get(0).getSumRecommend());
+            }
+        } else {
+            List<QcResultSolveScoreDO> list = qcResultSolveScoreService.list(queryParams);
+            if (list != null && !list.isEmpty()) {
+                r.put("recommendLevel", list.get(0).getRecommendLevel());
+                r.put("sumRecommend", list.get(0).getSumRecommend());
+            }
+        }
+        return r;
+    }
+
+    /**
+     * 保存主屏意见（仅更新推荐意见等级 + 评价意见，不影响评分数据）
+     */
+    @RequestMapping("/saveRecommend")
+    @ResponseBody
+    public R saveRecommend(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String topicType = params.get("topicType") != null ? params.get("topicType").toString() : "";
+        String recommendLevel = params.get("recommendLevel") != null ? params.get("recommendLevel").toString() : "";
+        String sumRecommend = params.get("sumRecommend") != null ? params.get("sumRecommend").toString() : "";
+
+        if (StringUtils.isBlank(proIdStr) || StringUtils.isBlank(taskId)) {
+            return R.error("参数缺失");
+        }
+
+        Map<String, Object> queryParams = new HashMap<>();
+        queryParams.put("optUid", uid);
+        queryParams.put("proId", Integer.parseInt(proIdStr));
+        queryParams.put("taskId", taskId);
+
+        int tag;
+        if ("创新型".equals(topicType)) {
+            List<QcResultInnovateScoreDO> list = qcResultInnovateScoreService.list(queryParams);
+            if (list != null && !list.isEmpty()) {
+                QcResultInnovateScoreDO existing = list.get(0);
+                existing.setRecommendLevel(recommendLevel);
+                existing.setSumRecommend(sumRecommend);
+                existing.setUpdated(new Date());
+                tag = qcResultInnovateScoreService.update(existing);
+            } else {
+                QcResultInnovateScoreDO newScore = new QcResultInnovateScoreDO();
+                newScore.setOptUid(uid.intValue());
+                newScore.setProId(Integer.parseInt(proIdStr));
+                newScore.setTaskId(taskId);
+                newScore.setRecommendLevel(recommendLevel);
+                newScore.setSumRecommend(sumRecommend);
+                newScore.setDeleted(0);
+                tag = qcResultInnovateScoreService.save(newScore);
+            }
+        } else {
+            List<QcResultSolveScoreDO> list = qcResultSolveScoreService.list(queryParams);
+            if (list != null && !list.isEmpty()) {
+                QcResultSolveScoreDO existing = list.get(0);
+                existing.setRecommendLevel(recommendLevel);
+                existing.setSumRecommend(sumRecommend);
+                existing.setUpdated(new Date());
+                tag = qcResultSolveScoreService.update(existing);
+            } else {
+                QcResultSolveScoreDO newScore = new QcResultSolveScoreDO();
+                newScore.setOptUid(uid.intValue());
+                newScore.setProId(Integer.parseInt(proIdStr));
+                newScore.setTaskId(taskId);
+                newScore.setRecommendLevel(recommendLevel);
+                newScore.setSumRecommend(sumRecommend);
+                newScore.setDeleted(0);
+                tag = qcResultSolveScoreService.save(newScore);
+            }
         }
         if (tag > 0) {
             return R.ok("保存成功");

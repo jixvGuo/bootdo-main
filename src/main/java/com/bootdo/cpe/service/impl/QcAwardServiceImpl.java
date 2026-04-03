@@ -65,7 +65,10 @@ public class QcAwardServiceImpl implements QcAwardService {
         }
         //此处查询出对应proId对应的小组成员，然后map对应赋值即可
         list.stream().forEach(pro->{
+            // 【临时诊断日志】排查状态显示bug，确认后删除
+            System.out.println("[DEBUG-STAT] proId=" + pro.getProId() + " | DB proStat=" + pro.getProStat());
             pro.initApplyStat();
+            System.out.println("[DEBUG-STAT] proId=" + pro.getProId() + " | applyStat=" + pro.getApplyStat());
         });
         //遍历项目列表，进行对符合proid的成员进行赋值
         for (QcProDataDto pro:list){

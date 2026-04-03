@@ -20,8 +20,12 @@
 						<i class="fa fa-th-large"></i>&nbsp;分组管理
 					</button>
 					<!--  导出淘汰按钮	-->
-					<button class="btn btn-warning" onclick="showEliminatedProjects()" th:if="${isAssociationLeader}">
+					<button class="btn btn-warning" onclick="showEliminatedProjects()" th:if="${canExportEliminate}">
 						<i class="fa fa-ban"></i>&nbsp;导出淘汰
+					</button>
+					<!--  专业组管理按钮（外聘人员）	-->
+					<button class="btn btn-info" onclick="toExpertGroupManage()" th:if="${isExternalExpert}">
+						<i class="fa fa-th-large"></i>&nbsp;专业组管理
 					</button>
 					<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
 					<input type="hidden" id="isAssociationLeader" th:value="${isAssociationLeader}" />
@@ -251,7 +255,7 @@
 </div>
 
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/qcGroupApplyInfo/qcGroupApplyInfo.js?v=1.8"></script>
+<script type="text/javascript" src="/js/appjs/cpe/qcGroupApplyInfo/qcGroupApplyInfo.js?v=1.9"></script>
 
 <script th:inline="javascript">
 	let projectTypes =  /*[[${projectTypes}]]*/ [];
@@ -259,6 +263,7 @@
 	let pageTaskStageCode = /*[[${taskStageCode}]]*/ "WAIT_APPLY";
 	window.isEnterpriseUser = /*[[${isEnterpriseUser}]]*/ false;
 	window.isAssociationLeader = /*[[${isAssociationLeader}]]*/ false;
+	window.isExternalExpert = /*[[${isExternalExpert}]]*/ false;
 	// 将字典数据存储到全局变量，供 JS 文件使用
 	if (projectTypes && projectTypes.length > 0) {
 		window.projectTypes = projectTypes;
@@ -283,6 +288,20 @@
 			area: ['800px', '600px'],
 			content: "/enterprise_pro/to_group_manage/" + taskId
 		});
+	}
+
+	// 跳转到专业组管理页面（外聘人员）
+	function toExpertGroupManage() {
+		var taskId = $("#taskId").val();
+		var index = layer.open({
+			type: 2,
+			title: '专业组管理',
+			maxmin: true,
+			shadeClose: false,
+			area: ['800px', '600px'],
+			content: "/qcProcess/toAddSpecialist?taskId=" + taskId
+		});
+		layer.full(index);
 	}
 
     function reloadData() {
@@ -343,7 +362,10 @@
 		$.ajax({
 			type: "GET",
 			url: "/qcScore/getEliminatedProjects",
-			data: { taskId: taskId },
+			// 原代码：外聘人员传onlyMine=1，但外聘人员非打分专家，查不到数据
+			// data: { taskId: taskId, onlyMine: window.isExternalExpert ? '1' : '0' },
+			// 新代码：外聘人员与管理员一样查看全部淘汰项目，onlyMine始终为0
+			data: { taskId: taskId, onlyMine: '0' },
 			success: function(data) {
 				if (data && data.code === 0 && data.list) {
 					renderEliminatedTable(data.list);

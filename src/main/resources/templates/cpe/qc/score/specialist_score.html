@@ -106,24 +106,6 @@
                     <input type="number" id="appraiseSum" name="appraiseSum" readonly="readonly" />
                 </div>
 
-                <div style="text-align: center;margin: 30px 0 20px 0;">意见备注</div>
-
-                <div class="ui field">
-                    <label>推荐意见等级</label>
-                    <select id="recommendLevel" name="recommendLevel" class="ui dropdown">
-                        <option value="">请选择</option>
-                        <option value="优秀">优秀</option>
-                        <option value="良好">良好</option>
-                        <option value="合格">合格</option>
-                        <option value="不合格">不合格</option>
-                    </select>
-                </div>
-
-                <div class="ui field">
-                    <label>评价意见</label>
-                    <textarea id="sumRecommend" name="sumRecommend" rows="5" placeholder="请输入..."></textarea>
-                </div>
-
                 <div class="ui basic center aligned segment">
                     <div class="ui blue button" onclick="saveResultScore()">保存</div>
                 </div>
@@ -210,12 +192,10 @@
                     $('#effectScore').val(s.effectScore);
                     $('#reportScore').val(s.reportScore);
                     $('#characteristicScore').val(s.characteristicScore);
-                    $('#sumRecommend').val(s.sumRecommend);
                     $('#appraiseSum').val(s.appraiseSum);
 
                     $('#certificateScore').val(s.certificateScore);
                     $('#practicalValueScore').val(s.practicalValueScore);
-                    $('#recommendLevel').val(s.recommendLevel).trigger('change');
 
                     calcTotal();
                 }
@@ -344,12 +324,10 @@
                 effectScore: $('#effectScore').val(),
                 reportScore: $('#reportScore').val(),
                 characteristicScore: $('#characteristicScore').val(),
-                sumRecommend: $('#sumRecommend').val(),
                 appraiseSum: $('#appraiseSum').val(),
 
                 certificateScore: $('#certificateScore').val(),
-                practicalValueScore: $('#practicalValueScore').val(),
-                recommendLevel: $('#recommendLevel').val()
+                practicalValueScore: $('#practicalValueScore').val()
             };
 
             if (!innovate) {

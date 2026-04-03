@@ -108,7 +108,7 @@
                         and (pro.pro_stat IS NULL or pro.pro_stat = '' or pro.pro_stat = '申请中')
                     </when>
                     <when test="filterApplyStat == '审核中'">
-                        and pro.pro_stat = 'check'
+                        and pro.pro_stat in ('check', 'score', 'experts_score')
                     </when>
                     <when test="filterApplyStat == '已驳回'">
                         and pro.pro_stat = 'reject'
@@ -254,7 +254,7 @@
         </choose> AS scoreDate,
         qa.`group_desc`, qa.`sel_topic_reason`,
         qa.`act_desc`, qa.`main_result`, qa.`recommend_action`,
-        qa.`created`, qa.`updated`, qa.`deleted`,
+        qa.`created`, qa.`updated`, qa.`deleted`, qa.`unit_name`,
         (SELECT sd.name FROM sys_dept sd join sys_user su on sd.dept_id = su.dept_id where su.user_id = qa.opt_uid limit 1) company_name,
         (select username from sys_user where user_id = qa.opt_uid limit 1) apply_account,
         pt.apply_start_date, pt.apply_end_date, pt.expert_start_time, pt.expert_end_time,

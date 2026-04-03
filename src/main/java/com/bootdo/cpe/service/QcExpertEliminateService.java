@@ -21,4 +21,6 @@ public interface QcExpertEliminateService {
     int update(QcExpertEliminateDO qcExpertEliminate);
 
     int remove(Integer id);
+
+    int batchSoftDeleteByTaskId(String taskId);
 }

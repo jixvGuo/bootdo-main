@@ -8,6 +8,8 @@
         from ass_qc_expert_eliminate where id = #{value}
     </select>
 
+    <!-- 原代码：不支持按专业组过滤 -->
+    <!--
     <select id="list" resultType="com.bootdo.cpe.domain.QcExpertEliminateDO">
         select e.`id`, e.`expert_uid`, e.`pro_id`, e.`task_id`, e.`reason`, e.`prev_pro_stat`, e.`created`, e.`deleted`,
             qa.`topic_name` as topicName,
@@ -23,6 +25,28 @@
             <if test="proId != null"> and e.pro_id = #{proId} </if>
             <if test="taskId != null and taskId != ''"> and e.task_id = #{taskId} </if>
             <if test="deleted != null"> and e.deleted = #{deleted} </if>
+        </where>
+    </select>
+    -->
+    <!-- 新代码：增加按专业组(qcGroupName)过滤，join ass_award_enterprise_project -->
+    <select id="list" resultType="com.bootdo.cpe.domain.QcExpertEliminateDO">
+        select e.`id`, e.`expert_uid`, e.`pro_id`, e.`task_id`, e.`reason`, e.`prev_pro_stat`, e.`created`, e.`deleted`,
+            qa.`topic_name` as topicName,
+            qa.`group_name` as groupName,
+            qa.`apply_id` as proCode,
+            pro.`qc_group_name` as qcGroupName,
+            (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = qa.opt_uid LIMIT 1) as companyName,
+            (SELECT su.name FROM sys_user su WHERE su.user_id = e.expert_uid LIMIT 1) as expertName
+        from ass_qc_expert_eliminate e
+        left join ass_qc_group_apply_info qa on e.pro_id = qa.pro_id and e.task_id = qa.task_id
+        left join ass_award_enterprise_project pro on e.pro_id = pro.id
+        <where>
+            <if test="id != null"> and e.id = #{id} </if>
+            <if test="expertUid != null"> and e.expert_uid = #{expertUid} </if>
+            <if test="proId != null"> and e.pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and e.task_id = #{taskId} </if>
+            <if test="deleted != null"> and e.deleted = #{deleted} </if>
+            <if test="qcGroupName != null and qcGroupName != ''"> and pro.qc_group_name = #{qcGroupName} </if>
         </where>
         order by e.id desc
         <if test="offset != null and limit != null">
@@ -49,11 +73,23 @@
         (#{expertUid}, #{proId}, #{taskId}, #{reason}, #{prevProStat}, now(), 0)
     </insert>
 
+    <!-- 原代码：update只支持reason和deleted -->
+    <!-- <update id="update" parameterType="com.bootdo.cpe.domain.QcExpertEliminateDO">
+        update ass_qc_expert_eliminate
+        <set>
+            <if test="reason != null">`reason` = #{reason}, </if>
+            <if test="deleted != null">`deleted` = #{deleted}, </if>
+        </set>
+        where id = #{id}
+    </update> -->
+    <!-- 新代码：增加prevProStat和created的更新支持，用于撤销后重新淘汰时更新已有记录 -->
     <update id="update" parameterType="com.bootdo.cpe.domain.QcExpertEliminateDO">
         update ass_qc_expert_eliminate
         <set>
             <if test="reason != null">`reason` = #{reason}, </if>
             <if test="deleted != null">`deleted` = #{deleted}, </if>
+            <if test="prevProStat != null">`prev_pro_stat` = #{prevProStat}, </if>
+            <if test="created != null">`created` = #{created}, </if>
         </set>
         where id = #{id}
     </update>
@@ -61,5 +97,9 @@
     <delete id="remove">
         delete from ass_qc_expert_eliminate where id = #{value}
     </delete>
+
+    <update id="batchSoftDeleteByTaskId">
+        update ass_qc_expert_eliminate set deleted = 1 where task_id = #{taskId} and deleted = 0
+    </update>
 
 </mapper>

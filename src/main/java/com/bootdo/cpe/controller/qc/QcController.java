@@ -119,9 +119,13 @@ public class QcController extends BaseQcProController {
         boolean isEnterpriseUser = roleIdList.contains(ROLE_ENTERPRISE_QC_ID);
         boolean isAssociationLeader = roleIdList.contains(ROLE_ASSOCIATION_LEADER);
         boolean isAssociationContact = roleIdList.contains(ROLE_QC_ASSOCIATION_ID);
+        boolean isExternalExpert = roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID);
+        boolean canExportEliminate = isAssociationLeader || isExternalExpert;
         map.put("isAssociationContact", isAssociationContact);
         map.put("isAssociationLeader", isAssociationLeader);
         map.put("isEnterpriseUser", isEnterpriseUser);
+        map.put("canExportEliminate", canExportEliminate);
+        map.put("isExternalExpert", isExternalExpert);
         // 原代码：boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) || roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID) || roleIdList.contains(ROLE_SPECIALIST_ID) || roleIdList.contains(ROLE_ASSOCIATION_LEADER);
         // 新代码：增加QC奖评审专家角色(85)
         boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) ||
@@ -742,10 +746,24 @@ public class QcController extends BaseQcProController {
         Integer id = qcGroupApplyInfoDO.getId();
         int rst = 0;
 
+        // 原代码：保存时仅更新major，不重置pro_stat，导致重新申报时残留旧状态（如score）
+        // EnterpriseProjectInfoDo projectInfoDo = new EnterpriseProjectInfoDo();
+        // projectInfoDo.setId(qcGroupApplyInfoDO.getProId());
+        // projectInfoDo.setMajor(qcGroupApplyInfoDO.getProfessionalScope());
+        // awardEnterpriseProjectService.updateProjectInfo(projectInfoDo);
+
+        // 新代码：保存时同时重置pro_stat为空，防止重新申报后残留旧状态
         EnterpriseProjectInfoDo projectInfoDo = new EnterpriseProjectInfoDo();
         projectInfoDo.setId(qcGroupApplyInfoDO.getProId());
         projectInfoDo.setMajor(qcGroupApplyInfoDO.getProfessionalScope());
         awardEnterpriseProjectService.updateProjectInfo(projectInfoDo);
+        // 单独重置pro_stat（因为updateProjectInfo的Mapper会跳过空字符串）
+        if (qcGroupApplyInfoDO.getProId() != null) {
+            Map<String, Object> resetStatParams = new HashMap<>();
+            resetStatParams.put("proId", qcGroupApplyInfoDO.getProId());
+            resetStatParams.put("proStat", "");
+            qcAwardService.updateProStat(resetStatParams);
+        }
 //        //新增修改如果为空则创建qc号
 //        if(StringUtils.isBlank(qcGroupApplyInfoDO.getApplyId())) {
 //            qcGroupApplyInfoDO.setApplyId(sequenceService.generateSequence("QC"));

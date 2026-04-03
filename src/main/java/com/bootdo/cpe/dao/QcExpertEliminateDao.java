@@ -24,4 +24,6 @@ public interface QcExpertEliminateDao {
     int update(QcExpertEliminateDO qcExpertEliminate);
 
     int remove(Integer id);
+
+    int batchSoftDeleteByTaskId(Map<String, Object> params);
 }
