@@ -3,8 +3,7 @@
 <meta charset="utf-8">
 <head th:include="include :: header"></head>
 <body class="gray-bg">
-<!-- 是QC 奖评审专家的项目列表页面 ,用于评审专家查看和评审分配给自己的 QC 奖申报项目。-->
-<!-- 参考科技奖 pro_list_personal.html 完善：添加提交最终打分结果按钮、查看形式审查结果按钮 -->
+<!-- 是QC奖专家评审页面 ,用于评审专家查看和评审分配给自己的 QC 奖申报项目。-->
 <div class="wrapper wrapper-content">
     <div class="col-sm-12">
         <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
@@ -23,12 +22,11 @@
                     <div class="ibox-body">
                         <!-- 操作按钮区域 -->
                         <div style="margin-bottom: 15px;">
-                            <button type="button" class="btn btn-primary" onclick="submitFinalScore()">
-                                <i class="fa fa-plus" aria-hidden="true"></i>提交最终打分结果
+                            <button th:if="${scoreIsOver != 1}" type="button" disabled class="btn btn-primary" onclick="submitFinalScore()">
+                                <i class="fa fa-check" aria-hidden="true"></i> 提交最终打分结果
                             </button>
-                            <button th:if="${scoreIsOver == 1}" type="button"
-                                    class="btn btn-primary" onclick="cancelSubmitScore()">
-                                撤回打分提交
+                            <button th:if="${scoreIsOver == 1}" type="button" class="btn btn-default" disabled>
+                                <i class="fa fa-check-circle" aria-hidden="true"></i> 已提交打分
                             </button>
                         </div>
 
@@ -115,7 +113,9 @@
     window.projectTypes = /*[[${projectTypes}]]*/ [];
     window.classifications = /*[[${classifications}]]*/ [];
     window.eliminateIsOver = /*[[${eliminateIsOver}]]*/ 0;
+    window.scoreIsOver = /*[[${scoreIsOver}]]*/ 0;
 </script>
+<!--SheetJS (xlsx) - Excel导出库-->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" async></script>
 <script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.14"></script>
 

@@ -52,6 +52,7 @@ import static com.bootdo.common.config.Constant.ROLE_QC_SPECIALIST_ID;
 import com.bootdo.cpe.domain.science_process.ScienceAssignUserInfo;
 import java.util.Set;
 import java.util.HashSet;
+import javax.servlet.http.HttpServletResponse;
 
 /**
  * QC奖任务
@@ -625,11 +626,17 @@ public class QcProcessController extends BaseQcProController {
             // 1. 先查询sys_user确认账号是否存在
             List<Long> uidList = userService.getUidByLoginUserName(loginAccount);
 
-            // 2. 物理删除 add_special_info 中的记录
-            int expertTag = expertGroupService.removeByLoginAccount(loginAccount);
+            // 原代码（v3）：物理删除，会导致打分/淘汰数据丢失关联
+            // // 2. 物理删除 add_special_info 中的记录
+            // int expertTag = expertGroupService.removeByLoginAccount(loginAccount);
+            // // 3. 物理删除 sys_user 中的记录
+            // int userTag = userService.removeByLoginAccount(loginAccount);
 
-            // 3. 物理删除 sys_user 中的记录
-            int userTag = userService.removeByLoginAccount(loginAccount);
+            // 新代码（v4）：改为逻辑删除，保留数据可恢复
+            // 2. 逻辑删除 add_special_info（设deleted=1）
+            int expertTag = expertGroupService.delByLoginAccount(loginAccount);
+            // 3. 逻辑删除 sys_user（设deleted=1）
+            int userTag = userService.delUserByAccount(loginAccount);
 
             R r = R.ok();
             r.put("expertDeleted", expertTag);
@@ -640,6 +647,50 @@ public class QcProcessController extends BaseQcProController {
             e.printStackTrace();
             System.out.println("[QC移出专家] 异常: " + e.getMessage());
             return R.error("移出专家异常: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 检查专家是否有打分或淘汰数据（移出前二次确认用）
+     */
+    @RequestMapping("/expert/checkData")
+    @ResponseBody
+    public R checkExpertData(@RequestParam String loginAccount, @RequestParam(required = false) String taskId) {
+        try {
+            if (StringUtils.isBlank(loginAccount)) {
+                return R.error("账号为空");
+            }
+            List<Long> uidList = userService.getUidByLoginUserName(loginAccount.trim());
+            if (uidList == null || uidList.isEmpty()) {
+                return R.ok().put("hasScore", false).put("hasEliminate", false);
+            }
+            Long uid = uidList.get(0);
+
+            // 检查淘汰数据
+            Map<String, Object> elimParams = new HashMap<>();
+            elimParams.put("expertUid", uid);
+            if (StringUtils.isNotBlank(taskId)) {
+                elimParams.put("taskId", taskId);
+            }
+            elimParams.put("deleted", 0);
+            int elimCount = qcExpertEliminateService.count(elimParams);
+
+            // 检查快照表
+            Map<String, Object> confirmedParams = new HashMap<>();
+            confirmedParams.put("expertUid", uid);
+            if (StringUtils.isNotBlank(taskId)) {
+                confirmedParams.put("taskId", taskId);
+            }
+            int confirmedCount = qcExpertEliminateConfirmedService.count(confirmedParams);
+
+            boolean hasEliminate = elimCount > 0 || confirmedCount > 0;
+
+            return R.ok().put("hasEliminate", hasEliminate)
+                         .put("elimCount", elimCount)
+                         .put("confirmedCount", confirmedCount);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("检查失败：" + e.getMessage());
         }
     }
 
@@ -660,6 +711,89 @@ public class QcProcessController extends BaseQcProController {
         map.put("loginAccount", params.get("loginAccount"));
         map.put("trIndex", params.get("trIndex"));
         return prefix + "/score/qc_expert_sign_upload";
+    }
+
+    /**
+     * 导出单个专家的淘汰Word文档（初审不合格成果表）
+     * 读取快照表数据，如果快照表无数据则降级读取当前有效淘汰记录
+     */
+    @RequestMapping("/exportEliminateWord")
+    public void exportEliminateWord(@RequestParam String taskId,
+                                     @RequestParam String expertUid,
+                                     @RequestParam(value = "expertName", required = false, defaultValue = "") String expertName,
+                                     @RequestParam(value = "year", required = false, defaultValue = "2026") String year,
+                                     HttpServletResponse response) {
+        try {
+            Long uid = Long.valueOf(expertUid);
+
+            // 查询专家签章图片磁盘路径
+            String signImagePath = null;
+            Map<String, Object> expertQuery = new HashMap<>();
+            expertQuery.put("userId", expertUid);
+            expertQuery.put("taskId", taskId);
+            expertQuery.put("proType", com.bootdo.cpe.domain.EnumProjectType.QC_PRO_GROUP.getProType());
+            List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+            if (expertList != null && !expertList.isEmpty()) {
+                String signUrl = expertList.get(0).getExpertSignUrl();
+                if (StringUtils.isNotBlank(signUrl)) {
+                    // signUrl格式: /files/2026/04/sign_xxx/sign_xxx.png
+                    // 磁盘路径: uploadPath + 去掉"/files/"前缀的部分
+                    String relativePath = signUrl.startsWith("/files/") ? signUrl.substring("/files/".length()) : signUrl;
+                    signImagePath = bootdoConfig.getUploadPath() + relativePath;
+                }
+            }
+
+            // 先查快照表
+            Map<String, Object> confirmedParams = new HashMap<>();
+            confirmedParams.put("expertUid", uid);
+            confirmedParams.put("taskId", taskId);
+            List<com.bootdo.cpe.domain.QcExpertEliminateConfirmedDO> confirmedList =
+                    qcExpertEliminateConfirmedService.list(confirmedParams);
+
+            List<Map<String, Object>> dataList = new ArrayList<>();
+
+            if (confirmedList != null && !confirmedList.isEmpty()) {
+                // 快照表有数据
+                for (com.bootdo.cpe.domain.QcExpertEliminateConfirmedDO item : confirmedList) {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("proCode", item.getProCode());
+                    row.put("topicName", item.getTopicName());
+                    row.put("groupName", item.getGroupName());
+                    row.put("companyName", item.getCompanyName());
+                    row.put("reason", item.getReason());
+                    dataList.add(row);
+                }
+            } else {
+                // 降级读取当前有效淘汰记录
+                Map<String, Object> elimParams = new HashMap<>();
+                elimParams.put("expertUid", uid);
+                elimParams.put("taskId", taskId);
+                elimParams.put("deleted", 0);
+                List<com.bootdo.cpe.domain.QcExpertEliminateDO> elimList =
+                        qcExpertEliminateService.list(elimParams);
+                if (elimList != null) {
+                    for (com.bootdo.cpe.domain.QcExpertEliminateDO item : elimList) {
+                        Map<String, Object> row = new HashMap<>();
+                        row.put("proCode", item.getProCode());
+                        row.put("topicName", item.getTopicName());
+                        row.put("groupName", item.getGroupName());
+                        row.put("companyName", item.getCompanyName());
+                        row.put("reason", item.getReason());
+                        dataList.add(row);
+                    }
+                }
+            }
+
+            com.bootdo.cpe.utils.PoiWordEliminateUtils.exportEliminateWord(response, expertName, dataList, year, signImagePath);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":1,\"msg\":\"导出失败：" + e.getMessage() + "\"}");
+            } catch (Exception ignored) {
+            }
+        }
     }
 
 }

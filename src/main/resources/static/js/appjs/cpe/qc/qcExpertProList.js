@@ -106,10 +106,12 @@ function load() {
                             // 回避项目不显示评分按钮，但仍可淘汰
                             var score = '';
                             if (row.isAvoided) {
-                                score = '<a class="btn btn-warning btn-sm disabled" href="#" style="cursor:default;pointer-events:none;">已回避</a> ';
+                                score = '<span class="label label-danger" style="font-size:12px;padding:4px 8px;border-radius:3px;"><i class="fa fa-ban"></i> 回避</span> ';
+                            } else if (window.scoreIsOver == 1) {
+                                score = '<a class="btn btn-default btn-sm" href="#" title="查看打分" onclick="specialistScore(\'' + row.proId + '\',\'' + row.taskId
+                                    + '\',true)">查看打分</a> ';
                             } else {
-                                score = '<a class="btn btn-success btn-sm" href="#" title="评分" onclick="specialistScore(\''
-                                    + row.proId + '\',\'' + row.taskId
+                                score = '<a class="btn btn-success btn-sm" href="#" title="评分" onclick="specialistScore(\'' + row.proId + '\',\'' + row.taskId
                                     + '\')">评分</a> ';
                             }
 
@@ -343,14 +345,18 @@ function cancelEliminate(id) {
 
 // ==================== 原有功能 ====================
 
-function specialistScore(proId, taskId) {
+function specialistScore(proId, taskId, viewOnly) {
+    var url = prefix + '/toScore?proId=' + proId + '&taskId=' + taskId;
+    if (viewOnly) {
+        url += '&viewOnly=1';
+    }
     var index = layer.open({
         type: 2,
-        title: 'QC专家评分',
+        title: viewOnly ? 'QC专家评分（只读）' : 'QC专家评分',
         maxmin: true,
         shadeClose: false,
         area: ['800px', '600px'],
-        content: prefix + '/toScore?proId=' + proId + '&taskId=' + taskId
+        content: url
     });
     layer.full(index);
 }

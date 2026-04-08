@@ -15,41 +15,12 @@
 
                 <h4 class="ui red horizontal divider header">基本信息</h4>
                 <div class="ui two fields">
-<!--                    <div class="ui field">-->
-<!--                        <label>项目编号</label>-->
-<!--                        <input type="text" placeholder="项目编号" readonly="readonly"-->
-<!--                               th:value="${proInfo != null ? proInfo.proCode : ''}" />-->
-<!--                    </div>-->
                     <div class="ui field disabled">
                         <label>课题名称</label>
                         <input type="text" placeholder="课题名称" readonly="readonly"
                                th:value="${proInfo != null ? proInfo.topicName : ''}" />
                     </div>
                 </div>
-<!--                <div class="ui two fields">-->
-<!--                    <div class="ui field">-->
-<!--                        <label>小组名称</label>-->
-<!--                        <input type="text" placeholder="小组名称" readonly="readonly"-->
-<!--                               th:value="${proInfo != null ? proInfo.groupName : ''}" />-->
-<!--                    </div>-->
-<!--                    <div class="ui field">-->
-<!--                        <label>单位名称</label>-->
-<!--                        <input type="text" placeholder="单位名称" readonly="readonly"-->
-<!--                               th:value="${proInfo != null ? proInfo.companyName : ''}" />-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--                <div class="ui two fields">-->
-<!--                    <div class="ui field">-->
-<!--                        <label>课题类型</label>-->
-<!--                        <input type="text" placeholder="课题类型" readonly="readonly"-->
-<!--                               th:value="${proInfo != null ? proInfo.topicType : ''}" />-->
-<!--                    </div>-->
-<!--                    <div class="ui field">-->
-<!--                        <label>专业范围</label>-->
-<!--                        <input type="text" placeholder="专业范围" readonly="readonly"-->
-<!--                               th:value="${proInfo != null ? proInfo.professionalScope : ''}" />-->
-<!--                    </div>-->
-<!--                </div>-->
 
                 <h4 class="ui red horizontal divider header">打分详情</h4>
                 <div style="text-align: center;margin: 10px 0 20px 0;">成果形成过程评价</div>
@@ -373,20 +344,34 @@
             });
         }
 
+        function getUrlParam(name) {
+            var reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)');
+            var r = window.location.search.substr(1).match(reg);
+            return r ? decodeURIComponent(r[2]) : null;
+        }
+
         $(function () {
             refreshByTopicType();
             loadResultScore();
-            
-            // 输入时计算总分
-            $('#resultScoreForm').on('keyup change', "input[type='number']", function () {
-                calcTotal();
-            });
-            
-            // 失焦时自动修正超出范围的值
-            $('#resultScoreForm').on('blur', "input[type='number']:not([readonly])", function () {
-                autoCorrectScore($(this));
-                calcTotal();
-            });
+
+            // 只读模式：提交后只能查看，不能修改
+            if (getUrlParam('viewOnly') === '1') {
+                $('#resultScoreForm input[type="number"]').prop('readonly', true).css('background','#f5f5f5');
+                $('#resultScoreForm .ui.blue.button').hide();
+                $('<div class="ui info message" style="margin-bottom:10px;padding:10px 15px;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;color:#31708f;">'
+                    + '<i class="fa fa-info-circle"></i> 打分已提交，当前为只读查看模式。如需修改，请在列表页撤回提交后重新打分。'
+                    + '</div>').prependTo('.ui.bottom.attached.segment');
+            } else {
+                // 输入时计算总分
+                $('#resultScoreForm').on('keyup change', "input[type='number']", function () {
+                    calcTotal();
+                });
+                // 失焦时自动修正超出范围的值
+                $('#resultScoreForm').on('blur', "input[type='number']:not([readonly])", function () {
+                    autoCorrectScore($(this));
+                    calcTotal();
+                });
+            }
         });
     </script>
 </body>

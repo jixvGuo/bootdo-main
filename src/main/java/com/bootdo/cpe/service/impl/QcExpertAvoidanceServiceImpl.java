@@ -220,14 +220,14 @@ public class QcExpertAvoidanceServiceImpl implements QcExpertAvoidanceService {
 
         String normalized = companyName.trim().toLowerCase();
 
-        // 去除常见的公司后缀
-        String[] suffixes = {"有限公司", "有限责任公司", "股份有限公司", "集团", 
-                            "公司", "Ltd", "Co", "Inc", "Corporation", "Corp"};
-        for (String suffix : suffixes) {
-            if (normalized.endsWith(suffix.toLowerCase())) {
-                normalized = normalized.substring(0, normalized.length() - suffix.length()).trim();
-            }
-        }
+        // 原代码：去除常见的公司后缀
+        // String[] suffixes = {"有限公司", "有限责任公司", "股份有限公司", "集团",
+        //                     "公司", "Ltd", "Co", "Inc", "Corporation", "Corp"};
+        // for (String suffix : suffixes) {
+        //     if (normalized.endsWith(suffix.toLowerCase())) {
+        //         normalized = normalized.substring(0, normalized.length() - suffix.length()).trim();
+        //     }
+        // }
 
         return normalized;
     }

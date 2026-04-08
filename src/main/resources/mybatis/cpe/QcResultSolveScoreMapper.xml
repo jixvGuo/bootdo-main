@@ -4,11 +4,11 @@
 <mapper namespace="com.bootdo.cpe.dao.QcResultSolveScoreDao">
 
 	<select id="get" resultType="com.bootdo.cpe.domain.QcResultSolveScoreDO">
-		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`certificate_score`,`appraise_sum`,`appraise_sign`,`practical_value_score`,`sum_recommend`,`recommend_level`,`created`,`updated`,`deleted` from ass_qc_result_solve_score where id = #{value}
+		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`certificate_score`,`appraise_sum`,`appraise_sign`,`practical_value_score`,`sum_recommend`,`recommend_level`,`created`,`updated`,`deleted`,`score_over` from ass_qc_result_solve_score where id = #{value}
 	</select>
 
 	<select id="list" resultType="com.bootdo.cpe.domain.QcResultSolveScoreDO">
-		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`certificate_score`,`appraise_sum`,`appraise_sign`,`practical_value_score`,`sum_recommend`,`recommend_level`,`created`,`updated`,`deleted` from ass_qc_result_solve_score
+		select `id`,`opt_uid`,`pro_id`,`task_id`,`apply_id`,`sel_socre`,`reason_score`,`strategy_execute_score`,`effect_score`,`report_score`,`characteristic_score`,`certificate_score`,`appraise_sum`,`appraise_sign`,`practical_value_score`,`sum_recommend`,`recommend_level`,`created`,`updated`,`deleted`,`score_over` from ass_qc_result_solve_score
         <where>  
 		  		  <if test="id != null and id != ''"> and id = #{id} </if>
 		  		  <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
@@ -30,6 +30,7 @@
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
 		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
+		  		  <if test="scoreOver != null and scoreOver != ''"> and score_over = #{scoreOver} </if>
 		  		</where>
         <choose>
             <when test="sort != null and sort.trim() != ''">
@@ -67,6 +68,7 @@
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
 		  		  <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
+		  		  <if test="scoreOver != null and scoreOver != ''"> and score_over = #{scoreOver} </if>
 		  		</where>
 	</select>
 	 
@@ -91,7 +93,8 @@
 			`recommend_level`, 
 			`created`, 
 			`updated`, 
-			`deleted`
+			`deleted`,
+			`score_over`
 		)
 		values
 		(
@@ -113,7 +116,8 @@
 			#{recommendLevel}, 
 			now(),
 			#{updated}, 
-			#{deleted}
+			#{deleted},
+			#{scoreOver}
 		)
 	</insert>
 	 
@@ -138,7 +142,8 @@
 			<if test="recommendLevel != null">`recommend_level` = #{recommendLevel}, </if>
 			<if test="created != null">`created` = #{created}, </if>
 			<if test="updated != null">`updated` = #{updated}, </if>
-			<if test="deleted != null">`deleted` = #{deleted}</if>
+			<if test="deleted != null">`deleted` = #{deleted}, </if>
+			<if test="scoreOver != null">`score_over` = #{scoreOver}</if>
 		</set>
 		where id = #{id}
 	</update>

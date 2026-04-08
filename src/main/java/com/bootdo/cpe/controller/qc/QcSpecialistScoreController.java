@@ -117,7 +117,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
 
     /** 每个专家最多淘汰的项目数 */
     //  淘汰数量
-    private static final int MAX_ELIMINATE_COUNT = 2;
+    private static final int MAX_ELIMINATE_COUNT = 9;
 
     @RequestMapping("/toExpertProList")
     public String toExpertProList(@RequestParam Map<String, Object> params, ModelMap map) {
@@ -160,7 +160,9 @@ public class QcSpecialistScoreController extends BaseQcProController {
             if (StringUtils.isNotBlank(currentTaskId)) {
                 checkParams.put("taskId", currentTaskId);
             }
-            scoreIsOver = qcAppraiseActiveScoreService.count(checkParams);
+            int c2 = qcResultSolveScoreService.count(checkParams);
+            int c3 = qcResultInnovateScoreService.count(checkParams);
+            scoreIsOver = (c2 + c3);
         } catch (Exception e) {
             // score_over列可能尚未添加到数据库，降级处理
             scoreIsOver = 0;
@@ -493,21 +495,77 @@ public class QcSpecialistScoreController extends BaseQcProController {
     public R submitScore(@RequestParam Map<String, Object> params) {
         Long uid = getUserId();
         String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+
+        // ===== 前置校验：所有非回避、非淘汰项目必须已评分 =====
+        Map<String, Object> proQueryParams = new HashMap<>();
+        proQueryParams.put("scoreSpecialistUid", String.valueOf(uid));
+        if (StringUtils.isNotBlank(taskId)) {
+            proQueryParams.put("taskId", taskId);
+        }
+        List<QcProDataDto> allProjects = qcAwardService.listProInfo(proQueryParams);
+        if (allProjects != null && !allProjects.isEmpty()) {
+            // 获取已淘汰项目ID集合
+            Set<Integer> eliminatedProIds = new HashSet<>();
+            if (StringUtils.isNotBlank(taskId)) {
+                Map<String, Object> elimParams = new HashMap<>();
+                elimParams.put("expertUid", uid);
+                elimParams.put("taskId", taskId);
+                elimParams.put("deleted", 0);
+                List<QcExpertEliminateDO> eliminatedList = qcExpertEliminateService.list(elimParams);
+                if (eliminatedList != null) {
+                    for (QcExpertEliminateDO e : eliminatedList) {
+                        if (e.getProId() != null) eliminatedProIds.add(e.getProId());
+                    }
+                }
+            }
+            // 检查每个非淘汰、非回避项目是否已评分
+            List<String> unscoredProjects = new ArrayList<>();
+            for (QcProDataDto pro : allProjects) {
+                if (pro.getProId() == null) continue;
+                if (eliminatedProIds.contains(pro.getProId())) continue;
+                boolean isAvoided = avoidanceService.checkAvoidance(taskId, pro.getProId(), uid.intValue());
+                if (isAvoided) continue;
+                Map<String, Object> checkScore = new HashMap<>();
+                checkScore.put("optUid", uid);
+                checkScore.put("proId", pro.getProId());
+                checkScore.put("taskId", taskId);
+                List<QcResultSolveScoreDO> solveCheck = qcResultSolveScoreService.list(checkScore);
+                List<QcResultInnovateScoreDO> innovateCheck = qcResultInnovateScoreService.list(checkScore);
+                if ((solveCheck == null || solveCheck.isEmpty()) && (innovateCheck == null || innovateCheck.isEmpty())) {
+                    String name = StringUtils.isNotBlank(pro.getTopicName()) ? pro.getTopicName() : ("项目ID:" + pro.getProId());
+                    unscoredProjects.add(name);
+                }
+            }
+            if (!unscoredProjects.isEmpty()) {
+                return R.error("以下项目尚未评分，请完成所有项目评分后再提交：" + String.join("、", unscoredProjects));
+            }
+        }
+        // ===== 前置校验结束 =====
+
         // 查找当前专家在当前任务下的打分记录
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("optUid", uid);
         if (StringUtils.isNotBlank(taskId)) {
             queryParams.put("taskId", taskId);
         }
-        List<QcAppraiseActiveScoreDO> scoreList = qcAppraiseActiveScoreService.list(queryParams);
-        if (scoreList == null || scoreList.isEmpty()) {
+        List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(queryParams);
+        List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(queryParams);
+        if ((solveList == null || solveList.isEmpty())
+                && (innovateList == null || innovateList.isEmpty())) {
             return R.error("尚未进行任何打分，无法提交");
         }
-        // 标记所有打分记录为已提交
         int updated = 0;
-        for (QcAppraiseActiveScoreDO score : scoreList) {
-            score.setScoreOver(1);
-            updated += qcAppraiseActiveScoreService.update(score);
+        if (solveList != null) {
+            for (QcResultSolveScoreDO score : solveList) {
+                score.setScoreOver(1);
+                updated += qcResultSolveScoreService.update(score);
+            }
+        }
+        if (innovateList != null) {
+            for (QcResultInnovateScoreDO score : innovateList) {
+                score.setScoreOver(1);
+                updated += qcResultInnovateScoreService.update(score);
+            }
         }
         if (updated > 0) {
             return R.ok("提交成功，共提交" + updated + "条打分记录");
@@ -530,14 +588,24 @@ public class QcSpecialistScoreController extends BaseQcProController {
         if (StringUtils.isNotBlank(taskId)) {
             queryParams.put("taskId", taskId);
         }
-        List<QcAppraiseActiveScoreDO> scoreList = qcAppraiseActiveScoreService.list(queryParams);
-        if (scoreList == null || scoreList.isEmpty()) {
+        List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(queryParams);
+        List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(queryParams);
+        if ((solveList == null || solveList.isEmpty())
+                && (innovateList == null || innovateList.isEmpty())) {
             return R.error("没有已提交的打分记录");
         }
         int updated = 0;
-        for (QcAppraiseActiveScoreDO score : scoreList) {
-            score.setScoreOver(0);
-            updated += qcAppraiseActiveScoreService.update(score);
+        if (solveList != null) {
+            for (QcResultSolveScoreDO score : solveList) {
+                score.setScoreOver(0);
+                updated += qcResultSolveScoreService.update(score);
+            }
+        }
+        if (innovateList != null) {
+            for (QcResultInnovateScoreDO score : innovateList) {
+                score.setScoreOver(0);
+                updated += qcResultInnovateScoreService.update(score);
+            }
         }
         if (updated > 0) {
             return R.ok("撤回成功");
@@ -1293,7 +1361,16 @@ public class QcSpecialistScoreController extends BaseQcProController {
         List<QcResultSolveScoreDO> existList = qcResultSolveScoreService.list(checkParams);
         int tag;
         if (existList != null && !existList.isEmpty()) {
-            score.setId(existList.get(0).getId());
+            QcResultSolveScoreDO existing = existList.get(0);
+            if (Integer.valueOf(1).equals(existing.getScoreOver())) {
+                return R.error("已提交打分，不可再修改。如需修改请先撤回提交。");
+            }
+            score.setId(existing.getId());
+            // 原代码：直接更新，sumRecommend默认值""会覆盖已保存的主评意见
+            // tag = qcResultSolveScoreService.update(score);
+            // 修复：保存分数时保留已有的主评意见和推荐等级，防止评价意见被清空
+            score.setSumRecommend(existing.getSumRecommend());
+            score.setRecommendLevel(existing.getRecommendLevel());
             tag = qcResultSolveScoreService.update(score);
         } else {
             tag = qcResultSolveScoreService.save(score);
@@ -1366,7 +1443,16 @@ public class QcSpecialistScoreController extends BaseQcProController {
         List<QcResultInnovateScoreDO> existList = qcResultInnovateScoreService.list(checkParams);
         int tag;
         if (existList != null && !existList.isEmpty()) {
-            score.setId(existList.get(0).getId());
+            QcResultInnovateScoreDO existing = existList.get(0);
+            if (Integer.valueOf(1).equals(existing.getScoreOver())) {
+                return R.error("已提交打分，不可再修改。如需修改请先撤回提交。");
+            }
+            score.setId(existing.getId());
+            // 原代码：直接更新，sumRecommend默认值""会覆盖已保存的主评意见
+            // tag = qcResultInnovateScoreService.update(score);
+            // 修复：保存分数时保留已有的主评意见和推荐等级，防止评价意见被清空
+            score.setSumRecommend(existing.getSumRecommend());
+            score.setRecommendLevel(existing.getRecommendLevel());
             tag = qcResultInnovateScoreService.update(score);
         } else {
             tag = qcResultInnovateScoreService.save(score);
