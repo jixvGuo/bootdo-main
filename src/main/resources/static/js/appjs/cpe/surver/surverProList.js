@@ -292,6 +292,23 @@ function printExcelPro() {
     window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId) + "&proSubType=" + encodeURIComponent(proSubType);
 }
 
+function importCheckResult() {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        layer.msg("缺少任务ID");
+        return;
+    }
+    parent.layer.open({
+        zIndex: 110,
+        type: 2,
+        title: '上传形式审查结果',
+        maxmin: true,
+        shadeClose: false,
+        area: ['800px', '520px'],
+        content: '/award_flow/to_uploadsmall?proId=0&fileType=import_check_result_qc&taskId=' + taskId
+    });
+}
+
 function toGroupManage() {
     var taskId = $("#taskId").val();
     if (!taskId) {

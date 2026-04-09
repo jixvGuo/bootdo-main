@@ -57,34 +57,30 @@
                     </div>
                 </div>
                 <div class="ui two fields">
-                    <div class="inline field">
+                    <div class="ui field">
                         <label>软件类型</label>
-                        <div class="ui checkbox">
-                            <input type="checkbox" tabindex="0" class="hidden" name="softType" value="原创软件" th:checked="${#strings.contains(table.softType, '原创软件')}">
-                            <label>原创软件</label>
-                        </div>
-                        <div class="ui checkbox">
-                            <input type="checkbox" tabindex="1" class="hidden" name="softType" value="合作开发" th:checked="${#strings.contains(table.softType, '合作开发')}">
-                            <label>合作开发</label>
-                        </div>
-                        <div class="ui checkbox">
-                            <input type="checkbox" tabindex="2" class="hidden" name="softType" value="二次开发" th:checked="${#strings.contains(table.softType, '二次开发')}">
-                            <label>二次开发</label>
+                        <div class="ui selection dropdown">
+                            <input type="hidden" name="softType" th:value="${table.softType}">
+                            <i class="dropdown icon"></i>
+                            <div class="default text">请选择软件类型</div>
+                            <div class="menu">
+                                <div class="item" data-value="原创软件">原创软件</div>
+                                <div class="item" data-value="合作开发">合作开发</div>
+                                <div class="item" data-value="二次开发">二次开发</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="inline field">
+                    <div class="ui field">
                         <label>软件类别</label>
-                        <div class="ui checkbox">
-                            <input type="checkbox" tabindex="0" class="hidden" name="softCategory" value="辅助设计" th:checked="${#strings.contains(table.softCategory, '辅助设计')}">
-                            <label>辅助设计</label>
-                        </div>
-                        <div class="ui checkbox">
-                            <input type="checkbox" tabindex="1" class="hidden" name="softCategory" value="信息管理" th:checked="${#strings.contains(table.softCategory, '信息管理')}">
-                            <label>信息管理</label>
-                        </div>
-                        <div class="ui checkbox">
-                            <input type="checkbox" tabindex="2" class="hidden" name="softCategory" value="其他" th:checked="${#strings.contains(table.softCategory, '其他')}">
-                            <label>其他</label>
+                        <div class="ui selection dropdown">
+                            <input type="hidden" name="softCategory" th:value="${table.softCategory}">
+                            <i class="dropdown icon"></i>
+                            <div class="default text">请选择软件类别</div>
+                            <div class="menu">
+                                <div class="item" data-value="辅助设计">辅助设计</div>
+                                <div class="item" data-value="信息管理">信息管理</div>
+                                <div class="item" data-value="其他">其他</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -150,23 +146,18 @@
                         <input type="text" name="fax" placeholder="传真" th:value="${table.fax}">
                     </div>
                 </div>
-                <div class="inline field">
+                <div class="ui field">
                     <label>保密级别</label>
-                    <div class="ui checkbox">
-                        <input type="checkbox" tabindex="0" class="hidden" name="securityLevel" value="绝密" th:checked="${#strings.contains(table.securityLevel, '绝密')}">
-                        <label>绝密</label>
-                    </div>
-                    <div class="ui checkbox">
-                        <input type="checkbox" tabindex="1" class="hidden" name="securityLevel" value="机密" th:checked="${#strings.contains(table.securityLevel, '机密')}">
-                        <label>机密</label>
-                    </div>
-                    <div class="ui checkbox">
-                        <input type="checkbox" tabindex="2" class="hidden" name="securityLevel" value="秘密" th:checked="${#strings.contains(table.securityLevel, '秘密')}">
-                        <label>秘密</label>
-                    </div>
-                    <div class="ui checkbox">
-                        <input type="checkbox" tabindex="3" class="hidden" name="securityLevel" value="不限制" th:checked="${#strings.contains(table.securityLevel, '不限制')}">
-                        <label>不限制</label>
+                    <div class="ui selection dropdown">
+                        <input type="hidden" name="securityLevel" th:value="${table.securityLevel}">
+                        <i class="dropdown icon"></i>
+                        <div class="default text">请选择保密级别</div>
+                        <div class="menu">
+                            <div class="item" data-value="绝密">绝密</div>
+                            <div class="item" data-value="机密">机密</div>
+                            <div class="item" data-value="秘密">秘密</div>
+                            <div class="item" data-value="不限制">不限制</div>
+                        </div>
                     </div>
                 </div>
                 <h4 class="ui red horizontal divider header">软件环境 </h4>

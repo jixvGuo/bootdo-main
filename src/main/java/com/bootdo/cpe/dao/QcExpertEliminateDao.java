@@ -26,4 +26,14 @@ public interface QcExpertEliminateDao {
     int remove(Integer id);
 
     int batchSoftDeleteByTaskId(Map<String, Object> params);
+
+    /**
+     * 删除当前专家在指定任务下的淘汰名单快照
+     */
+    int deleteQrByExpertAndTask(Map<String, Object> params);
+
+    /**
+     * 将当前专家在指定任务下的有效淘汰名单快照保存到 ass_qc_expert_eliminate_qr
+     */
+    int saveCurrentEliminateListToQr(Map<String, Object> params);
 }

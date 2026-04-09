@@ -22,7 +22,7 @@
                     <td th:text="${data.username}"></td>
                     <td th:text="${data.gender}"></td>
                     <td th:text="${data.age}"></td>
-                    <td th:text="${data.job}"></td>
+                    <td th:text="${data.workPlace}"></td>
                     <td>
                         <a th:href="@{'/surverApply/toApplyContributeUserView?id='+${data.id}+'&proId='+${proId}+'&taskId='+${taskId} + '&readonly=1&tagName=查看'}" class="ui teal mini basic button">查看</a>
                         <a th:if="${readonly} eq null or ${readonly} ne 1" th:href="@{'/surverApply/toApplyContributeUserView?id='+${data.id}+'&proId='+${proId}+'&taskId='+${taskId}+'&tagName=修改'}" class="ui teal mini basic button">修改</a>

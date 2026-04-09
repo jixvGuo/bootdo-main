@@ -23,4 +23,14 @@ public interface QcExpertEliminateService {
     int remove(Integer id);
 
     int batchSoftDeleteByTaskId(String taskId);
+
+    /**
+     * 删除当前专家在指定任务下的淘汰名单快照
+     */
+    int deleteQrByExpertAndTask(Long expertUid, String taskId);
+
+    /**
+     * 将当前专家在指定任务下的有效淘汰名单快照保存到 ass_qc_expert_eliminate_qr
+     */
+    int saveCurrentEliminateListToQr(Long expertUid, String taskId);
 }

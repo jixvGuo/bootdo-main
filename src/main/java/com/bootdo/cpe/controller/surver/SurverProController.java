@@ -246,13 +246,14 @@ public class SurverProController extends BaseSurverController {
         List<SurverProjectInfo> proList = surverAwardService.listProInfo(params);
 
         String[] header = {
-                "序号", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单", "申报账号", "申报联系方式", "状态"
+                "序号", "proId", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单", "申报账号", "申报联系方式", "分组", "形审结果", "形审评语", "状态"
         };
 
         List<Map<String, String>> rows = new ArrayList<>();
         for (SurverProjectInfo pro : proList) {
             Map<String, String> row = new LinkedHashMap<>();
             row.put("序号", safe(pro.getId()));
+            row.put("proId", safe(pro.getProId()));
             row.put("项目编号", safe(pro.getProCode()));
             row.put("项目类别", safe(pro.getProSubTypeStr()));
             row.put("项目名称", safe(pro.getProName()));
@@ -261,6 +262,9 @@ public class SurverProController extends BaseSurverController {
             row.put("人员名单", safe(pro.getMemberList()));
             row.put("申报账号", safe(pro.getDeclareAccount()));
             row.put("申报联系方式", safe(pro.getApplyAccount()));
+            row.put("分组", safe(pro.getQcGroupName()));
+            row.put("形审结果", safe(pro.getLatestReviewResult()));
+            row.put("形审评语", safe(pro.getLatestReviewRemarks()));
             row.put("状态", safe(pro.getApplyStat()));
             rows.add(row);
         }

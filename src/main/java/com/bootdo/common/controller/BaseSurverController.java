@@ -53,10 +53,7 @@ public class BaseSurverController extends BaseController {
 
     @Override
     public void packageAwardTaskId(ModelMap map, Map<String, Object> params) {
-        System.out.println(
-                "taskId:" + params.get("taskId") +
-                ",proId:" + params.get("proId")
-        );
+
         Object paramsTaskIdObj = params.get("taskId");
         Object proIdObj = params.get("proId");
         int proId = proIdObj != null ? Integer.parseInt(proIdObj.toString()) : 0;

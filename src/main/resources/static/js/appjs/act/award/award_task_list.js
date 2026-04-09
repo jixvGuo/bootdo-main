@@ -561,11 +561,17 @@ function load() {
 							// 第2步修改：统一删除“企业列表”按钮（尤其QC角色冲突）
 							var surverEnterListBtn = ''; // 第3步修改：显式声明，避免污染全局
 
-                            //是否当前是形式审查状态
-                            let checkResultFlg = row.isAssign ? s_check_result_import : 'hidden';
+                            // 隐藏“导入形式审查结果”按钮（申报任务管理页）
+                            let checkResultFlg = 'hidden';
+                            let checkResultFileType = 'import_check_result';
+                            if (row.awardId == 3) {
+                                checkResultFileType = 'import_check_result_qc';
+                            } else if (row.awardId == 2) {
+                                checkResultFileType = 'import_check_result_surver';
+                            }
 							var checkResultImportBtn = '<a class="btn btn-success btn-sm ' + checkResultFlg + '" href="#" title="导入形式审查结果"  mce_href="#" onclick="uploadFileData(\''
                                 + row.id
-                                + '\',\'import_check_result'
+                                + '\',\'' + checkResultFileType
                                 + '\')">导入形式审查结果</a> ';
 
                             //优质工程奖
