@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bootdo.cpe.dao.QcExpertEliminateConfirmedDao">
+
+    <select id="get" resultType="com.bootdo.cpe.domain.QcExpertEliminateConfirmedDO">
+        select `id`,`origin_id`,`expert_uid`,`pro_id`,`task_id`,`reason`,`prev_pro_stat`,`created`,`confirmed_time`
+        from ass_qc_expert_eliminate_confirmed where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.QcExpertEliminateConfirmedDO">
+        select c.`id`, c.`origin_id`, c.`expert_uid`, c.`pro_id`, c.`task_id`, c.`reason`, c.`prev_pro_stat`, c.`created`, c.`confirmed_time`,
+            qa.`topic_name` as topicName,
+            qa.`group_name` as groupName,
+            qa.`apply_id` as proCode,
+            pro.`qc_group_name` as qcGroupName,
+            (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = qa.opt_uid LIMIT 1) as companyName,
+            (SELECT su.name FROM sys_user su WHERE su.user_id = c.expert_uid LIMIT 1) as expertName
+        from ass_qc_expert_eliminate_confirmed c
+        left join ass_qc_group_apply_info qa on c.pro_id = qa.pro_id and c.task_id = qa.task_id
+        left join ass_award_enterprise_project pro on c.pro_id = pro.id
+        <where>
+            <if test="id != null"> and c.id = #{id} </if>
+            <if test="expertUid != null"> and c.expert_uid = #{expertUid} </if>
+            <if test="proId != null"> and c.pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and c.task_id = #{taskId} </if>
+            <if test="qcGroupName != null and qcGroupName != ''"> and pro.qc_group_name = #{qcGroupName} </if>
+        </where>
+        order by c.id desc
+        <if test="offset != null and limit != null">
+            limit ${offset}, ${limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_qc_expert_eliminate_confirmed
+        <where>
+            <if test="id != null"> and id = #{id} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+        </where>
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.QcExpertEliminateConfirmedDO" useGeneratedKeys="true" keyProperty="id">
+        insert into ass_qc_expert_eliminate_confirmed
+        (`origin_id`, `expert_uid`, `pro_id`, `task_id`, `reason`, `prev_pro_stat`, `created`, `confirmed_time`)
+        values
+        (#{originId}, #{expertUid}, #{proId}, #{taskId}, #{reason}, #{prevProStat}, #{created}, now())
+    </insert>
+
+    <!-- 批量从 ass_qc_expert_eliminate 复制有效记录到快照表（仅当快照表中该专家+任务无记录时才执行） -->
+    <insert id="batchSaveFromEliminate">
+        insert into ass_qc_expert_eliminate_confirmed
+        (`origin_id`, `expert_uid`, `pro_id`, `task_id`, `reason`, `prev_pro_stat`, `created`, `confirmed_time`)
+        select e.id, e.expert_uid, e.pro_id, e.task_id, e.reason, e.prev_pro_stat, e.created, now()
+        from ass_qc_expert_eliminate e
+        where e.expert_uid = #{expertUid}
+          and e.task_id = #{taskId}
+          and e.deleted = 0
+    </insert>
+
+</mapper>

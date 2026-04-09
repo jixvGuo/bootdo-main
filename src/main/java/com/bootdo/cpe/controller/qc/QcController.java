@@ -95,6 +95,8 @@ public class QcController extends BaseQcProController {
     private com.bootdo.activiti.service.AwardPublishTaskService awardPublishTaskService;
     @Autowired
     private UserService userService;
+    @Autowired
+    private com.bootdo.cpe.service.ExpertGroupService expertGroupService;
 
     private Map<String, Object> newParams;
 
@@ -126,6 +128,22 @@ public class QcController extends BaseQcProController {
         map.put("isEnterpriseUser", isEnterpriseUser);
         map.put("canExportEliminate", canExportEliminate);
         map.put("isExternalExpert", isExternalExpert);
+        // 新代码：外聘人员查出其所属专业组名称，用于导出淘汰时按组过滤
+        String externalGroupName = "";
+        if (isExternalExpert) {
+            Object taskIdParam = params.get("taskId");
+            if (taskIdParam != null && StringUtils.isNotBlank(taskIdParam.toString())) {
+                java.util.Map<String, Object> expertQuery = new java.util.HashMap<>();
+                expertQuery.put("userId", String.valueOf(user.getUserId()));
+                expertQuery.put("taskId", taskIdParam.toString());
+                expertQuery.put("proType", com.bootdo.cpe.domain.EnumProjectType.QC_PRO_GROUP.getProType());
+                java.util.List<com.bootdo.cpe.domain.ExpertGroupDO> extList = expertGroupService.list(expertQuery);
+                if (extList != null && !extList.isEmpty()) {
+                    externalGroupName = extList.get(0).getGroupName() != null ? extList.get(0).getGroupName() : "";
+                }
+            }
+        }
+        map.put("externalGroupName", externalGroupName);
         // 原代码：boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) || roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID) || roleIdList.contains(ROLE_SPECIALIST_ID) || roleIdList.contains(ROLE_ASSOCIATION_LEADER);
         // 新代码：增加QC奖评审专家角色(85)
         boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) ||

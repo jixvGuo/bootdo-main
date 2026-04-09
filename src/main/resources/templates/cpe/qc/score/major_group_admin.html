@@ -8,6 +8,14 @@
 <body class="gray-bg">
     <div class="wrapper wrapper-content animated fadeInRight">
         <div class="row">
+            <div class="col-sm-12" style="margin-bottom:10px;">
+                <h2 style="display:inline-block; margin:0 15px 0 0;">专业组管理</h2>
+                <button type="button" class="btn btn-warning btn-sm" onclick="resetAllEliminate()">
+                    <i class="fa fa-refresh"></i> 更新分组
+                </button>
+            </div>
+        </div>
+        <div class="row">
             <input id="taskId" name="taskId" type="hidden" th:value="${taskId}">
             <input id="proType" name="proType" type="hidden" th:value="${proType}">
             <!--  QC 奖评审专业组管理页面的左侧分组导航栏    -->
@@ -33,14 +41,14 @@
                     </div>
                 </div>
             </div>
-            <div class="col-sm-9">
+            <div class="col-sm-9" style="margin-top:0;">
                 <div class="ibox float-e-margins">
                     <div class="ibox-title">
                         <h5 style="display:inline-block;">已分配：</h5>
-                        <button type="button" class="btn btn-warning btn-sm" onclick="resetAllEliminate()" style="margin-left:15px;">
-                            <!-- 更新分组（就是重置淘汰）-->
-                            <i class="fa fa-refresh"></i> 更新分组
-                        </button>
+<!--                        原代码：更新分组按钮已移至页面顶部标题旁-->
+<!--                        <button type="button" class="btn btn-warning btn-sm pull-right" onclick="resetAllEliminate()">-->
+<!--                            <i class="fa fa-refresh"></i> 更新分组-->
+<!--                        </button>-->
 <!--                        <button type="button" class="btn btn-danger btn-sm" onclick="showGroupEliminated()" style="margin-left:10px;">-->
 <!--                            <i class="fa fa-ban"></i> 导出淘汰-->
 <!--                        </button>-->
@@ -86,6 +94,7 @@
                                           <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章</button>
                                           <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove(\'' + ${sel.loginAccount} + '\')'">移出</button>
                                           <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>
+                                          <button type="button" class="btn btn-success btn-xs" th:onclick="'javascript:exportExpertEliminateWord(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">导出淘汰</button>
                                       </td>
                                   </tr>
                             </tbody>
@@ -244,29 +253,78 @@
          * 删除某个条目/移出专家
          * @param a
          */
+        // 原代码（v3）：直接移出，无二次确认，物理删除
+        // function remove(a) {
+        //     let loginAccount = $.trim($("#accountId" + a).text());
+        //     console.log("[移出] 参数a=" + a + ", 选择器=#accountId" + a + ", loginAccount=[" + loginAccount + "]");
+        //     $.ajax({
+        //         cache: true,
+        //         url: "/qcProcess/expert/remove",
+        //         type: 'POST',
+        //         data: { loginAccount:loginAccount },
+        //         async: false,
+        //         error: function (request) {
+        //             parent.layer.alert("Connection error");
+        //         },
+        //         success: function (data) {
+        //             if (data.code == 0) {
+        //                 parent.layer.msg("操作成功");
+        //                 $("#tr_"+a).remove();
+        //                 $("td[name = 'trNum']").each(function (index,e) {
+        //                     $(this).html(index+1);
+        //                 })
+        //             } else {
+        //                 parent.layer.alert(data.msg)
+        //             }
+        //         }
+        //     })
+        // }
+        // 新代码（v4）：先检查专家是否有淘汰数据，弹窗二次确认后再软删除
         function remove(a) {
-            // 原代码：.html()可能包含尾部空格导致账号不匹配
-            // let loginAccount = $("#accountId" + a).html();
-            // 新代码：使用.text().trim()确保无多余空格
             let loginAccount = $.trim($("#accountId" + a).text());
-            console.log("[移出] 参数a=" + a + ", 选择器=#accountId" + a + ", loginAccount=[" + loginAccount + "]");
+            let taskId = $("#taskId").val();
+            if (!loginAccount) {
+                layer.msg('账号为空', {icon: 2});
+                return;
+            }
+            // 先检查是否有淘汰数据
+            $.ajax({
+                type: "GET",
+                url: "/qcProcess/expert/checkData",
+                data: { loginAccount: loginAccount, taskId: taskId },
+                success: function(checkResult) {
+                    var confirmMsg = "确定要移出专家 [" + loginAccount + "] 吗？";
+                    if (checkResult.code == 0 && checkResult.hasEliminate) {
+                        confirmMsg = "该专家已有淘汰数据（" + (checkResult.elimCount || 0) + "条淘汰, " + (checkResult.confirmedCount || 0) + "条已确认快照），确定要移出吗？\n移出后数据保留，可通过重新添加恢复。";
+                    }
+                    layer.confirm(confirmMsg, {icon: 3, title: '移出确认'}, function(index) {
+                        layer.close(index);
+                        doRemoveExpert(a, loginAccount);
+                    });
+                },
+                error: function() {
+                    // 检查接口失败，仍允许移出但给基础确认
+                    layer.confirm("确定要移出专家 [" + loginAccount + "] 吗？", {icon: 3, title: '移出确认'}, function(index) {
+                        layer.close(index);
+                        doRemoveExpert(a, loginAccount);
+                    });
+                }
+            });
+        }
+        // 执行移出操作（软删除）
+        function doRemoveExpert(a, loginAccount) {
             $.ajax({
                 cache: true,
-                // url: "/scienceProgressScience/expert/remove",
                 url: "/qcProcess/expert/remove",
                 type: 'POST',
-                data: {
-                    loginAccount:loginAccount
-                },
+                data: { loginAccount: loginAccount },
                 async: false,
                 error: function (request) {
-                    // console.log("[移出] AJAX error:", request);
                     parent.layer.alert("Connection error");
                 },
                 success: function (data) {
-                    // console.log("[移出] 返回结果:", JSON.stringify(data));
                     if (data.code == 0) {
-                        parent.layer.msg("操作成功");
+                        parent.layer.msg("操作成功（逻辑删除，数据已保留）");
                         $("#tr_"+a).remove();
                         $("td[name = 'trNum']").each(function (index,e) {
                             $(this).html(index+1);
@@ -274,7 +332,6 @@
                     } else {
                         parent.layer.alert(data.msg)
                     }
-
                 }
             })
         }
@@ -704,6 +761,31 @@
             });
         }
 
+        // 原代码：读取当前有效淘汰记录（会被更新分组影响）
+        // function loadGroupEliminated(taskId, qcGroupName) {
+        //     var reqData = { taskId: taskId };
+        //     if (qcGroupName) {
+        //         reqData.qcGroupName = qcGroupName;
+        //     }
+        //     $.ajax({
+        //         type: "GET",
+        //         url: "/qcScore/getEliminatedProjects",
+        //         data: reqData,
+        //         success: function(data) {
+        //             if (data && data.code === 0 && data.list && data.list.length > 0) {
+        //                 groupEliminatedData = data.list;
+        //                 renderGroupEliminatedTable(data.list);
+        //             } else {
+        //                 groupEliminatedData = [];
+        //                 $("#eliminatedTableBody").html('<tr><td colspan="7" class="text-center">暂无淘汰项目</td></tr>');
+        //             }
+        //         },
+        //         error: function() {
+        //             layer.alert("加载淘汰项目失败");
+        //         }
+        //     });
+        // }
+        // 新代码：读取快照表数据，不受更新分组影响
         function loadGroupEliminated(taskId, qcGroupName) {
             var reqData = { taskId: taskId };
             if (qcGroupName) {
@@ -711,7 +793,7 @@
             }
             $.ajax({
                 type: "GET",
-                url: "/qcScore/getEliminatedProjects",
+                url: "/qcScore/getConfirmedEliminatedProjects",
                 data: reqData,
                 success: function(data) {
                     if (data && data.code === 0 && data.list && data.list.length > 0) {
@@ -810,6 +892,23 @@
                     }
                 });
             });
+        }
+        // 导出单个专家的淘汰Word文档（初审不合格成果表）
+        function exportExpertEliminateWord(expertUid, expertName) {
+            var taskId = $("#taskId").val();
+            if (!taskId) {
+                layer.msg('任务ID为空', {icon: 2});
+                return;
+            }
+            if (!expertUid) {
+                layer.msg('专家ID为空', {icon: 2});
+                return;
+            }
+            var url = "/qcProcess/exportEliminateWord?taskId=" + encodeURIComponent(taskId)
+                    + "&expertUid=" + encodeURIComponent(expertUid)
+                    + "&expertName=" + encodeURIComponent(expertName || '')
+                    + "&year=2026";
+            window.open(url, '_blank');
         }
     </script>
 

@@ -29,6 +29,7 @@
 					</button>
 					<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
 					<input type="hidden" id="isAssociationLeader" th:value="${isAssociationLeader}" />
+					<input type="hidden" id="externalGroupName" th:value="${externalGroupName}" />
 <!--					<select class="btn btn-default" id="statusFilter">-->
 <!--						<option value="">全部</option>-->
 <!--						<option value="NOT_SUBMITTED">未提交</option>-->
@@ -358,14 +359,53 @@
 		});
 	}
 
+	// 原代码：读取当前有效淘汰记录（会被更新分组/重新淘汰影响）
+	// function loadEliminatedProjects(taskId) {
+	// 	$.ajax({
+	// 		type: "GET",
+	// 		url: "/qcScore/getEliminatedProjects",
+	// 		data: { taskId: taskId, onlyMine: '0' },
+	// 		success: function(data) {
+	// 			if (data && data.code === 0 && data.list) {
+	// 				renderEliminatedTable(data.list);
+	// 			} else {
+	// 				$("#eliminatedTableBody").html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
+	// 			}
+	// 		},
+	// 		error: function() {
+	// 			layer.alert("加载淘汰项目失败");
+	// 		}
+	// 	});
+	// }
+	// 原代码：读取快照表但不按组过滤，外聘人员看到所有组的数据
+	// function loadEliminatedProjects(taskId) {
+	// 	$.ajax({
+	// 		type: "GET",
+	// 		url: "/qcScore/getConfirmedEliminatedProjects",
+	// 		data: { taskId: taskId },
+	// 		success: function(data) {
+	// 			if (data && data.code === 0 && data.list) {
+	// 				renderEliminatedTable(data.list);
+	// 			} else {
+	// 				$("#eliminatedTableBody").html('<tr><td colspan="6" class="text-center">暂无淘汰项目</td></tr>');
+	// 			}
+	// 		},
+	// 		error: function() {
+	// 			layer.alert("加载淘汰项目失败");
+	// 		}
+	// 	});
+	// }
+	// 新代码：外聘人员传qcGroupName只看自己组的淘汰数据，协会领导看全部
 	function loadEliminatedProjects(taskId) {
+		var reqData = { taskId: taskId };
+		var groupName = $("#externalGroupName").val();
+		if (groupName) {
+			reqData.qcGroupName = groupName;
+		}
 		$.ajax({
 			type: "GET",
-			url: "/qcScore/getEliminatedProjects",
-			// 原代码：外聘人员传onlyMine=1，但外聘人员非打分专家，查不到数据
-			// data: { taskId: taskId, onlyMine: window.isExternalExpert ? '1' : '0' },
-			// 新代码：外聘人员与管理员一样查看全部淘汰项目，onlyMine始终为0
-			data: { taskId: taskId, onlyMine: '0' },
+			url: "/qcScore/getConfirmedEliminatedProjects",
+			data: reqData,
 			success: function(data) {
 				if (data && data.code === 0 && data.list) {
 					renderEliminatedTable(data.list);

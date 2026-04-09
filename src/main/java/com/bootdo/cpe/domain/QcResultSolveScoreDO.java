@@ -56,6 +56,8 @@ public class QcResultSolveScoreDO implements Serializable {
 	private Date updated;
 	//
 	private Integer deleted;
+	// 是否已提交打分: 0=未提交 1=已提交
+	private Integer scoreOver;
 
 	/**
 	 * 设置：
@@ -296,5 +298,17 @@ public class QcResultSolveScoreDO implements Serializable {
 	 */
 	public Integer getDeleted() {
 		return deleted;
+	}
+	/**
+	 * 设置：是否已提交打分
+	 */
+	public void setScoreOver(Integer scoreOver) {
+		this.scoreOver = scoreOver;
+	}
+	/**
+	 * 获取：是否已提交打分
+	 */
+	public Integer getScoreOver() {
+		return scoreOver;
 	}
 }
