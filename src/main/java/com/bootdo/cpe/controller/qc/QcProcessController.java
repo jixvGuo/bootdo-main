@@ -299,12 +299,12 @@ public class QcProcessController extends BaseQcProController {
 
         // 先清空该外聘人员在当前任务+奖项下的历史分派（实现“取消”）
         awardEnterpriseProjectService.removeByExtUid(workerUidList, taskId, awardType);
-        
+
         // 右侧为空：表示用户要清空该外聘人员分派
         if (StringUtils.isBlank(proIds)) {
             return R.ok("分派已更新（已清空）");
         }
-        
+
         // 重建右侧列表对应的分派（实现“新增/保留”）
         String[] proIdArr = proIds.split(",");
         List<AssignProjectDataDo> assignProjectDataDoList = new ArrayList<>();
@@ -316,13 +316,11 @@ public class QcProcessController extends BaseQcProController {
                 }
             }
         }
-        
+
         if (assignProjectDataDoList.isEmpty()) {
             return R.ok("分派已更新");
         }
-        
         awardEnterpriseProjectService.assignPro(assignProjectDataDoList);
-
         // 修复：分派专家后，将被分派项目的状态更新为"score"（专家打分），
         // 否则QcAwardMapper中 pro.pro_stat = 'score' 条件永远不满足，专家看不到项目
         for (String proId : proIdArr) {
@@ -333,7 +331,6 @@ public class QcProcessController extends BaseQcProController {
                 qcAwardService.updateProStat(statParams);
             }
         }
-
         return R.ok("分派已更新");
     }
 
@@ -345,7 +342,6 @@ public class QcProcessController extends BaseQcProController {
     @RequiresPermissions("cpe:qcGroupApplyInfo:ass_validate_pro")
     public String toReviewPro(@RequestParam Map<String, Object> params, ModelMap map) {
 
-        
         packageAwardTaskId(map, params);
         Map<String, Object> proInfoParams = new HashMap<>();
         proInfoParams.put("id", params.get("groupInfoId"));

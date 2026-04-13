@@ -1297,6 +1297,11 @@ public class QcSpecialistScoreController extends BaseQcProController {
             return R.error("未找到专家分配记录");
         }
         ExpertGroupDO expert = expertList.get(0);
+
+        // 提交前先把当前专家当前任务的快照清空，再写入最新淘汰名单到 ass_qc_expert_eliminate_qr
+        qcExpertEliminateService.deleteQrByExpertAndTask(uid, taskId);
+        qcExpertEliminateService.saveCurrentEliminateListToQr(uid, taskId);
+
         expert.setEliminateOver(1);
         int result = expertGroupService.update(expert);
         if (result > 0) {

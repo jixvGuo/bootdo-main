@@ -52,4 +52,20 @@ public class QcExpertEliminateServiceImpl implements QcExpertEliminateService {
         params.put("taskId", taskId);
         return qcExpertEliminateDao.batchSoftDeleteByTaskId(params);
     }
+
+    @Override
+    public int deleteQrByExpertAndTask(Long expertUid, String taskId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("expertUid", expertUid);
+        params.put("taskId", taskId);
+        return qcExpertEliminateDao.deleteQrByExpertAndTask(params);
+    }
+
+    @Override
+    public int saveCurrentEliminateListToQr(Long expertUid, String taskId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("expertUid", expertUid);
+        params.put("taskId", taskId);
+        return qcExpertEliminateDao.saveCurrentEliminateListToQr(params);
+    }
 }

@@ -34,6 +34,14 @@
                    when 'contribution' then (select r.review_result from ass_surver_review_surver_result r where r.pro_id = pro.id order by r.id desc limit 1)
                    else ''
                end latestReviewResult,
+               case pro.pro_sub_type
+                   when 'design' then (select r.remarks from ass_surver_review_design_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'software' then (select r.remarks from ass_surver_review_soft_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'standard' then (select r.remarks from ass_surver_review_standard_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'consulting' then (select r.remarks from ass_surver_review_consult_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   when 'contribution' then (select r.remarks from ass_surver_review_surver_result r where r.pro_id = pro.id order by r.id desc limit 1)
+                   else ''
+               end latestReviewRemarks,
                case
                    when pro.pro_sub_type = 'design' then (
                        select group_concat(sdu.username separator '、')

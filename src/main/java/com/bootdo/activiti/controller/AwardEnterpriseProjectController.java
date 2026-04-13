@@ -25,6 +25,7 @@ import com.bootdo.cpe.service.ExpertGroupService;
 import com.bootdo.cpe.service.ImportCheckExcelDataService;
 import com.bootdo.cpe.service.ImportCheckExcelUpdateService;
 import com.bootdo.cpe.service.SurverEnterpriseSortInfoService;
+import com.bootdo.cpe.service.SurverAwardService;
 import com.bootdo.system.domain.EnterpriPersonalInfoDO;
 import com.bootdo.system.domain.EnterpriTeamInfoDO;
 import com.bootdo.system.domain.EnterpriseChengguoBaseInfoDO;
@@ -46,6 +47,10 @@ import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.bootdo.cpe.service.QcReviewResultRecordService;
+import com.bootdo.cpe.service.SurverReviewDesignResultService;
+import com.bootdo.cpe.service.SurverReviewSoftResultService;
+import com.bootdo.cpe.service.SurverReviewStandardResultService;
+import com.bootdo.cpe.service.SurverReviewSurverResultService;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -108,6 +113,16 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
     private QcReviewResultRecordService qcReviewResultRecordService;
     @Autowired
     private QcAwardService qcAwardService;
+    @Autowired
+    private SurverAwardService surverAwardService;
+    @Autowired
+    private SurverReviewDesignResultService surverReviewDesignResultService;
+    @Autowired
+    private SurverReviewSoftResultService surverReviewSoftResultService;
+    @Autowired
+    private SurverReviewStandardResultService surverReviewStandardResultService;
+    @Autowired
+    private SurverReviewSurverResultService surverReviewSurverResultService;
     @RequestMapping("/to_list/{taskId}")
     public String toProList(@PathVariable("taskId") String taskId, ModelMap map) {
         map.put("apply_type", "");
@@ -319,9 +334,17 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
             }
             int rstCount = sysFileService.save(sysFile);
             boolean isExpertSign = "expert_sign".equals(fileType);
+            String importFileType = fileType;
+            if ("import_check_result_qc".equals(fileType)) {
+                // 兼容前端缓存/按钮误传：根据任务奖项自动纠正导入类型
+                PublishAwardTaskDo taskDo = awardFlowService.getAwardTaskById(taskId);
+                if (taskDo != null && "2".equals(taskDo.getAwardId())) {
+                    importFileType = "import_check_result_surver";
+                }
+            }
             if (rstCount > 0) {
-                if("import_check_result_qc".equals(fileType)) {
-                    // ========== QC奖专用导入逻辑 ==========
+                if("import_check_result_qc".equals(importFileType)) {
+                    // ========== QC奖导入逻辑 ==========
                     String path = uploadPath + fileName;
                     try {
                         FileInputStream inputStream = new FileInputStream(new File(path));
@@ -357,18 +380,23 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                         // 检查分组列是否存在（兼容旧版本导出文件）
                         boolean hasGroupColumn = qcGroupColIndex != null;
 
-                        // 先查询该 taskId 下所有 QC 项目 (一次性查询)
+                        // 查询该 taskId 下所有 QC 项目
                         Map<String, Object> allParams = new HashMap<>();
                         allParams.put("taskId", taskId);
-                        List<QcProDataDto> allProList = qcAwardService.listProInfo(allParams);
+                        List<QcProDataDto> qcProList = qcAwardService.listProInfo(allParams);
 
-                        // 构建申报账号 (apply_id) 到项目的映射关系
-                        Map<String, QcProDataDto> accountToProMap = new HashMap<>();
-                        for(QcProDataDto pro : allProList) {
+                        // 构建申报账号 (apply_id) 到项目ID映射
+                        Map<String, Integer> accountToProIdMap = new HashMap<>();
+                        for (QcProDataDto pro : qcProList) {
                             String applyId = pro.getApplyId();
-                            if(StringUtils.isNotBlank(applyId)) {
-                                accountToProMap.put(applyId, pro);
+                            if (StringUtils.isNotBlank(applyId) && pro.getProId() != null) {
+                                accountToProIdMap.put(applyId, pro.getProId());
                             }
+                        }
+
+                        if (accountToProIdMap.isEmpty()) {
+                            workbook.close();
+                            return R.error("当前任务未查询到QC项目数据，请确认任务ID与导入模板是否匹配");
                         }
 
                         // 查询所有可用的分组信息 (用于验证分组名称)
@@ -419,34 +447,30 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                                 continue;
                             }
 
-                            // 从缓存的 Map 中获取项目 (使用 apply_id 匹配)
-                            QcProDataDto proData = accountToProMap.get(applyAccount);
+                            // 从缓存映射中获取项目ID（QC: apply_id；勘察: declare_account）
+                            Integer importProId = accountToProIdMap.get(applyAccount);
 
-                            if(proData == null) {
+                            if(importProId == null) {
                                 failCount++;
                                 failMsg.append("第" + (rowNum+1) + "行未找到对应项目 (" + applyAccount + "); ");
                                 continue;
                             }
 
-                            Integer qcProId = proData.getProId();
-
-                            if(qcProId == null || qcProId == 0) {
+                            if(importProId == 0) {
                                 failCount++;
                                 failMsg.append("第" + (rowNum+1) + "行项目 ID 无效; ");
                                 continue;
                             }
 
-                            // 保存形审结果记录 (到 ass_qc_review_result_record 表)
+                            // 保存QC形审结果记录
                             if(StringUtils.isNotBlank(reviewResult) || StringUtils.isNotBlank(reviewComment)) {
                                 QcReviewResultRecordDO reviewRecord = new QcReviewResultRecordDO();
-                                reviewRecord.setProId(qcProId);
+                                reviewRecord.setProId(importProId);
                                 reviewRecord.setTaskId(taskId);
                                 reviewRecord.setOptUid((int) uid);
                                 reviewRecord.setReviewResult(reviewResult); // 形审结果
                                 reviewRecord.setOpinionDesc(reviewComment); // 形审评语
                                 reviewRecord.setCreated(new Date());
-
-                                // 保存到审查结果记录表
                                 qcReviewResultRecordService.save(reviewRecord);
                             }
 
@@ -457,7 +481,7 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                                 if(targetGroup != null) {
                                     // 更新项目分组
                                     Map<String, Object> updateGroupParams = new HashMap<>();
-                                    updateGroupParams.put("proId", qcProId);
+                                    updateGroupParams.put("proId", importProId);
                                     updateGroupParams.put("groupId", targetGroup.getGroupid());
                                     awardEnterpriseProjectService.updateProGroup(updateGroupParams);
                                 } else {
@@ -485,6 +509,172 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                         result.put("showMsg", true); // 标记需要前端弹窗显示
                         return result;
 
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                        R result = R.error("文件不存在");
+                        result.put("showMsg", true);
+                        return result;
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        R result = R.error("导入失败：" + e.getMessage());
+                        result.put("showMsg", true);
+                        return result;
+                    }
+                }
+                else if("import_check_result_surver".equals(importFileType)) {
+                    // 勘察奖独立导入逻辑：根据 proId 更新项目编号、申报账号、分组、形审结果、形审评语
+                    String path = uploadPath + fileName;
+                    try {
+                        FileInputStream inputStream = new FileInputStream(new File(path));
+                        Workbook workbook = getWorkbook(inputStream, fileName);
+                        Sheet sheet = workbook.getSheetAt(0);
+                        int lastRowNum = sheet.getLastRowNum();
+
+                        Row headerRow = sheet.getRow(0);
+                        if (headerRow == null) {
+                            workbook.close();
+                            return R.error("Excel 文件格式错误，缺少表头");
+                        }
+
+                        Map<String, Integer> headerMap = new HashMap<>();
+                        for (int h = 0; h < headerRow.getLastCellNum(); h++) {
+                            String headerName = getCellValue(headerRow.getCell(h)).trim();
+                            headerMap.put(headerName, h);
+                        }
+
+                        Integer proIdColIndex = headerMap.get("proId");
+                        Integer proCodeColIndex = headerMap.get("项目编号");
+                        Integer declareAccountColIndex = headerMap.get("申报账号");
+                        Integer qcGroupColIndex = headerMap.get("分组");
+                        Integer reviewResultColIndex = headerMap.get("形审结果");
+                        Integer reviewCommentColIndex = headerMap.get("形审评语");
+
+                        if (proIdColIndex == null) {
+                            workbook.close();
+                            return R.error("Excel 表头缺少'proId'列，请使用勘察奖项目列表导出模板");
+                        }
+
+                        List<QcGroupDO> groupList = qcGroupService.getGroupsByTaskId(taskId);
+                        Map<String, QcGroupDO> groupNameToGroupMap = new HashMap<>();
+                        for (QcGroupDO group : groupList) {
+                            if (StringUtils.isNotBlank(group.getName())) {
+                                groupNameToGroupMap.put(group.getName(), group);
+                            }
+                        }
+
+                        int successCount = 0;
+                        int failCount = 0;
+                        StringBuilder failMsg = new StringBuilder();
+
+                        for (int rowNum = 1; rowNum <= lastRowNum; rowNum++) {
+                            Row row = sheet.getRow(rowNum);
+                            if (row == null) {
+                                continue;
+                            }
+
+                            boolean isEmptyRow = true;
+                            for (int cellNum = 0; cellNum < row.getLastCellNum(); cellNum++) {
+                                String cellValue = getCellValue(row.getCell(cellNum)).trim();
+                                if (StringUtils.isNotBlank(cellValue)) {
+                                    isEmptyRow = false;
+                                    break;
+                                }
+                            }
+                            if (isEmptyRow) {
+                                continue;
+                            }
+
+                            String proIdStr = getCellValue(row.getCell(proIdColIndex)).trim();
+                            if (StringUtils.isBlank(proIdStr)) {
+                                failCount++;
+                                failMsg.append("第" + (rowNum + 1) + "行proId为空; ");
+                                continue;
+                            }
+
+                            Integer importProId;
+                            try {
+                                importProId = Integer.parseInt(proIdStr);
+                            } catch (Exception ex) {
+                                failCount++;
+                                failMsg.append("第" + (rowNum + 1) + "行proId格式错误(" + proIdStr + "); ");
+                                continue;
+                            }
+
+                            EnterpriseProjectInfoDo projectDO = awardEnterpriseProjectService.get(String.valueOf(importProId));
+                            if (projectDO == null || !taskId.equals(projectDO.getPublishTaskId())) {
+                                failCount++;
+                                failMsg.append("第" + (rowNum + 1) + "行proId不存在或不属于当前任务; ");
+                                continue;
+                            }
+
+                            String proCode = proCodeColIndex == null ? "" : getCellValue(row.getCell(proCodeColIndex)).trim();
+                            String declareAccount = declareAccountColIndex == null ? "" : getCellValue(row.getCell(declareAccountColIndex)).trim();
+                            String qcGroupName = qcGroupColIndex == null ? "" : getCellValue(row.getCell(qcGroupColIndex)).trim();
+                            String reviewResult = reviewResultColIndex == null ? "" : getCellValue(row.getCell(reviewResultColIndex)).trim();
+                            String reviewComment = reviewCommentColIndex == null ? "" : getCellValue(row.getCell(reviewCommentColIndex)).trim();
+
+                            boolean rowHandled = false;
+
+                            // 1) 更新项目编号
+                            if (StringUtils.isNotBlank(proCode)) {
+                                qcAwardService.updateProResultCode(importProId, proCode);
+                                rowHandled = true;
+                            }
+
+                            // 2) 更新申报账号
+                            if (declareAccountColIndex != null) {
+                                qcAwardService.updateProDeclareAccount(importProId, declareAccount);
+                                rowHandled = true;
+                            }
+
+                            // 3) 更新分组
+                            if (StringUtils.isNotBlank(qcGroupName)) {
+                                QcGroupDO targetGroup = groupNameToGroupMap.get(qcGroupName);
+                                if (targetGroup != null) {
+                                    Map<String, Object> updateGroupParams = new HashMap<>();
+                                    updateGroupParams.put("proId", importProId);
+                                    updateGroupParams.put("groupId", targetGroup.getGroupid());
+                                    awardEnterpriseProjectService.updateProGroup(updateGroupParams);
+                                    rowHandled = true;
+                                } else {
+                                    failCount++;
+                                    failMsg.append("第" + (rowNum + 1) + "行分组'" + qcGroupName + "'不存在，已跳过分组更新; ");
+                                }
+                            }
+
+                            // 4) 更新形审结果、形审评语（按项目子类型落库）
+                            if (StringUtils.isNotBlank(reviewResult) || StringUtils.isNotBlank(reviewComment)) {
+                                String proSubType = findSurverProSubTypeByTaskAndProId(taskId, importProId);
+                                if (StringUtils.isBlank(proSubType)) {
+                                    failCount++;
+                                    failMsg.append("第" + (rowNum + 1) + "行未识别勘察奖项目类别，已跳过形审结果写入; ");
+                                } else {
+                                    saveSurverReviewRecord(proSubType, importProId, taskId, (int) uid, reviewResult, reviewComment);
+                                    rowHandled = true;
+                                }
+                            }
+
+                            if (rowHandled) {
+                                successCount++;
+                            } else {
+                                failCount++;
+                                failMsg.append("第" + (rowNum + 1) + "行无可更新内容; ");
+                            }
+                        }
+
+                        workbook.close();
+
+                        String resultMsg = "导入完成！成功：" + successCount + "条";
+                        if (failCount > 0) {
+                            resultMsg += "，失败：" + failCount + "条";
+                            if (failMsg.length() > 0) {
+                                resultMsg += "<br/>" + failMsg.toString();
+                            }
+                        }
+
+                        R result = failCount > 0 ? R.error(resultMsg) : R.ok(resultMsg);
+                        result.put("showMsg", true);
+                        return result;
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
                         R result = R.error("文件不存在");
@@ -946,6 +1136,62 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
         }
         return R.error();
     }
+    private String findSurverProSubTypeByTaskAndProId(String taskId, Integer proId) {
+        if (StringUtils.isBlank(taskId) || proId == null) {
+            return "";
+        }
+        Map<String, Object> params = new HashMap<>();
+        params.put("taskId", taskId);
+        params.put("proId", proId);
+        List<SurverProjectInfo> list = surverAwardService.listProInfo(params);
+        if (list == null || list.isEmpty()) {
+            return "";
+        }
+        return list.get(0).getProSubType();
+    }
+
+    private void saveSurverReviewRecord(String proSubType, Integer proId, String taskId, Integer optUid,
+                                        String reviewResult, String reviewComment) {
+        Date now = new Date();
+        if ("design".equals(proSubType)) {
+            SurverReviewDesignResultDO reviewDO = new SurverReviewDesignResultDO();
+            reviewDO.setProId(proId);
+            reviewDO.setTaskId(taskId);
+            reviewDO.setOptUid(optUid);
+            reviewDO.setReviewResult(reviewResult);
+            reviewDO.setRemarks(reviewComment);
+            reviewDO.setCreated(now);
+            surverReviewDesignResultService.save(reviewDO);
+        } else if ("software".equals(proSubType)) {
+            SurverReviewSoftResultDO reviewDO = new SurverReviewSoftResultDO();
+            reviewDO.setProId(proId);
+            reviewDO.setTaskId(taskId);
+            reviewDO.setOptUid(optUid);
+            reviewDO.setReviewResult(reviewResult);
+            reviewDO.setRemarks(reviewComment);
+            reviewDO.setCreated(now);
+            surverReviewSoftResultService.save(reviewDO);
+        } else if ("standard".equals(proSubType)) {
+            SurverReviewStandardResultDO reviewDO = new SurverReviewStandardResultDO();
+            reviewDO.setProId(proId);
+            reviewDO.setTaskId(taskId);
+            reviewDO.setOptUid(optUid);
+            reviewDO.setReviewResult(reviewResult);
+            reviewDO.setRemarks(reviewComment);
+            reviewDO.setCreated(now);
+            surverReviewStandardResultService.save(reviewDO);
+        } else if ("contribution".equals(proSubType)) {
+            SurverReviewSurverResultDO reviewDO = new SurverReviewSurverResultDO();
+            reviewDO.setProId(proId);
+            reviewDO.setTaskId(taskId);
+            reviewDO.setOptUid(optUid);
+            reviewDO.setReviewResult(reviewResult);
+            reviewDO.setRemarks(reviewComment);
+            reviewDO.setCreated(now);
+            surverReviewSurverResultService.save(reviewDO);
+        }
+    }
+
     /**
      * 获取单元格值
      */

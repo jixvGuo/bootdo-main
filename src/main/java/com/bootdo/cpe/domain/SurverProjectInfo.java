@@ -66,6 +66,12 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
      */
     private String latestReviewResult;
 
+    /**
+     * 最新形审评语
+     */
+    private String latestReviewRemarks;
+
+
     public int getId() {
         return id;
     }
@@ -178,6 +184,14 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
 
     public void setLatestReviewResult(String latestReviewResult) {
         this.latestReviewResult = latestReviewResult;
+    }
+
+    public String getLatestReviewRemarks() {
+        return latestReviewRemarks;
+    }
+
+    public void setLatestReviewRemarks(String latestReviewRemarks) {
+        this.latestReviewRemarks = latestReviewRemarks;
     }
 
 }

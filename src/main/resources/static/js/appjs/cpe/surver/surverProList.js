@@ -288,8 +288,25 @@ function subCheck(proId) {
 // 状态点击事件
 function printExcelPro() {
     var taskId = $("#taskId").val();
-    var proSubType = $("#proSubType").val();
-    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId) + "&proSubType=" + encodeURIComponent(proSubType);
+    // 不按当前标签分类，统一导出四个奖项
+    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId);
+}
+
+function importCheckResult() {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        layer.msg("缺少任务ID");
+        return;
+    }
+    parent.layer.open({
+        zIndex: 110,
+        type: 2,
+        title: '上传形式审查结果',
+        maxmin: true,
+        shadeClose: false,
+        area: ['800px', '520px'],
+        content: '/award_flow/to_uploadsmall?proId=0&fileType=import_check_result_qc&taskId=' + taskId
+    });
 }
 
 function toGroupManage() {

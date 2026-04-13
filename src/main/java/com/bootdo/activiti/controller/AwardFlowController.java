@@ -366,6 +366,9 @@ public class AwardFlowController extends BaseScienceTechnologyController {
     @RequiresPermissions("act:award:publish_award_task_edit")
     public String toAPublishAwardTask(String publishTaskId, String awardId, ModelMap map) throws CpeException {
         PublishAwardTaskDo awardTaskDo = awardFlowService.getAwardTaskById(publishTaskId);
+        if (awardTaskDo == null) {
+            throw new CpeException(404, "申报任务不存在或已被删除");
+        }
         //去掉时间末尾的.0
 
         String startTime = awardTaskDo.getTaskStartTime();
@@ -422,6 +425,9 @@ public class AwardFlowController extends BaseScienceTechnologyController {
     @RequiresPermissions("act:award:publish_award_task_wach")
     public String toWathchAwardTask(String publishTaskId, String awardId, ModelMap map) throws CpeException {
         PublishAwardTaskDo awardTaskDo = awardFlowService.getAwardTaskById(publishTaskId);
+        if (awardTaskDo == null) {
+            throw new CpeException(404, "申报任务不存在或已被删除");
+        }
         //去掉时间末尾的.0
         String startTime = awardTaskDo.getTaskStartTime();
         if (startTime != null && !startTime.isEmpty()) {

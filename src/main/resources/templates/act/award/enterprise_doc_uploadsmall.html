@@ -98,15 +98,30 @@
                     });
                     this.on("success",function(files,response){
                         console.log("success--aaa-->",response);
-                        // 如果后端返回 showMsg 标记，则显示弹窗提示
-                        if(response.showMsg) {
-                            if(response.code === 0) {
-                                parent.layer.msg(response.msg, {icon: 1, time: 3000});
-                            } else {
-                                parent.layer.msg(response.msg, {icon: 2, time: 5000});
+                        var msg = response && response.msg ? response.msg : "上传完成";
+                        var icon = response && response.code === 0 ? 1 : 2;
+                        var time = response && response.code === 0 ? 3000 : 5000;
+
+                        // 刷新父页面项目列表
+                        try {
+                            if (window.parent && typeof window.parent.reLoad === 'function') {
+                                window.parent.reLoad();
+                            } else if (window.parent && window.parent.$ && window.parent.$('#exampleTable').length > 0) {
+                                window.parent.$('#exampleTable').bootstrapTable('refresh');
                             }
+                        } catch (e) {
+                            console.log('refresh parent list fail', e);
                         }
-                        location.reload();
+
+                        // 提示后关闭上传弹窗
+                        try {
+                            parent.layer.msg(msg, {icon: icon, time: time}, function () {
+                                var index = parent.layer.getFrameIndex(window.name);
+                                parent.layer.close(index);
+                            });
+                        } catch (e) {
+                            location.reload();
+                        }
                     });
                     this.on("errormultiple",function(files,response){})
                 }

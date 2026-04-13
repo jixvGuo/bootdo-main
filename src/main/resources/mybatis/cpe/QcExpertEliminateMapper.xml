@@ -102,4 +102,27 @@
         update ass_qc_expert_eliminate set deleted = 1 where task_id = #{taskId} and deleted = 0
     </update>
 
+    <delete id="deleteQrByExpertAndTask">
+        delete from ass_qc_expert_eliminate_qr
+        where expert_uid = #{expertUid}
+          and task_id = #{taskId}
+    </delete>
+
+    <insert id="saveCurrentEliminateListToQr">
+        insert into ass_qc_expert_eliminate_qr
+        (`expert_uid`, `pro_id`, `task_id`, `reason`, `prev_pro_stat`, `created`, `deleted`)
+        select
+            e.expert_uid,
+            e.pro_id,
+            e.task_id,
+            e.reason,
+            e.prev_pro_stat,
+            now(),
+            0
+        from ass_qc_expert_eliminate e
+        where e.expert_uid = #{expertUid}
+          and e.task_id = #{taskId}
+          and e.deleted = 0
+    </insert>
+
 </mapper>
