@@ -6,6 +6,7 @@
 <!-- 是QC奖专家评审页面 ,用于评审专家查看和评审分配给自己的 QC 奖申报项目。-->
 <div class="wrapper wrapper-content">
     <div class="col-sm-12">
+<!--        存储当前任务的关键 ID-->
         <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
 
         <!-- Tab导航 -->
@@ -15,19 +16,26 @@
         </ul>
 
         <!-- Tab内容 -->
+<!--        两个工作视图的切换入口-->
         <div class="tab-content" style="padding-top:10px;">
             <!-- 评审项目列表 -->
             <div id="tabProList" class="tab-pane fade in active">
                 <div class="ibox">
                     <div class="ibox-body">
                         <!-- 操作按钮区域 -->
-                        <div style="margin-bottom: 15px;">
-                            <button th:if="${scoreIsOver != 1}" type="button" disabled class="btn btn-primary" onclick="submitFinalScore()">
+                        <div style="margin-bottom: 13px;">
+<!--                            点击触发 submitFinalScore()，将评分结果永久保存-->
+                            <button id="btnSubmitFinalScore"
+                                    type="button"
+                                    class="btn btn-primary"
+                                    onclick="submitFinalScore()">
                                 <i class="fa fa-check" aria-hidden="true"></i> 提交最终打分结果
                             </button>
-                            <button th:if="${scoreIsOver == 1}" type="button" class="btn btn-default" disabled>
-                                <i class="fa fa-check-circle" aria-hidden="true"></i> 已提交打分
-                            </button>
+                            <span id="scoreSubmittedTip"
+                                  class="label label-success"
+                                  style="display:none; margin-left:10px; font-size:13px;">
+                                打分结果已确认提交
+                            </span>
                         </div>
 
                         <!-- 查询筛选条件 -->
@@ -117,7 +125,7 @@
 </script>
 <!--SheetJS (xlsx) - Excel导出库-->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" async></script>
-<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.14"></script>
+<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.15"></script>
 
 </body>
 </html>

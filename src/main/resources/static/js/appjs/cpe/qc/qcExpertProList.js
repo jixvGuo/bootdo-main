@@ -9,6 +9,17 @@ $(function () {
     loadEliminateCount();
     // 初始化淘汰确认提交状态
     updateEliminateSubmitUI();
+    /**
+     * 防止以下场景：
+     * 想象一下这个场景：
+     * 专家昨天已经打完分并点击了“提交”。
+     * 今天专家再次打开这个页面。
+     * 如果没有这个初始化函数，页面一打开时，“提交最终打分结果”按钮可能还是亮着的，
+     * 提示语“打分结果已确认提交”也是隐藏的。这会让专家困惑：“我到底交没交？要不要再点一次？”
+     * 总结来说：能记住之前的操作
+     */
+    // 初始化打分提交状态
+    updateScoreSubmitUI();
 });
 
 function load() {
@@ -80,15 +91,6 @@ function load() {
                             return value ? value : '';
                         }
                     },
-                    // 在这里加一个打分日期
-                    // {
-                    //     field: 'applyStat',
-                    //     title: '审核状态'
-                    // },
-                    // {
-                    //     field: 'latestReviewResult',
-                    //     title: '形审结论'
-                    // },
                     {
                         title: '操作',
                         //field: 'id',
@@ -278,14 +280,6 @@ function loadEliminateTable() {
                     field: 'topicName',
                     title: '课题名称'
                 },
-                // {
-                //     field: 'groupName',
-                //     title: '小组名称'
-                // },
-                // {
-                //     field: 'companyName',
-                //     title: '单位名称'
-                // },
                 {
                     field: 'reason',
                     title: '淘汰理由'
@@ -402,13 +396,33 @@ function viewCheckResult(proId) {
     });
 }
 
+// ==================== 打分提交功能 ====================
+
 /**
- * 提交最终打分结果（参考科技奖 add 函数 → /specialist/scoreOver）
+ * 更新打分提交按钮的UI状态
+ */
+function updateScoreSubmitUI() {
+    /**
+     * window.scoreIsOver 只是前端页面的“临时记忆”，它并不是持久化的关键
+     * 真正的持久化（即关闭浏览器后再次打开还能记住状态）是靠数据库完成的
+     * 在数据库表（add_special_info）中有一个字段叫 score_over
+     * 点击“提交”按钮时，后端会执行 SQL 语句 UPDATE ... SET score_over = 1
+     * 作用范围：本次会话
+     */
+    if (window.scoreIsOver == 1) {
+        $("#btnSubmitFinalScore").prop('disabled', true).removeClass('btn-primary').addClass('btn-default').html('<i class="fa fa-check"></i> 已提交');
+        $("#scoreSubmittedTip").show();
+    }
+}
+
+/**
+ * 提交最终打分结果按钮（参考科技奖 add 函数 → /specialist/scoreOver）
  */
 function submitFinalScore() {
     layer.confirm('提交后不可再次进行分数修改,是否确定提交?', {
         btn: ['确定', '取消']
-    }, function () {
+    }, function (confirmIndex) {
+        layer.close(confirmIndex);
         $.ajax({
             cache: true,
             type: "POST",
@@ -422,10 +436,13 @@ function submitFinalScore() {
             },
             success: function (data) {
                 if (data.code == 0) {
-                    parent.layer.msg("操作成功");
-                    window.location.reload();
+                    parent.layer.msg("提交成功", {icon: 1, time: 2000});
+                    window.scoreIsOver = 1;
+                    updateScoreSubmitUI();
+                    // 刷新项目列表，更新评分按钮状态
+                    $('#proListTable').bootstrapTable('refresh');
                 } else {
-                    parent.layer.alert(data.msg)
+                    parent.layer.alert(data.msg);
                 }
             }
         });
@@ -436,33 +453,38 @@ function submitFinalScore() {
 /**
  * 撤回打分提交（参考科技奖 cancelSubmit 函数 → /specialist/scoreCancel）
  */
-function cancelSubmitScore() {
-    layer.confirm('是否撤销提交?', {
-        btn: ['确定', '取消']
-    }, function () {
-        $.ajax({
-            cache: true,
-            type: "POST",
-            url: prefix + "/cancelSubmitScore",
-            data: {
-                taskId: $("#taskId").val()
-            },
-            async: false,
-            error: function (request) {
-                parent.layer.alert("Connection error");
-            },
-            success: function (data) {
-                if (data.code == 0) {
-                    parent.layer.msg("操作成功");
-                    window.location.reload();
-                } else {
-                    parent.layer.alert(data.msg)
-                }
-            }
-        });
-    }, function () {
-    });
-}
+// function cancelSubmitScore() {
+//     layer.confirm('是否撤销提交?', {
+//         btn: ['确定', '取消']
+//     }, function () {
+//         $.ajax({
+//             cache: true,
+//             type: "POST",
+//             url: prefix + "/cancelSubmitScore",
+//             data: {
+//                 taskId: $("#taskId").val()
+//             },
+//             async: false,
+//             error: function (request) {
+//                 parent.layer.alert("Connection error");
+//             },
+//             success: function (data) {
+//                 if (data.code == 0) {
+//                     parent.layer.msg("操作成功");
+//                     window.scoreIsOver = 0;
+//                     // 恢复按钮状态
+//                     $("#btnSubmitFinalScore").prop('disabled', false).removeClass('btn-default').addClass('btn-primary').html('<i class="fa fa-check"></i> 提交最终打分结果');
+//                     $("#scoreSubmittedTip").hide();
+//                     // 刷新项目列表
+//                     $('#proListTable').bootstrapTable('refresh');
+//                 } else {
+//                     parent.layer.alert(data.msg);
+//                 }
+//             }
+//         });
+//     }, function () {
+//     });
+// }
 
 function reLoad() {
     $('#exampleTable').bootstrapTable('refresh');

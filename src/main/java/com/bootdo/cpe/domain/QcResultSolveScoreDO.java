@@ -222,7 +222,7 @@ public class QcResultSolveScoreDO implements Serializable {
 		this.appraiseSum = appraiseSum;
 	}
 	/**
-	 * 获取：总体评价
+	 * 获取：总体评价(总分)
 	 */
 	public String getAppraiseSum() {
 		return appraiseSum;

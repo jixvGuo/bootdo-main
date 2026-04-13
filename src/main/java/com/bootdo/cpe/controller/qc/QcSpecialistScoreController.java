@@ -1,5 +1,6 @@
 package com.bootdo.cpe.controller.qc;
 
+import com.bootdo.common.config.BootdoConfig;
 import com.bootdo.common.controller.BaseQcProController;
 import com.bootdo.common.utils.*;
 import com.bootdo.cpe.domain.EnumProjectType;
@@ -18,22 +19,40 @@ import com.bootdo.cpe.service.QcAwardService;
 import com.bootdo.cpe.service.QcExpertAvoidanceService;
 import com.bootdo.cpe.service.QcExpertEliminateService;
 import com.bootdo.cpe.service.QcExpertEliminateConfirmedService;
+import com.bootdo.cpe.domain.QcGroupApplyInfoDO;
 import com.bootdo.cpe.service.QcGroupApplyInfoService;
 import com.bootdo.cpe.service.QcResultInnovateScoreService;
 import com.bootdo.cpe.service.QcResultSolveScoreService;
 import com.bootdo.cpe.service.QcReviewResultRecordService;
+import com.bootdo.cpe.domain.QcScoreSubmitDO;
+import com.bootdo.cpe.service.QcScoreCalcDetailService;
+import com.bootdo.cpe.service.QcScoreCalcResultService;
+import com.bootdo.cpe.service.QcScoreCalculationService;
+import com.bootdo.cpe.service.QcScoreSubmitService;
 import com.bootdo.common.service.DictService;
 import com.bootdo.common.domain.DictDO;
 import com.bootdo.system.domain.UserDO;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.util.CellRangeAddress;
+import org.apache.poi.xssf.usermodel.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.FileInputStream;
+import java.net.URLEncoder;
+import java.nio.file.Files;
 import java.util.*;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.stream.Collectors;
+import com.bootdo.system.service.UserService;
 
 import static com.bootdo.common.config.Constant.*;
 
@@ -71,6 +90,18 @@ public class QcSpecialistScoreController extends BaseQcProController {
     private QcExpertEliminateConfirmedService qcExpertEliminateConfirmedService;
     @Autowired
     private ExpertGroupService expertGroupService;
+    @Autowired
+    private QcScoreCalculationService qcScoreCalculationService;
+    @Autowired
+    private QcScoreSubmitService qcScoreSubmitService;
+    @Autowired
+    private QcScoreCalcResultService qcScoreCalcResultService;
+    @Autowired
+    private QcScoreCalcDetailService qcScoreCalcDetailService;
+    @Autowired
+    private UserService userService;
+    @Autowired
+    private BootdoConfig bootdoConfig;
 
     // ==================== 原有代码 ====================
 
@@ -149,25 +180,25 @@ public class QcSpecialistScoreController extends BaseQcProController {
         }
         
         packageAwardTaskId(map, params);
-        // 查询当前专家是否已提交最终打分（参考科技奖 scoreIsOver 逻辑）
+        // 查询当前专家是否已提交最终打分（参考 eliminateOver 模式，从数据库字段读取）
         int scoreIsOver = 0;
         Long uid = getUserId();
         String currentTaskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         try {
-            Map<String, Object> checkParams = new HashMap<>();
-            checkParams.put("optUid", uid);
-            checkParams.put("scoreOver", 1);
+            Map<String, Object> scoreQuery = new HashMap<>();
+            scoreQuery.put("userId", String.valueOf(uid));
+            scoreQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
             if (StringUtils.isNotBlank(currentTaskId)) {
-                checkParams.put("taskId", currentTaskId);
+                scoreQuery.put("taskId", currentTaskId);
             }
-            int c2 = qcResultSolveScoreService.count(checkParams);
-            int c3 = qcResultInnovateScoreService.count(checkParams);
-            scoreIsOver = (c2 + c3);
+            List<ExpertGroupDO> scoreList = expertGroupService.list(scoreQuery);
+            if (!scoreList.isEmpty() && scoreList.get(0).getScoreOver() != null) {
+                scoreIsOver = scoreList.get(0).getScoreOver();
+            }
         } catch (Exception e) {
-            // score_over列可能尚未添加到数据库，降级处理
             scoreIsOver = 0;
         }
-        map.put("scoreIsOver", scoreIsOver > 0 ? 1 : 0);
+        map.put("scoreIsOver", scoreIsOver);
         map.put("userId", uid); // 传递用户ID给前端，用于回避功能
         
         // 查询当前专家是否已确认提交淘汰名单
@@ -568,6 +599,72 @@ public class QcSpecialistScoreController extends BaseQcProController {
             }
         }
         if (updated > 0) {
+            // 标记 score_over=1（参考 submitEliminate 设置 eliminate_over=1）
+            try {
+                Map<String, Object> expertQuery = new HashMap<>();
+                expertQuery.put("userId", String.valueOf(uid));
+                expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+                if (StringUtils.isNotBlank(taskId)) {
+                    expertQuery.put("taskId", taskId);
+                }
+                List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+                if (!expertList.isEmpty()) {
+                    ExpertGroupDO expert = expertList.get(0);
+                    expert.setScoreOver(1);
+                    expertGroupService.update(expert);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // ★ 写入提交快照（INSERT IGNORE 保证幂等，唯一键冲突自动跳过）
+            try {
+                Date now = new Date();
+                if (solveList != null) {
+                    for (QcResultSolveScoreDO s : solveList) {
+                        if (s.getAppraiseSum() == null) continue;
+                        BigDecimal total;
+                        try { total = new BigDecimal(s.getAppraiseSum()); } catch (Exception ignore) { continue; }
+                        QcScoreSubmitDO snap = new QcScoreSubmitDO();
+                        snap.setTaskId(taskId);
+                        snap.setProId(s.getProId());
+                        snap.setExpertUid(uid.intValue());
+                        snap.setTopicType("solve");
+                        snap.setTotalScore(total);
+                        snap.setPhase(1);
+                        snap.setSourceId(s.getId());
+                        snap.setSubmitTime(now);
+                        qcScoreSubmitService.saveIgnore(snap);
+                    }
+                }
+                if (innovateList != null) {
+                    for (QcResultInnovateScoreDO s : innovateList) {
+                        if (s.getAppraiseSum() == null) continue;
+                        BigDecimal total;
+                        try { total = new BigDecimal(s.getAppraiseSum()); } catch (Exception ignore) { continue; }
+                        QcScoreSubmitDO snap = new QcScoreSubmitDO();
+                        snap.setTaskId(taskId);
+                        snap.setProId(s.getProId());
+                        snap.setExpertUid(uid.intValue());
+                        snap.setTopicType("innovate");
+                        snap.setTotalScore(total);
+                        snap.setPhase(1);
+                        snap.setSourceId(s.getId());
+                        snap.setSubmitTime(now);
+                        qcScoreSubmitService.saveIgnore(snap);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // 提交成功后，触发分数计算并落库（初评 phase=1，从 submit 表读取）
+            try {
+                qcScoreCalculationService.batchCalculateAndSave(taskId, 1, uid.intValue());
+            } catch (Exception e) {
+                // 计算失败不影响提交成功的结果
+                e.printStackTrace();
+            }
             return R.ok("提交成功，共提交" + updated + "条打分记录");
         }
         return R.error("提交失败");
@@ -608,9 +705,79 @@ public class QcSpecialistScoreController extends BaseQcProController {
             }
         }
         if (updated > 0) {
+            // 标记 score_over=0
+            try {
+                Map<String, Object> expertQuery = new HashMap<>();
+                expertQuery.put("userId", String.valueOf(uid));
+                expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+                if (StringUtils.isNotBlank(taskId)) {
+                    expertQuery.put("taskId", taskId);
+                }
+                List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+                if (!expertList.isEmpty()) {
+                    ExpertGroupDO expert = expertList.get(0);
+                    expert.setScoreOver(0);
+                    expertGroupService.update(expert);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
             return R.ok("撤回成功");
         }
         return R.error("撤回失败");
+    }
+
+    /**
+     * 管理员驳回专家打分提交，允许专家重新修改并再次提交
+     * 将指定专家的所有打分记录及 add_special_info 中的 score_over 重置为 0
+     */
+    @RequestMapping("/rejectScore")
+    @ResponseBody
+    public R rejectScore(@RequestParam Map<String, Object> params) {
+        String expertUidStr = params.get("expertUid") != null ? params.get("expertUid").toString() : "";
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (expertUidStr.isEmpty() || taskId.isEmpty()) {
+            return R.error("参数不完整");
+        }
+        Long expertUid;
+        try {
+            expertUid = Long.parseLong(expertUidStr);
+        } catch (NumberFormatException e) {
+            return R.error("专家ID格式错误");
+        }
+        Map<String, Object> queryParams = new HashMap<>();
+        queryParams.put("optUid", expertUid);
+        queryParams.put("taskId", taskId);
+        List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(queryParams);
+        List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(queryParams);
+        int updated = 0;
+        if (solveList != null) {
+            for (QcResultSolveScoreDO score : solveList) {
+                score.setScoreOver(0);
+                updated += qcResultSolveScoreService.update(score);
+            }
+        }
+        if (innovateList != null) {
+            for (QcResultInnovateScoreDO score : innovateList) {
+                score.setScoreOver(0);
+                updated += qcResultInnovateScoreService.update(score);
+            }
+        }
+        try {
+            Map<String, Object> expertQuery = new HashMap<>();
+            expertQuery.put("userId", expertUidStr);
+            expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            expertQuery.put("taskId", taskId);
+            List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+            if (!expertList.isEmpty()) {
+                ExpertGroupDO expert = expertList.get(0);
+                expert.setScoreOver(0);
+                expertGroupService.update(expert);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return R.ok("驳回成功，该专家可重新修改并提交打分");
     }
 
     /**
@@ -1562,5 +1729,1164 @@ public class QcSpecialistScoreController extends BaseQcProController {
             return R.ok("保存成功");
         }
         return R.error("保存失败");
+    }
+
+    /**
+     * 查询项目平均分（排除回避专家，去最高最低分）
+     */
+    @RequestMapping("/getAverageScore")
+    @ResponseBody
+    public R getAverageScore(@RequestParam Map<String, Object> params) {
+        String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String phaseStr = params.get("phase") != null ? params.get("phase").toString() : "";
+        String withDetailStr = params.get("withDetail") != null ? params.get("withDetail").toString() : "";
+
+        if (StringUtils.isBlank(proIdStr) || StringUtils.isBlank(taskId)) {
+            return R.error("参数错误");
+        }
+
+        try {
+            Integer proId = Integer.parseInt(proIdStr);
+            Integer phase = StringUtils.isNotBlank(phaseStr) ? Integer.parseInt(phaseStr) : 1;
+
+            Map<String, Object> q = new HashMap<>();
+            q.put("taskId", taskId);
+            q.put("proId", proId);
+            q.put("phase", phase);
+            q.put("deleted", 0);
+            List<com.bootdo.cpe.domain.QcScoreCalcResultDO> list = qcScoreCalcResultService.list(q);
+            if (list == null || list.isEmpty()) {
+                return R.ok().put("averageScore", null).put("validCount", 0).put("usedCount", 0)
+                        .put("message", "暂无计算结果");
+            }
+
+            // 默认返回最新一条（按id desc），同时保留历史列表
+            com.bootdo.cpe.domain.QcScoreCalcResultDO latest = list.get(0);
+            R r = R.ok();
+            r.put("averageScore", latest.getAvgScore());
+            r.put("validCount", latest.getValidCount());
+            r.put("usedCount", latest.getUsedCount());
+            r.put("resultId", latest.getId());
+            r.put("phase", phase);
+            r.put("history", list);
+
+            if ("1".equals(withDetailStr) && latest.getId() != null) {
+                Map<String, Object> dq = new HashMap<>();
+                dq.put("resultId", latest.getId());
+                List<com.bootdo.cpe.domain.QcScoreCalcDetailDO> details = qcScoreCalcDetailService.list(dq);
+                r.put("details", details);
+            }
+            return r;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 查询某个专家的打分情况（以专家为维度）
+     * 以"分配给该专家的项目"为基准，展示每个项目的详细评分项及回避状态
+     * @param params taskId, expertUid
+     */
+    @GetMapping("/getExpertScores")
+    @ResponseBody
+    public R getExpertScores(@RequestParam Map<String, Object> params) {
+        try {
+            String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+            String expertUidStr = params.get("expertUid") != null ? params.get("expertUid").toString() : "";
+
+            if (taskId.isEmpty() || expertUidStr.isEmpty()) {
+                return R.error("参数不完整");
+            }
+
+            Integer expertUid;
+            try {
+                expertUid = Integer.parseInt(expertUidStr);
+            } catch (NumberFormatException e) {
+                return R.error("专家ID格式错误");
+            }
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+            // 1. 查询分配给该专家的所有项目（通过 add_special_info 关联）
+            Map<String, Object> proQuery = new HashMap<>();
+            proQuery.put("taskId", taskId);
+            proQuery.put("scoreSpecialistUid", expertUid);
+            List<QcProDataDto> assignedProjects = qcAwardService.listProInfo(proQuery);
+
+            // 2. 获取该专家在该任务下的回避项目ID集合
+            List<Integer> avoidedProIdList = avoidanceService.getAvoidedProIds(taskId, expertUid);
+            Set<Integer> avoidedProIds = new HashSet<>(avoidedProIdList != null ? avoidedProIdList : Collections.emptyList());
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (QcProDataDto pro : assignedProjects) {
+                if (pro.getProId() == null) continue;
+
+                Map<String, Object> item = new HashMap<>();
+                item.put("proId", pro.getProId());
+                item.put("proCode", pro.getApplyId());
+                item.put("topicName", pro.getTopicName());
+                item.put("groupName", pro.getGroupName());
+                item.put("topicType", pro.getTopicType());
+                item.put("completeUnit", pro.getCompleteUnit());
+                item.put("companyName", pro.getCompanyName());
+                item.put("groupMember", pro.getGroupMember());
+
+                boolean isAvoided = avoidedProIds.contains(pro.getProId());
+                item.put("isAvoided", isAvoided);
+
+                if (isAvoided) {
+                    item.put("totalScore", null);
+                    item.put("recommendLevel", null);
+                    item.put("scoreTime", "-");
+                    item.put("scoreDetails", null);
+                } else {
+                    Map<String, Object> scoreQuery = new HashMap<>();
+                    scoreQuery.put("taskId", taskId);
+                    scoreQuery.put("proId", pro.getProId());
+                    scoreQuery.put("optUid", expertUid);
+
+                    if ("问题解决型".equals(pro.getTopicType())) {
+                        List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(scoreQuery);
+                        if (!solveList.isEmpty()) {
+                            QcResultSolveScoreDO s = solveList.get(0);
+                            item.put("totalScore", s.getAppraiseSum());
+                            item.put("recommendLevel", s.getRecommendLevel());
+                            item.put("scoreTime", s.getCreated() != null ? sdf.format(s.getCreated()) : "-");
+                            List<Map<String, Object>> details = new ArrayList<>();
+                            details.add(buildScoreDetail("选题得分", s.getSelSocre()));
+                            details.add(buildScoreDetail("原因分析得分", s.getReasonScore()));
+                            details.add(buildScoreDetail("对策与实施得分", s.getStrategyExecuteScore()));
+                            details.add(buildScoreDetail("效果得分", s.getEffectScore()));
+                            details.add(buildScoreDetail("成果报告得分", s.getReportScore()));
+                            details.add(buildScoreDetail("特点得分", s.getCharacteristicScore()));
+                            details.add(buildScoreDetail("持证情况得分", s.getCertificateScore()));
+                            details.add(buildScoreDetail("成果实际价值评价得分", s.getPracticalValueScore()));
+                            item.put("scoreDetails", details);
+                        } else {
+                            item.put("totalScore", null);
+                            item.put("recommendLevel", null);
+                            item.put("scoreTime", "-");
+                            item.put("scoreDetails", null);
+                        }
+                    } else if ("创新型".equals(pro.getTopicType())) {
+                        List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(scoreQuery);
+                        if (!innovateList.isEmpty()) {
+                            QcResultInnovateScoreDO s = innovateList.get(0);
+                            item.put("totalScore", s.getAppraiseSum());
+                            item.put("recommendLevel", s.getRecommendLevel());
+                            item.put("scoreTime", s.getCreated() != null ? sdf.format(s.getCreated()) : "-");
+                            List<Map<String, Object>> details = new ArrayList<>();
+                            details.add(buildScoreDetail("选题得分", s.getSelSocre()));
+                            details.add(buildScoreDetail("提出方案并确定最佳方案", s.getBestPlanScore()));
+                            details.add(buildScoreDetail("原因分析得分", s.getReasonScore()));
+                            details.add(buildScoreDetail("对策与实施得分", s.getStrategyExecuteScore()));
+                            details.add(buildScoreDetail("效果得分", s.getEffectScore()));
+                            details.add(buildScoreDetail("成果报告得分", s.getReportScore()));
+                            details.add(buildScoreDetail("特点得分", s.getCharacteristicScore()));
+                            details.add(buildScoreDetail("持证情况得分", s.getCertificateScore()));
+                            details.add(buildScoreDetail("成果实际价值评价得分", s.getPracticalValueScore()));
+                            item.put("scoreDetails", details);
+                        } else {
+                            item.put("totalScore", null);
+                            item.put("recommendLevel", null);
+                            item.put("scoreTime", "-");
+                            item.put("scoreDetails", null);
+                        }
+                    } else {
+                        item.put("totalScore", null);
+                        item.put("recommendLevel", null);
+                        item.put("scoreTime", "-");
+                        item.put("scoreDetails", null);
+                    }
+                }
+                result.add(item);
+            }
+
+            // 查询专家的电子签章 URL
+            String expertSignUrl = null;
+            try {
+                Map<String, Object> expertQuery = new HashMap<>();
+                expertQuery.put("userId", String.valueOf(expertUid));
+                expertQuery.put("taskId", taskId);
+                expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+                List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
+                if (!expertList.isEmpty() && expertList.get(0).getExpertSignUrl() != null) {
+                    expertSignUrl = expertList.get(0).getExpertSignUrl();
+                }
+            } catch (Exception ignore) {}
+
+            return R.ok().put("data", result).put("expertSignUrl", expertSignUrl);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 导出专家打分情况为 Excel（含签章图片）
+     */
+    @GetMapping("/exportExpertScoresExcel")
+    public void exportExpertScoresExcel(@RequestParam Map<String, Object> params,
+                                        HttpServletResponse response) throws Exception {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String expertUidStr = params.get("expertUid") != null ? params.get("expertUid").toString() : "";
+        String expertName = params.get("expertName") != null ? params.get("expertName").toString() : "专家";
+        String groupName  = params.get("groupName")  != null ? params.get("groupName").toString()  : "";
+        if (taskId.isEmpty() || expertUidStr.isEmpty()) { response.sendError(400, "参数不完整"); return; }
+        Integer expertUid = Integer.parseInt(expertUidStr);
+
+        // ---- 查数据（与 getExpertScores 相同逻辑）----
+        Map<String, Object> proQuery = new HashMap<>();
+        proQuery.put("taskId", taskId);
+        proQuery.put("scoreSpecialistUid", expertUid);
+        List<QcProDataDto> assignedProjects = qcAwardService.listProInfo(proQuery);
+        List<Integer> avoidedProIdList = avoidanceService.getAvoidedProIds(taskId, expertUid);
+        Set<Integer> avoidedProIds = new HashSet<>(avoidedProIdList != null ? avoidedProIdList : Collections.emptyList());
+
+        List<Map<String, Object>> solveItems    = new ArrayList<>();
+        List<Map<String, Object>> innovateItems = new ArrayList<>();
+        for (QcProDataDto pro : assignedProjects) {
+            if (pro.getProId() == null) continue;
+            Map<String, Object> item = new HashMap<>();
+            item.put("proCode", pro.getApplyId()); item.put("topicName", pro.getTopicName());
+            item.put("groupName", pro.getGroupName()); item.put("topicType", pro.getTopicType());
+            item.put("completeUnit", pro.getCompleteUnit()); item.put("companyName", pro.getCompanyName());
+            item.put("groupMember", pro.getGroupMember());
+            boolean isAvoided = avoidedProIds.contains(pro.getProId());
+            item.put("isAvoided", isAvoided);
+            List<Map<String, Object>> details = new ArrayList<>();
+            String totalScore = null; String recommendLevel = null;
+            if (!isAvoided) {
+                Map<String, Object> sq = new HashMap<>();
+                sq.put("taskId", taskId); sq.put("proId", pro.getProId()); sq.put("optUid", expertUid);
+                if ("问题解决型".equals(pro.getTopicType())) {
+                    List<QcResultSolveScoreDO> sl = qcResultSolveScoreService.list(sq);
+                    if (!sl.isEmpty()) {
+                        QcResultSolveScoreDO s = sl.get(0);
+                        totalScore = s.getAppraiseSum(); recommendLevel = s.getRecommendLevel();
+                        details.add(buildScoreDetail("选题得分", s.getSelSocre()));
+                        details.add(buildScoreDetail("原因分析得分", s.getReasonScore()));
+                        details.add(buildScoreDetail("对策与实施得分", s.getStrategyExecuteScore()));
+                        details.add(buildScoreDetail("效果得分", s.getEffectScore()));
+                        details.add(buildScoreDetail("成果报告得分", s.getReportScore()));
+                        details.add(buildScoreDetail("特点得分", s.getCharacteristicScore()));
+                        details.add(buildScoreDetail("持证情况得分", s.getCertificateScore()));
+                        details.add(buildScoreDetail("成果实际价值评价得分", s.getPracticalValueScore()));
+                    }
+                } else if ("创新型".equals(pro.getTopicType())) {
+                    List<QcResultInnovateScoreDO> il = qcResultInnovateScoreService.list(sq);
+                    if (!il.isEmpty()) {
+                        QcResultInnovateScoreDO s = il.get(0);
+                        totalScore = s.getAppraiseSum(); recommendLevel = s.getRecommendLevel();
+                        details.add(buildScoreDetail("选题得分", s.getSelSocre()));
+                        details.add(buildScoreDetail("提出方案并确定最佳方案", s.getBestPlanScore()));
+                        details.add(buildScoreDetail("对策与实施得分", s.getStrategyExecuteScore()));
+                        details.add(buildScoreDetail("效果得分", s.getEffectScore()));
+                        details.add(buildScoreDetail("成果报告得分", s.getReportScore()));
+                        details.add(buildScoreDetail("特点得分", s.getCharacteristicScore()));
+                        details.add(buildScoreDetail("持证情况得分", s.getCertificateScore()));
+                        details.add(buildScoreDetail("成果实际价值评价得分", s.getPracticalValueScore()));
+                    }
+                }
+            }
+            item.put("scoreDetails", details); item.put("totalScore", totalScore);
+            item.put("recommendLevel", recommendLevel);
+            if ("问题解决型".equals(pro.getTopicType())) solveItems.add(item);
+            else if ("创新型".equals(pro.getTopicType()))  innovateItems.add(item);
+        }
+
+        // ---- 查签章路径 ----
+        String signFilePath = null;
+        try {
+            Map<String, Object> eq = new HashMap<>();
+            eq.put("userId", expertUidStr); eq.put("taskId", taskId);
+            eq.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            List<ExpertGroupDO> el = expertGroupService.list(eq);
+            if (!el.isEmpty() && el.get(0).getExpertSignUrl() != null) {
+                String signUrl = el.get(0).getExpertSignUrl();
+                String uploadRoot = bootdoConfig.getUploadPath();
+                if (uploadRoot.endsWith("/**")) uploadRoot = uploadRoot.substring(0, uploadRoot.length() - 3);
+                signFilePath = uploadRoot + signUrl.replace("/files/", "/");
+            }
+        } catch (Exception ignore) {}
+
+        // ---- 生成 Excel ----
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        String timeStr = new SimpleDateFormat("yyyy.M.d").format(new Date());
+
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            // 读取签章图片（如存在）
+            byte[] signImgBytes = null;
+            int signPicType = XSSFWorkbook.PICTURE_TYPE_PNG;
+            if (signFilePath != null) {
+                File sf = new File(signFilePath);
+                if (sf.exists()) {
+                    signImgBytes = Files.readAllBytes(sf.toPath());
+                    String ext = signFilePath.substring(signFilePath.lastIndexOf('.') + 1).toLowerCase();
+                    if ("jpg".equals(ext) || "jpeg".equals(ext)) signPicType = XSSFWorkbook.PICTURE_TYPE_JPEG;
+                    else if ("gif".equals(ext)) signPicType = XSSFWorkbook.PICTURE_TYPE_GIF;
+                }
+            }
+            int pictureIdx = signImgBytes != null ? wb.addPicture(signImgBytes, signPicType) : -1;
+
+            buildExpertScoreSheet(wb, solveItems, groupName, year, timeStr, pictureIdx, false);
+            buildExpertScoreSheet(wb, innovateItems, groupName, year, timeStr, pictureIdx, true);
+
+            String fileName = URLEncoder.encode(expertName + "_打分情况.xlsx", "UTF-8").replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName);
+            wb.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    private void buildExpertScoreSheet(XSSFWorkbook wb, List<Map<String, Object>> items,
+                                       String groupName, int year, String timeStr,
+                                       int pictureIdx, boolean isInnovate) {
+        String sheetName = isInnovate ? "创新型" : "问题解决型";
+        int nTotal = 17;
+        XSSFSheet sheet = wb.createSheet(sheetName);
+
+        // ---- 公共样式 ----
+        XSSFCellStyle titleStyle = wb.createCellStyle();
+        XSSFFont titleFont = wb.createFont();
+        titleFont.setBold(true); titleFont.setFontHeightInPoints((short) 11);
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        titleStyle.setWrapText(true);
+        setBorder(titleStyle);
+
+        XSSFCellStyle headerStyle = wb.createCellStyle();
+        XSSFFont headerFont = wb.createFont();
+        headerFont.setBold(true); headerFont.setFontHeightInPoints((short) 9);
+        headerStyle.setFont(headerFont);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+        headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        headerStyle.setWrapText(true);
+        headerStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte)217, (byte)225, (byte)242}, null));
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(headerStyle);
+
+        XSSFCellStyle dataStyle = wb.createCellStyle();
+        XSSFFont dataFont = wb.createFont();
+        dataFont.setFontHeightInPoints((short) 9);
+        dataStyle.setFont(dataFont);
+        dataStyle.setAlignment(HorizontalAlignment.CENTER);
+        dataStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        dataStyle.setWrapText(true);
+        setBorder(dataStyle);
+
+        XSSFCellStyle avoidStyle = wb.createCellStyle();
+        XSSFFont avoidFont0 = wb.createFont();
+        avoidFont0.setFontHeightInPoints((short) 9); avoidFont0.setBold(true);
+        avoidFont0.setColor(new XSSFColor(new byte[]{(byte)204,0,0}, null));
+        avoidStyle.setFont(avoidFont0);
+        avoidStyle.setAlignment(HorizontalAlignment.CENTER);
+        avoidStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        avoidStyle.setWrapText(true);
+        avoidStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte)255,(byte)255,0}, null));
+        avoidStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(avoidStyle);
+
+        XSSFCellStyle sigStyle = wb.createCellStyle();
+        sigStyle.setAlignment(HorizontalAlignment.LEFT);
+        sigStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        setBorder(sigStyle);
+
+        // ---- Row 0: 标题 ----
+        String typeLabel = isInnovate ? "（创新型）" : "问题解决型";
+        int valueCol0 = 12; // 成果实际价值评价列，资料分=valueCol0+1
+        int titleEndCol = valueCol0 + 1;       // 资料分列
+        Row r0 = sheet.createRow(0);
+        r0.setHeightInPoints(24);
+        Cell c0 = r0.createCell(0);
+        c0.setCellValue(year + "年石油工程建设优秀质量管理小组活动成果资料评分表——" + typeLabel + "  " + groupName);
+        c0.setCellStyle(titleStyle);
+        for (int c = 1; c < nTotal; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(c <= titleEndCol ? titleStyle : dataStyle); }
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, titleEndCol));
+
+        // ---- Row 1: 主表头 ----
+        Row r1 = sheet.createRow(1);
+        r1.setHeightInPoints(28);
+        String[] fixedHeaders = {"组内序号", "申报账号", "课题名称", "小组名称", "分类"};
+        for (int i = 0; i < fixedHeaders.length; i++) {
+            Cell c = r1.createCell(i); c.setCellValue(fixedHeaders[i]); c.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, i, i));
+        }
+        r1.createCell(5).setCellValue("成果形成过程评价（100分）");
+        r1.getCell(5).setCellStyle(headerStyle);
+        int lastProcessCol = 11;
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 5, lastProcessCol));
+
+        int valueCol = 12;
+        Cell valCell = r1.createCell(valueCol);
+        valCell.setCellValue("成果实际价值评价（20分）");
+        valCell.setCellStyle(headerStyle);
+
+        String[] tailHeaders = {"资料分\n（满分120*0.6）", "完成单位", "申报单位", "小组成员"};
+        for (int i = 0; i < tailHeaders.length; i++) {
+            int col = valueCol + 1 + i;
+            Cell c = r1.createCell(col); c.setCellValue(tailHeaders[i]); c.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, col, col));
+        }
+
+        // ---- Row 2: 子表头 ----
+        Row r2 = sheet.createRow(2);
+        r2.setHeightInPoints(28);
+        String[] solveSubHeaders = {"选题\n（13）", "原因分析\n（30）", "对策与实施\n（20）",
+                "效果\n（20）", "成果报告\n（5）", "特点\n（8.5）", "持证情况\n（3.5）"};
+        String[] innovateSubHeaders = {"选题\n（18）", "提出方案并确定最佳方案\n（30）", "对策与实施\n（20）",
+                "效果\n（15）", "成果报告\n（5）", "特点\n（8.5）", "持证情况\n（3.5）"};
+        String[] subHeaders = isInnovate ? innovateSubHeaders : solveSubHeaders;
+        for (int i = 0; i < subHeaders.length; i++) {
+            Cell c = r2.createCell(5 + i); c.setCellValue(subHeaders[i]); c.setCellStyle(headerStyle);
+        }
+        Cell valSubCell = r2.createCell(valueCol);
+        valSubCell.setCellValue("1.技术价值 2.经济价值 3.社会价值 4.推广应用价值（共20分）");
+        valSubCell.setCellStyle(headerStyle);
+        // fill empty cells in rows 1&2 for merged areas
+        for (int c = 0; c < nTotal; c++) {
+            if (r1.getCell(c) == null) { Cell cell = r1.createCell(c); cell.setCellStyle(headerStyle); }
+            if (r2.getCell(c) == null) { Cell cell = r2.createCell(c); cell.setCellStyle(dataStyle); }
+        }
+
+        // ---- 数据行 ----
+        for (int i = 0; i < items.size(); i++) {
+            Map<String, Object> item = items.get(i);
+            Row row = sheet.createRow(3 + i);
+            row.setHeightInPoints(24);
+            setCell(row, 0, String.valueOf(i + 1), dataStyle);
+            setCell(row, 1, str(item.get("proCode")), dataStyle);
+            setCell(row, 2, str(item.get("topicName")), dataStyle);
+            setCell(row, 3, str(item.get("groupName")), dataStyle);
+            setCell(row, 4, str(item.get("topicType")), dataStyle);
+            boolean isAvoided = Boolean.TRUE.equals(item.get("isAvoided"));
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> details = (List<Map<String, Object>>) item.get("scoreDetails");
+            if (isAvoided) {
+                for (int c = 5; c <= valueCol; c++) setCell(row, c, "", dataStyle);
+                setCell(row, valueCol + 1, "回避", avoidStyle);
+            } else if (details != null && !details.isEmpty()) {
+                for (int di = 0; di < subHeaders.length && di < details.size(); di++) {
+                    Object score = details.get(di).get("score");
+                    setCell(row, 5 + di, score != null ? score.toString() : "", dataStyle);
+                }
+                // value col
+                int valueDetailIdx = subHeaders.length;
+                if (valueDetailIdx < details.size()) {
+                    Object vs = details.get(valueDetailIdx).get("score");
+                    setCell(row, valueCol, vs != null ? vs.toString() : "", dataStyle);
+                }
+                setCell(row, valueCol + 1, str(item.get("totalScore")), dataStyle);
+            } else {
+                for (int c = 5; c <= valueCol; c++) setCell(row, c, "", dataStyle);
+                setCell(row, valueCol + 1, "", dataStyle);
+            }
+            setCell(row, valueCol + 2, str(item.get("completeUnit")), dataStyle);
+            setCell(row, valueCol + 3, str(item.get("companyName")), dataStyle);
+            setCell(row, valueCol + 4, str(item.get("groupMember")), dataStyle);
+        }
+
+        // ---- 签章行 & 时间行（资料分列内，不超出该列） ----
+        int sigRow = 3 + items.size();
+        int sigCol = valueCol + 1; // 资料分列 col 13
+        Row rSig = sheet.createRow(sigRow);
+        rSig.setHeightInPoints(25);
+        for (int c = 0; c < sigCol; c++) { Cell cell = rSig.createCell(c); cell.setCellStyle(dataStyle); }
+        Cell sigCell = rSig.createCell(sigCol);
+        sigCell.setCellValue("评委：");
+        sigCell.setCellStyle(sigStyle);
+        for (int c = sigCol + 1; c < nTotal; c++) { Cell cell = rSig.createCell(c); cell.setCellStyle(dataStyle); }
+
+        Row rTime = sheet.createRow(sigRow + 1);
+        rTime.setHeightInPoints(20);
+        for (int c = 0; c < sigCol; c++) { Cell cell = rTime.createCell(c); cell.setCellStyle(dataStyle); }
+        Cell timeCell = rTime.createCell(sigCol);
+        timeCell.setCellValue("时间：" + timeStr);
+        timeCell.setCellStyle(sigStyle);
+        for (int c = sigCol + 1; c < nTotal; c++) { Cell cell = rTime.createCell(c); cell.setCellStyle(dataStyle); }
+
+        // ---- 嵌入签章图片（仅资料分列内） ----
+        if (pictureIdx >= 0) {
+            XSSFDrawing drawing = sheet.createDrawingPatriarch();
+            XSSFClientAnchor anchor = new XSSFClientAnchor(400000, 0, 0, 0, sigCol, sigRow, sigCol + 1, sigRow + 1);
+            anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
+            drawing.createPicture(anchor, pictureIdx);
+        }
+
+        // ---- 列宽 ----
+        int[] solveWidths    = {1500,2500,5500,4000,2500,1800,2600,2600,1800,2300,1800,2300,6000,4000,5500,3500,4500};
+        int[] innovateWidths = {1500,2500,5500,4000,2500,1800,4000,2600,1800,2300,1800,2300,6000,4000,5500,3500,4500};
+        int[] widths = isInnovate ? innovateWidths : solveWidths;
+        for (int i = 0; i < widths.length; i++) sheet.setColumnWidth(i, widths[i]);
+    }
+
+    private void setBorder(XSSFCellStyle style) {
+        style.setBorderTop(BorderStyle.THIN); style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN); style.setBorderRight(BorderStyle.THIN);
+    }
+
+    private void setCell(Row row, int col, String value, CellStyle style) {
+        Cell cell = row.createCell(col);
+        cell.setCellValue(value != null ? value : "");
+        cell.setCellStyle(style);
+    }
+
+    private String str(Object obj) { return obj != null ? obj.toString() : ""; }
+
+    private Map<String, Object> buildScoreDetail(String label, BigDecimal score) {
+        Map<String, Object> d = new HashMap<>();
+        d.put("label", label);
+        d.put("score", score);
+        return d;
+    }
+
+    /**
+     * 查询任务下所有课题 × 所有专家的打分矩阵，用于导出评分汇总表
+     * @param params taskId
+     */
+    @GetMapping("/getTaskScoreMatrix")
+    @ResponseBody
+    public R getTaskScoreMatrix(@RequestParam Map<String, Object> params) {
+        try {
+            String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+            if (taskId.isEmpty()) return R.error("参数不完整");
+
+            // 1. 获取该任务下所有专家（按 loginAccount 排序）
+            Map<String, Object> expertQuery = new HashMap<>();
+            expertQuery.put("taskId", taskId);
+            expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            List<ExpertGroupDO> experts = expertGroupService.list(expertQuery);
+            experts.sort((a, b) -> {
+                String la = a.getLoginAccount() != null ? a.getLoginAccount() : "";
+                String lb = b.getLoginAccount() != null ? b.getLoginAccount() : "";
+                return la.compareTo(lb);
+            });
+
+            // 2. 获取该任务下所有项目
+            Map<String, Object> proQuery = new HashMap<>();
+            proQuery.put("taskId", taskId);
+            List<QcProDataDto> projects = qcAwardService.listProInfo(proQuery);
+
+            // 3. 批量查询全部打分记录（不按 optUid 过滤，一次拉全任务数据）
+            Map<String, Object> scoreQuery = new HashMap<>();
+            scoreQuery.put("taskId", taskId);
+            List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(scoreQuery);
+            Map<String, String> solveMap = new HashMap<>();
+            for (QcResultSolveScoreDO s : solveList) {
+                if (s.getProId() != null && s.getOptUid() != null)
+                    solveMap.put(s.getProId() + "_" + s.getOptUid(), s.getAppraiseSum() != null ? s.getAppraiseSum() : "");
+            }
+            List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(scoreQuery);
+            Map<String, String> innovateMap = new HashMap<>();
+            for (QcResultInnovateScoreDO s : innovateList) {
+                if (s.getProId() != null && s.getOptUid() != null)
+                    innovateMap.put(s.getProId() + "_" + s.getOptUid(), s.getAppraiseSum() != null ? s.getAppraiseSum() : "");
+            }
+
+            // 4. 批量获取每个专家的回避项目
+            Map<Integer, Set<Integer>> avoidMap = new HashMap<>();
+            for (ExpertGroupDO e : experts) {
+                if (e.getUserId() == null) continue;
+                try {
+                    Integer uid = Integer.parseInt(e.getUserId());
+                    List<Integer> avoidedProIds = avoidanceService.getAvoidedProIds(taskId, uid);
+                    avoidMap.put(uid, new HashSet<>(avoidedProIds != null ? avoidedProIds : Collections.emptyList()));
+                } catch (NumberFormatException ignored) {}
+            }
+
+            // 5. 构建专家信息列表
+            List<Map<String, Object>> expertInfoList = new ArrayList<>();
+            for (ExpertGroupDO e : experts) {
+                Map<String, Object> ei = new HashMap<>();
+                ei.put("uid", e.getUserId());
+                ei.put("loginAccount", e.getLoginAccount());
+                ei.put("expertName", e.getExpertName());
+                expertInfoList.add(ei);
+            }
+
+            // 6. 构建项目行矩阵
+            List<Map<String, Object>> projectRows = new ArrayList<>();
+            for (QcProDataDto pro : projects) {
+                if (pro.getProId() == null) continue;
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("proId", pro.getProId());
+                row.put("proCode", pro.getApplyId());
+                row.put("topicName", pro.getTopicName());
+                row.put("groupName", pro.getGroupName());
+                row.put("topicType", pro.getTopicType());
+                row.put("completeUnit", pro.getCompleteUnit());
+                row.put("companyName", pro.getCompanyName());
+                row.put("groupMember", pro.getGroupMember());
+                Map<String, Object> expertScores = new LinkedHashMap<>();
+                for (ExpertGroupDO e : experts) {
+                    if (e.getUserId() == null || e.getLoginAccount() == null) continue;
+                    try {
+                        Integer uid = Integer.parseInt(e.getUserId());
+                        String key = pro.getProId() + "_" + uid;
+                        Set<Integer> avoided = avoidMap.getOrDefault(uid, Collections.emptySet());
+                        if (avoided.contains(pro.getProId())) {
+                            expertScores.put(e.getLoginAccount(), "回避");
+                        } else {
+                            String score = solveMap.containsKey(key) ? solveMap.get(key) : innovateMap.get(key);
+                            expertScores.put(e.getLoginAccount(), score != null ? score : "");
+                        }
+                    } catch (NumberFormatException ignored) {
+                        expertScores.put(e.getLoginAccount(), "");
+                    }
+                }
+                row.put("expertScores", expertScores);
+
+                // 计算平均分：排除回避专家，≥3个有效分去最高最低（与弹窗getTaskScores逻辑一致）
+                Set<Integer> thisProAvoidedUids = new HashSet<>();
+                for (Map.Entry<Integer, Set<Integer>> entry : avoidMap.entrySet()) {
+                    if (entry.getValue().contains(pro.getProId())) {
+                        thisProAvoidedUids.add(entry.getKey());
+                    }
+                }
+                List<BigDecimal> validScores = new ArrayList<>();
+                String proTopicType = pro.getTopicType();
+                if ("问题解决型".equals(proTopicType)) {
+                    for (QcResultSolveScoreDO s : solveList) {
+                        if (!pro.getProId().equals(s.getProId())) continue;
+                        if (s.getOptUid() != null && thisProAvoidedUids.contains(s.getOptUid())) continue;
+                        if (s.getAppraiseSum() != null) {
+                            try { validScores.add(new BigDecimal(s.getAppraiseSum().toString())); } catch (NumberFormatException ignore) {}
+                        }
+                    }
+                } else {
+                    for (QcResultInnovateScoreDO s : innovateList) {
+                        if (!pro.getProId().equals(s.getProId())) continue;
+                        if (s.getOptUid() != null && thisProAvoidedUids.contains(s.getOptUid())) continue;
+                        if (s.getAppraiseSum() != null) {
+                            try { validScores.add(new BigDecimal(s.getAppraiseSum().toString())); } catch (NumberFormatException ignore) {}
+                        }
+                    }
+                }
+                BigDecimal avgScore = null;
+                int validCount = validScores.size();
+                if (validCount > 0) {
+                    List<BigDecimal> toAvg = new ArrayList<>(validScores);
+                    if (validCount >= 3) {
+                        toAvg.sort(BigDecimal::compareTo);
+                        toAvg.remove(0);
+                        toAvg.remove(toAvg.size() - 1);
+                    }
+                    BigDecimal sum = BigDecimal.ZERO;
+                    for (BigDecimal s : toAvg) sum = sum.add(s);
+                    avgScore = sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP);
+                }
+                row.put("avgScore", avgScore);
+
+                projectRows.add(row);
+            }
+
+            Map<String, Object> result = new HashMap<>();
+            result.put("experts", expertInfoList);
+            result.put("projects", projectRows);
+            return R.ok().put("data", result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 查询任务下所有课题的打分情况（以课题为维度）
+     * @param params taskId
+     */
+    @GetMapping("/getTaskScores")
+    @ResponseBody
+    public R getTaskScores(@RequestParam Map<String, Object> params) {
+        try {
+            String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+            
+            if (taskId.isEmpty()) {
+                return R.error("任务ID不能为空");
+            }
+            
+            // 查询该任务下的所有项目
+            Map<String, Object> projectQuery = new HashMap<>();
+            projectQuery.put("taskId", taskId);
+            // QC小组申报信息（项目基本信息）
+            // 对应表 ass_qc_group_apply_info。包含课题名称、小组名称、申报单位等
+            List<QcGroupApplyInfoDO> projects = qcGroupApplyInfoService.list(projectQuery);
+            
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (QcGroupApplyInfoDO project : projects) {
+                Map<String, Object> item = new HashMap<>();
+                item.put("proId", project.getProId());
+                item.put("proCode", project.getApplyId());
+                item.put("topicName", project.getTopicName());
+                item.put("groupName", project.getGroupName());
+                item.put("topicType", project.getTopicType());
+
+                // 查询该项目的打分统计（打分人数 + 平均分）
+                Map<String, Object> scoreQuery = new HashMap<>();
+                scoreQuery.put("taskId", taskId);
+                scoreQuery.put("proId", project.getProId());
+                scoreQuery.put("deleted", 0);
+
+                // 获取回避专家列表，回避专家不参与计算
+                List<Integer> avoidedExpertIds = avoidanceService.getAvoidedExpertIds(taskId, project.getProId());
+
+                List<BigDecimal> validScores = new ArrayList<>();
+                if ("问题解决型".equals(project.getTopicType())) {
+                    List<QcResultSolveScoreDO> scores = qcResultSolveScoreService.list(scoreQuery);
+                    if (scores != null) {
+                        for (QcResultSolveScoreDO s : scores) {
+                            if (avoidedExpertIds != null && avoidedExpertIds.contains(s.getOptUid())) continue;
+                            if (s.getAppraiseSum() != null) {
+                                try { validScores.add(new BigDecimal(s.getAppraiseSum().toString())); } catch (NumberFormatException ignore) {}
+                            }
+                        }
+                    }
+                } else {
+                    List<QcResultInnovateScoreDO> scores = qcResultInnovateScoreService.list(scoreQuery);
+                    if (scores != null) {
+                        for (QcResultInnovateScoreDO s : scores) {
+                            if (avoidedExpertIds != null && avoidedExpertIds.contains(s.getOptUid())) continue;
+                            if (s.getAppraiseSum() != null) {
+                                try { validScores.add(new BigDecimal(s.getAppraiseSum().toString())); } catch (NumberFormatException ignore) {}
+                            }
+                        }
+                    }
+                }
+                int validCount = validScores.size();
+                item.put("scorerCount", validCount);
+
+                BigDecimal avgScore = null;
+                if (validCount > 0) {
+                    List<BigDecimal> toAvg = new ArrayList<>(validScores);
+                    if (validCount >= 3) {
+                        // ≥3个有效分：去掉一个最高分，去掉一个最低分，求平均
+                        toAvg.sort(BigDecimal::compareTo);
+                        toAvg.remove(0);
+                        toAvg.remove(toAvg.size() - 1);
+                    }
+                    // 1-2个有效分：直接求平均
+                    BigDecimal sum = BigDecimal.ZERO;
+                    for (BigDecimal s : toAvg) sum = sum.add(s);
+                    avgScore = sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP);
+                }
+                item.put("avgScore", avgScore);
+
+                result.add(item);
+            }
+            
+            // 按申报账号排序
+            result.sort((a, b) -> {
+                String c1 = a.get("proCode") != null ? a.get("proCode").toString() : "";
+                String c2 = b.get("proCode") != null ? b.get("proCode").toString() : "";
+                return c1.compareTo(c2);
+            });
+            
+            return R.ok().put("data", result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 查询单个课题的详细打分情况
+     * @param params taskId, proId
+     */
+    @GetMapping("/getProjectScoreDetail")
+    @ResponseBody
+    public R getProjectScoreDetail(@RequestParam Map<String, Object> params) {
+        try {
+            String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+            String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+            
+            if (taskId.isEmpty() || proIdStr.isEmpty()) {
+                return R.error("参数不完整");
+            }
+            
+            Integer proId;
+            try {
+                proId = Integer.parseInt(proIdStr);
+            } catch (NumberFormatException e) {
+                return R.error("项目ID格式错误");
+            }
+            
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            
+            // 获取项目信息以确定课题类型（用list+proId查询，因为get按id查）
+            Map<String, Object> proQuery = new HashMap<>();
+            proQuery.put("proId", String.valueOf(proId));
+            List<QcGroupApplyInfoDO> proList = qcGroupApplyInfoService.list(proQuery);
+            if (proList == null || proList.isEmpty()) {
+                return R.error("项目不存在");
+            }
+            QcGroupApplyInfoDO project = proList.get(0);
+            
+            // 获取回避专家列表
+            List<Integer> avoidedExpertIdList = avoidanceService.getAvoidedExpertIds(taskId, proId);
+            Set<Integer> avoidedExpertIds = new HashSet<>(avoidedExpertIdList != null ? avoidedExpertIdList : Collections.emptyList());
+            
+            List<Map<String, Object>> scores = new ArrayList<>();
+            Set<Integer> scoredExpertUids = new HashSet<>();
+            
+            // 根据课题类型查询打分
+            if ("问题解决型".equals(project.getTopicType())) {
+                Map<String, Object> query = new HashMap<>();
+                query.put("taskId", taskId);
+                query.put("proId", proId);
+                List<QcResultSolveScoreDO> solveScores = qcResultSolveScoreService.list(query);
+                
+                // 批量获取专家信息
+                Set<Long> userIds = new HashSet<>();
+                for (QcResultSolveScoreDO s : solveScores) {
+                    if (s.getOptUid() != null) userIds.add(s.getOptUid().longValue());
+                }
+                Map<Long, UserDO> userMap = new HashMap<>();
+                for (Long uid : userIds) {
+                    UserDO u = userService.get(uid);
+                    if (u != null) userMap.put(uid, u);
+                }
+                
+                for (QcResultSolveScoreDO score : solveScores) {
+                    if (score.getOptUid() == null) continue;
+                    UserDO user = userMap.get(score.getOptUid().longValue());
+                    if (user != null) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("expertName", user.getName());
+                        item.put("score", score.getAppraiseSum());
+                        item.put("scoreTime", score.getCreated() != null ? sdf.format(score.getCreated()) : "-");
+                        item.put("isAvoided", avoidedExpertIds.contains(score.getOptUid()));
+                        scores.add(item);
+                        scoredExpertUids.add(score.getOptUid());
+                    }
+                }
+            } else if ("创新型".equals(project.getTopicType())) {
+                Map<String, Object> query = new HashMap<>();
+                query.put("taskId", taskId);
+                query.put("proId", proId);
+                List<QcResultInnovateScoreDO> innovateScores = qcResultInnovateScoreService.list(query);
+                
+                // 批量获取专家信息
+                Set<Long> userIds = new HashSet<>();
+                for (QcResultInnovateScoreDO s : innovateScores) {
+                    if (s.getOptUid() != null) userIds.add(s.getOptUid().longValue());
+                }
+                Map<Long, UserDO> userMap = new HashMap<>();
+                for (Long uid : userIds) {
+                    UserDO u = userService.get(uid);
+                    if (u != null) userMap.put(uid, u);
+                }
+                
+                for (QcResultInnovateScoreDO score : innovateScores) {
+                    if (score.getOptUid() == null) continue;
+                    UserDO user = userMap.get(score.getOptUid().longValue());
+                    if (user != null) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("expertName", user.getName());
+                        item.put("score", score.getAppraiseSum());
+                        item.put("scoreTime", score.getCreated() != null ? sdf.format(score.getCreated()) : "-");
+                        item.put("isAvoided", avoidedExpertIds.contains(score.getOptUid()));
+                        scores.add(item);
+                        scoredExpertUids.add(score.getOptUid());
+                    }
+                }
+            }
+
+            // 通过QcProDataDto取 qcGroupName（ass_award_enterprise_project.qc_group_name），
+            // 这才是专家与课题的真实关联字段（add_special_info.group_name）
+            Map<String, Object> proDataParams = new HashMap<>();
+            proDataParams.put("proId", proId);
+            proDataParams.put("taskId", taskId);
+            List<QcProDataDto> proDataList = qcAwardService.listProInfo(proDataParams);
+            String qcGroupName = (proDataList != null && !proDataList.isEmpty())
+                    ? proDataList.get(0).getQcGroupName() : null;
+
+            // 查询本课题所在专业组的专家，用于过滤回避列表
+            Map<String, Object> groupQuery = new HashMap<>();
+            groupQuery.put("taskId", taskId);
+            if (qcGroupName != null && !qcGroupName.isEmpty()) {
+                groupQuery.put("groupName", qcGroupName);
+            }
+            List<ExpertGroupDO> groupExperts = expertGroupService.list(groupQuery);
+            Set<Integer> groupExpertUids = new HashSet<>();
+            for (ExpertGroupDO eg : groupExperts) {
+                if (eg.getUserId() != null) {
+                    try { groupExpertUids.add(Integer.parseInt(eg.getUserId())); } catch (NumberFormatException ignore) {}
+                }
+            }
+
+            // 补充：本组回避专家中没有打分记录的（回避后打分入口不显示，所以不会有打分），标识回避即可
+            for (Integer avoidedUid : avoidedExpertIds) {
+                if (!groupExpertUids.contains(avoidedUid)) continue; // 非本组专家，跳过
+                if (scoredExpertUids.contains(avoidedUid)) continue;
+                UserDO user = userService.get(avoidedUid.longValue());
+                Map<String, Object> item = new HashMap<>();
+                item.put("expertName", user != null ? user.getName() : "(uid:" + avoidedUid + ")");
+                item.put("score", null);
+                item.put("scoreTime", "-");
+                item.put("isAvoided", true);
+                scores.add(item);
+            }
+
+            return R.ok().put("data", scores);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 导出任务评分矩阵 Excel（含样式）
+     */
+    @GetMapping("/exportTaskScoreMatrixExcel")
+    public void exportTaskScoreMatrixExcel(@RequestParam Map<String, Object> params,
+                                           HttpServletResponse response) throws Exception {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (taskId.isEmpty()) { response.sendError(400, "参数不完整"); return; }
+
+        // ---- 复用 getTaskScoreMatrix 相同取数逻辑 ----
+        Map<String, Object> expertQuery = new HashMap<>();
+        expertQuery.put("taskId", taskId);
+        expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+        List<ExpertGroupDO> experts = expertGroupService.list(expertQuery);
+        experts.sort((a, b) -> {
+            String la = a.getLoginAccount() != null ? a.getLoginAccount() : "";
+            String lb = b.getLoginAccount() != null ? b.getLoginAccount() : "";
+            return la.compareTo(lb);
+        });
+
+        Map<String, Object> proQuery = new HashMap<>();
+        proQuery.put("taskId", taskId);
+        List<QcProDataDto> projects = qcAwardService.listProInfo(proQuery);
+
+        Map<String, Object> scoreQuery = new HashMap<>();
+        scoreQuery.put("taskId", taskId);
+        List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(scoreQuery);
+        Map<String, String> solveMap = new HashMap<>();
+        for (QcResultSolveScoreDO s : solveList)
+            if (s.getProId() != null && s.getOptUid() != null)
+                solveMap.put(s.getProId() + "_" + s.getOptUid(), s.getAppraiseSum() != null ? s.getAppraiseSum() : "");
+        List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(scoreQuery);
+        Map<String, String> innovateMap = new HashMap<>();
+        for (QcResultInnovateScoreDO s : innovateList)
+            if (s.getProId() != null && s.getOptUid() != null)
+                innovateMap.put(s.getProId() + "_" + s.getOptUid(), s.getAppraiseSum() != null ? s.getAppraiseSum() : "");
+
+        Map<Integer, Set<Integer>> avoidMap  = new HashMap<>();
+        Map<Integer, Set<Integer>> assignMap = new HashMap<>();
+        for (ExpertGroupDO e : experts) {
+            if (e.getUserId() == null) continue;
+            try {
+                Integer uid = Integer.parseInt(e.getUserId());
+                List<Integer> ap = avoidanceService.getAvoidedProIds(taskId, uid);
+                avoidMap.put(uid, new HashSet<>(ap != null ? ap : Collections.emptyList()));
+                // 查询该专家实际分配的项目
+                Map<String, Object> assignQuery = new HashMap<>();
+                assignQuery.put("taskId", taskId);
+                assignQuery.put("scoreSpecialistUid", uid);
+                List<QcProDataDto> assignedList = qcAwardService.listProInfo(assignQuery);
+                Set<Integer> assignedIds = new HashSet<>();
+                if (assignedList != null) for (QcProDataDto p : assignedList) if (p.getProId() != null) assignedIds.add(p.getProId());
+                assignMap.put(uid, assignedIds);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // 按课题类型分组，计算每个项目的专家得分和平均分
+        List<Map<String, Object>> solveRows    = new ArrayList<>();
+        List<Map<String, Object>> innovateRows = new ArrayList<>();
+        for (QcProDataDto pro : projects) {
+            if (pro.getProId() == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("proCode", pro.getApplyId()); row.put("topicName", pro.getTopicName());
+            row.put("groupName", pro.getGroupName()); row.put("topicType", pro.getTopicType());
+            row.put("completeUnit", pro.getCompleteUnit()); row.put("companyName", pro.getCompanyName());
+            row.put("groupMember", pro.getGroupMember());
+            Map<String, String> expertScores = new LinkedHashMap<>();
+            for (ExpertGroupDO e : experts) {
+                if (e.getUserId() == null || e.getLoginAccount() == null) continue;
+                try {
+                    Integer uid = Integer.parseInt(e.getUserId());
+                    String key = pro.getProId() + "_" + uid;
+                    Set<Integer> avoided  = avoidMap.getOrDefault(uid, Collections.emptySet());
+                    Set<Integer> assigned = assignMap.getOrDefault(uid, Collections.emptySet());
+                    if (!assigned.contains(pro.getProId())) {
+                        // 未分配该项目，留空
+                        expertScores.put(e.getLoginAccount(), "");
+                    } else if (avoided.contains(pro.getProId())) {
+                        // 已分配且回避
+                        expertScores.put(e.getLoginAccount(), "回避");
+                    } else {
+                        String sc = solveMap.containsKey(key) ? solveMap.get(key) : innovateMap.get(key);
+                        expertScores.put(e.getLoginAccount(), sc != null ? sc : "");
+                    }
+                } catch (NumberFormatException ignored) { expertScores.put(e.getLoginAccount(), ""); }
+            }
+            row.put("expertScores", expertScores);
+            // 平均分
+            Set<Integer> avoidedUids = new HashSet<>();
+            for (Map.Entry<Integer, Set<Integer>> entry : avoidMap.entrySet())
+                if (entry.getValue().contains(pro.getProId())) avoidedUids.add(entry.getKey());
+            List<BigDecimal> validScores = new ArrayList<>();
+            if ("问题解决型".equals(pro.getTopicType())) {
+                for (QcResultSolveScoreDO s : solveList) {
+                    if (!pro.getProId().equals(s.getProId())) continue;
+                    if (s.getOptUid() != null && avoidedUids.contains(s.getOptUid())) continue;
+                    if (s.getAppraiseSum() != null) try { validScores.add(new BigDecimal(s.getAppraiseSum())); } catch (NumberFormatException ignore) {}
+                }
+            } else {
+                for (QcResultInnovateScoreDO s : innovateList) {
+                    if (!pro.getProId().equals(s.getProId())) continue;
+                    if (s.getOptUid() != null && avoidedUids.contains(s.getOptUid())) continue;
+                    if (s.getAppraiseSum() != null) try { validScores.add(new BigDecimal(s.getAppraiseSum())); } catch (NumberFormatException ignore) {}
+                }
+            }
+            BigDecimal avg = null;
+            int vc = validScores.size();
+            if (vc > 0) {
+                List<BigDecimal> ta = new ArrayList<>(validScores);
+                if (vc >= 3) { ta.sort(BigDecimal::compareTo); ta.remove(0); ta.remove(ta.size()-1); }
+                BigDecimal sum = BigDecimal.ZERO;
+                for (BigDecimal v : ta) sum = sum.add(v);
+                avg = sum.divide(BigDecimal.valueOf(ta.size()), 2, BigDecimal.ROUND_HALF_UP);
+            }
+            row.put("avgScore", avg);
+            if ("问题解决型".equals(pro.getTopicType())) solveRows.add(row);
+            else innovateRows.add(row);
+        }
+
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            buildMatrixSheet(wb, solveRows,    experts, year, "问题解决型");
+            buildMatrixSheet(wb, innovateRows, experts, year, "（创新型）");
+            String fileName = URLEncoder.encode("任务打分情况_" + taskId + ".xlsx", "UTF-8").replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName);
+            wb.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    private void buildMatrixSheet(XSSFWorkbook wb, List<Map<String, Object>> rows,
+                                  List<ExpertGroupDO> experts, int year, String typeLabel) {
+        String sheetName = typeLabel.contains("创新") ? "创新型" : "问题解决型";
+        int nFixed = 5, nExperts = experts.size(), nTail = 4, nTotal = nFixed + nExperts + nTail;
+        XSSFSheet sheet = wb.createSheet(sheetName);
+
+        // ---- 颜色 ----
+        XSSFColor titleColor  = new XSSFColor(new byte[]{(byte)189,(byte)215,(byte)238}, null);
+        XSSFColor fixColor    = new XSSFColor(new byte[]{(byte)217,(byte)225,(byte)242}, null);
+        XSSFColor expColor    = new XSSFColor(new byte[]{(byte)252,(byte)228,(byte)214}, null);
+        XSSFColor tailColor   = new XSSFColor(new byte[]{(byte)226,(byte)239,(byte)218}, null);
+        XSSFColor avoidColor  = new XSSFColor(new byte[]{(byte)255,(byte)255,0}, null);
+        XSSFColor avgColor    = new XSSFColor(new byte[]{(byte)217,(byte)240,(byte)217}, null);
+        XSSFColor evenColor   = new XSSFColor(new byte[]{(byte)245,(byte)247,(byte)250}, null);
+
+        // ---- 样式工厂 ----
+        java.util.function.Supplier<XSSFCellStyle> newStyle = () -> {
+            XSSFCellStyle cs = wb.createCellStyle();
+            cs.setBorderTop(BorderStyle.THIN); cs.setBorderBottom(BorderStyle.THIN);
+            cs.setBorderLeft(BorderStyle.THIN); cs.setBorderRight(BorderStyle.THIN);
+            cs.setVerticalAlignment(VerticalAlignment.CENTER);
+            cs.setWrapText(true);
+            return cs;
+        };
+        java.util.function.BiConsumer<XSSFCellStyle, XSSFColor> setFill = (cs, color) -> {
+            cs.setFillForegroundColor(color); cs.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        };
+
+        XSSFFont titleFont = wb.createFont(); titleFont.setBold(true); titleFont.setFontHeightInPoints((short)12);
+        XSSFFont hdrFont   = wb.createFont(); hdrFont.setBold(true);   hdrFont.setFontHeightInPoints((short)10);
+        XSSFFont dataFont  = wb.createFont(); dataFont.setFontHeightInPoints((short)9);
+        XSSFFont avoidFont = wb.createFont(); avoidFont.setFontHeightInPoints((short)9); avoidFont.setBold(true);
+        avoidFont.setColor(new XSSFColor(new byte[]{(byte)180,0,0}, null));
+        XSSFFont avgFont   = wb.createFont(); avgFont.setFontHeightInPoints((short)9); avgFont.setBold(true);
+        avgFont.setColor(new XSSFColor(new byte[]{(byte)31,(byte)107,(byte)32}, null));
+
+        XSSFCellStyle titleStyle = newStyle.get(); titleStyle.setFont(titleFont); setFill.accept(titleStyle, titleColor); titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle fixStyle   = newStyle.get(); fixStyle.setFont(hdrFont);     setFill.accept(fixStyle,   fixColor);   fixStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle expStyle   = newStyle.get(); expStyle.setFont(hdrFont);     setFill.accept(expStyle,   expColor);   expStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle tailStyle  = newStyle.get(); tailStyle.setFont(hdrFont);    setFill.accept(tailStyle,  tailColor);  tailStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataCenter = newStyle.get(); dataCenter.setFont(dataFont); dataCenter.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataLeft   = newStyle.get(); dataLeft.setFont(dataFont);   dataLeft.setAlignment(HorizontalAlignment.LEFT);
+        XSSFCellStyle dataEvenC  = newStyle.get(); dataEvenC.setFont(dataFont);  setFill.accept(dataEvenC, evenColor); dataEvenC.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataEvenL  = newStyle.get(); dataEvenL.setFont(dataFont);  setFill.accept(dataEvenL, evenColor); dataEvenL.setAlignment(HorizontalAlignment.LEFT);
+        XSSFCellStyle avoidStyle = newStyle.get(); avoidStyle.setFont(avoidFont); setFill.accept(avoidStyle, avoidColor); avoidStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle avgStyle   = newStyle.get(); avgStyle.setFont(avgFont);     setFill.accept(avgStyle,   avgColor);   avgStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        // ---- Row 0 标题（合并到资料分/平均分列） ----
+        int avgCol0 = nFixed + nExperts; // 资料分列
+        Row r0 = sheet.createRow(0); r0.setHeightInPoints(26);
+        Cell c0 = r0.createCell(0);
+        c0.setCellValue(year + "年石油工程建设优秀质量管理小组活动成果资料评分表——" + typeLabel);
+        c0.setCellStyle(titleStyle);
+        for (int c = 1; c < nTotal; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(c <= avgCol0 ? titleStyle : dataCenter); }
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, avgCol0));
+
+        // ---- Row 1 主表头 ----
+        Row r1 = sheet.createRow(1); r1.setHeightInPoints(42);
+        String[] fixH = {"序号","申报号","课题名称","小组名称","分类"};
+        for (int i = 0; i < fixH.length; i++) {
+            Cell c = r1.createCell(i); c.setCellValue(fixH[i]); c.setCellStyle(fixStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, i, i));
+        }
+        if (nExperts > 0) {
+            Cell ec = r1.createCell(nFixed); ec.setCellValue("专家打分"); ec.setCellStyle(expStyle);
+            if (nExperts > 1) sheet.addMergedRegion(new CellRangeAddress(1, 1, nFixed, nFixed + nExperts - 1));
+            else              sheet.addMergedRegion(new CellRangeAddress(1, 2, nFixed, nFixed));
+        }
+        String[] tailH = {"资料分\n（小数点后两位）","完成单位","申报单位","小组成员"};
+        for (int i = 0; i < tailH.length; i++) {
+            int col = nFixed + nExperts + i;
+            Cell c = r1.createCell(col); c.setCellValue(tailH[i]);
+            c.setCellStyle(i == 0 ? avgStyle : tailStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, col, col));
+        }
+        for (int c = 0; c < nTotal; c++) if (r1.getCell(c) == null) { Cell cc = r1.createCell(c); cc.setCellStyle(c < nFixed ? fixStyle : (c < nFixed+nExperts ? expStyle : tailStyle)); }
+
+        // ---- Row 2 专家姓名子表头 ----
+        Row r2 = sheet.createRow(2); r2.setHeightInPoints(32);
+        for (int i = 0; i < experts.size(); i++) {
+            Cell c = r2.createCell(nFixed + i); c.setCellValue(experts.get(i).getExpertName() != null ? experts.get(i).getExpertName() : ""); c.setCellStyle(expStyle);
+        }
+        for (int c = 0; c < nTotal; c++) if (r2.getCell(c) == null) { Cell cc = r2.createCell(c); cc.setCellStyle(c < nFixed ? fixStyle : tailStyle); }
+
+        // ---- 数据行 ----
+        int avgCol = nFixed + nExperts;
+        for (int i = 0; i < rows.size(); i++) {
+            Map<String, Object> pro = rows.get(i);
+            Row row = sheet.createRow(3 + i); row.setHeightInPoints(18);
+            boolean isEven = (i % 2 == 1);
+            @SuppressWarnings("unchecked")
+            Map<String, String> es = (Map<String, String>) pro.get("expertScores");
+            XSSFCellStyle cs = isEven ? dataEvenC : dataCenter;
+            XSSFCellStyle lcs = isEven ? dataEvenL : dataLeft;
+            setCell(row, 0, String.valueOf(i+1), cs);
+            setCell(row, 1, str(pro.get("proCode")),  cs);
+            setCell(row, 2, str(pro.get("topicName")), lcs);
+            setCell(row, 3, str(pro.get("groupName")), lcs);
+            setCell(row, 4, str(pro.get("topicType")), cs);
+            for (int k = 0; k < experts.size(); k++) {
+                String acc = experts.get(k).getLoginAccount();
+                String sc = (es != null && acc != null) ? es.getOrDefault(acc, "") : "";
+                setCell(row, nFixed + k, sc, "回避".equals(sc) ? avoidStyle : cs);
+            }
+            Object avg = pro.get("avgScore");
+            setCell(row, avgCol,   avg != null ? avg.toString() : "", avgStyle);
+            setCell(row, avgCol+1, str(pro.get("completeUnit")), cs);
+            setCell(row, avgCol+2, str(pro.get("companyName")), cs);
+            setCell(row, avgCol+3, str(pro.get("groupMember")), cs);
+        }
+
+        // ---- 列宽 ----
+        sheet.setColumnWidth(0, 1500); sheet.setColumnWidth(1, 3500);
+        sheet.setColumnWidth(2, 7000); sheet.setColumnWidth(3, 5000); sheet.setColumnWidth(4, 3500);
+        for (int k = 0; k < nExperts; k++) sheet.setColumnWidth(nFixed + k, 2400);
+        sheet.setColumnWidth(avgCol, 2800); sheet.setColumnWidth(avgCol+1, 5500);
+        sheet.setColumnWidth(avgCol+2, 3500); sheet.setColumnWidth(avgCol+3, 4500);
+
+        // ---- 冻结：前3行 + 左侧5列 ----
+        sheet.createFreezePane(nFixed, 3);
     }
 }

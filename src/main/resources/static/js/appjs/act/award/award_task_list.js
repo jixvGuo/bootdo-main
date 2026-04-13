@@ -647,6 +647,11 @@ function load() {
 									? '<a class="btn btn-primary btn-sm" href="javascript:page(\'/qcProcess/toAddSpecialist?taskId=' + row.id + '\',\'专业组管理\')" title="专业组管理" mce_href="#">专业组管理</a> '
 									: '';
 
+								// // 分数查询（含导出评分汇总表）
+								// var qcScoreBtn = (typeof s_project_score !== 'undefined' && s_project_score !== 'hidden')
+								// 	? '<a class="btn btn-info btn-sm" href="javascript:viewTaskScoresByTaskId(\'' + row.id + '\')" title="分数查询" mce_href="#">分数查询</a> '
+								// 	: '';
+
 								// 导入形式审查结果
 								var qcImportBtn = qcOps.showImportCheckResult
 									? '<a class="btn btn-success btn-sm ' + checkResultFlg + '" href="#" title="导入形式审查结果" mce_href="#" onclick="uploadFileData(\''
@@ -1103,4 +1108,250 @@ function batchRemove() {
 
 function uplaodFile(taskId){
 	page('/specialistDoc/view_doc?taskId=' + taskId, '上传资料', 2023082500);
+}
+
+function viewTaskScoresByTaskId(taskId) {
+    $.ajax({
+        type: "GET",
+        url: "/qcScore/getTaskScores",
+        data: { taskId: taskId },
+        success: function(data) {
+            if (data.code == 0) {
+                _awardShowTaskScoresModal(data.data, taskId);
+            } else {
+                layer.msg(data.msg || '查询失败', {icon: 2});
+            }
+        },
+        error: function() {
+            layer.msg('查询失败，请稍后重试', {icon: 2});
+        }
+    });
+}
+
+function _awardShowTaskScoresModal(projects, taskId) {
+    if (!projects || projects.length == 0) {
+        layer.msg('该任务暂无打分记录', {icon: 0});
+        return;
+    }
+    var html = '<div style="padding:10px;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">';
+    html += '<h4 style="margin:0;">任务打分情况总览</h4>';
+    html += '<button class="btn btn-primary btn-sm" onclick="exportTaskScoreMatrix(\'' + taskId + '\')">导出Excel</button>';
+    html += '</div>';
+    html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+    html += '<thead><tr>';
+    html += '<th style="width:50px;">序号</th>';
+    html += '<th style="width:110px;">申报账号</th>';
+    html += '<th>课题名称</th>';
+    html += '<th style="width:130px;">小组名称</th>';
+    html += '<th style="width:80px;">课题类型</th>';
+    html += '<th style="width:70px;">打分人数</th>';
+    html += '<th style="width:70px;">平均分</th>';
+    html += '<th style="width:70px;">操作</th>';
+    html += '</tr></thead><tbody>';
+    for (var i = 0; i < projects.length; i++) {
+        var item = projects[i];
+        var escapedName = (item.topicName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        var scoreCountHtml = item.scorerCount > 0
+            ? '<span style="color:#337ab7;font-weight:bold;">' + item.scorerCount + '人</span>'
+            : '<span style="color:#999;">未打分</span>';
+        var avgScoreHtml = item.avgScore != null
+            ? '<span style="color:#5cb85c;font-weight:bold;">' + item.avgScore + '</span>'
+            : '<span style="color:#999;">-</span>';
+        html += '<tr>';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + _awardEscapeHtml(item.proCode || '-') + '</td>';
+        html += '<td>' + _awardEscapeHtml(item.topicName || '-') + '</td>';
+        html += '<td>' + _awardEscapeHtml(item.groupName || '-') + '</td>';
+        html += '<td>' + _awardEscapeHtml(item.topicType || '-') + '</td>';
+        html += '<td>' + scoreCountHtml + '</td>';
+        html += '<td>' + avgScoreHtml + '</td>';
+        html += '<td><button class="btn btn-primary btn-xs" onclick="_awardViewProjectScoreDetail(' + item.proId + ', \'' + escapedName + '\', \'' + taskId + '\')">详情</button></td>';
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    html += '</div>';
+    layer.open({
+        type: 1,
+        title: '任务打分情况',
+        area: ['1000px', '650px'],
+        content: html,
+        btn: ['关闭']
+    });
+}
+
+function _awardViewProjectScoreDetail(proId, topicName, taskId) {
+    $.ajax({
+        type: "GET",
+        url: "/qcScore/getProjectScoreDetail",
+        data: { taskId: taskId, proId: proId },
+        success: function(data) {
+            if (data.code == 0) {
+                _awardShowProjectScoreDetailModal(data.data, topicName);
+            } else {
+                layer.msg(data.msg || '查询失败', {icon: 2});
+            }
+        },
+        error: function() {
+            layer.msg('查询失败，请稍后重试', {icon: 2});
+        }
+    });
+}
+
+function _awardShowProjectScoreDetailModal(scores, topicName) {
+    if (!scores || scores.length == 0) {
+        layer.msg('该课题暂无打分记录', {icon: 0});
+        return;
+    }
+    var html = '<div style="padding:10px;">';
+    html += '<h4 style="margin-bottom:15px;">课题：' + _awardEscapeHtml(topicName) + ' 的打分详情</h4>';
+    html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+    html += '<thead><tr>';
+    html += '<th style="width:60px;">序号</th>';
+    html += '<th>专家姓名</th>';
+    html += '<th style="width:100px;">评分</th>';
+    html += '<th style="width:150px;">打分时间</th>';
+    html += '<th style="width:100px;">是否回避</th>';
+    html += '</tr></thead><tbody>';
+    for (var i = 0; i < scores.length; i++) {
+        var item = scores[i];
+        var isAvoided = item.isAvoided ? '是' : '否';
+        var avoidedStyle = item.isAvoided ? 'color:#d9534f;' : '';
+        html += '<tr>';
+        html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + _awardEscapeHtml(item.expertName || '-') + '</td>';
+        html += '<td style="font-weight:bold;color:#5cb85c;">' + (item.score != null ? item.score : '-') + '</td>';
+        html += '<td>' + (item.scoreTime || '-') + '</td>';
+        html += '<td style="' + avoidedStyle + '">' + isAvoided + '</td>';
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+    html += '</div>';
+    layer.open({
+        type: 1,
+        title: '课题打分详情',
+        area: ['700px', '500px'],
+        content: html
+    });
+}
+
+function exportTaskScoreMatrix(taskId) {
+    layer.msg('正在加载评分数据...', {icon: 16, shade: 0.3, time: 0});
+    $.ajax({
+        type: 'GET',
+        url: '/qcScore/getTaskScoreMatrix',
+        data: { taskId: taskId },
+        success: function(data) {
+            layer.closeAll('msg');
+            if (data.code == 0) {
+                _buildAndDownloadScoreMatrix(data.data);
+            } else {
+                layer.msg(data.msg || '查询失败', {icon: 2});
+            }
+        },
+        error: function() {
+            layer.closeAll('msg');
+            layer.msg('查询失败，请稍后重试', {icon: 2});
+        }
+    });
+}
+
+function _buildAndDownloadScoreMatrix(matrixData) {
+    var doExport = function() {
+        var experts = matrixData.experts || [];
+        var projects = matrixData.projects || [];
+        var nFixed = 5; // 序号、申报账号、课题名称、小组名称、分类
+        var nExperts = experts.length;
+        var nTotal = nFixed + nExperts + 1 + 3; // +1资料分 +3灰色列
+
+        var aoa = [];
+
+        // 第0行：标题（整行合并）
+        var titleRow = new Array(nTotal).fill('');
+        titleRow[0] = '石油工程建设优秀质量管理小组活动成果资料评分表';
+        aoa.push(titleRow);
+
+        // 第1行：主列头
+        var h1 = new Array(nTotal).fill('');
+        h1[0] = '序号'; h1[1] = '申报账号'; h1[2] = '课题名称'; h1[3] = '小组名称'; h1[4] = '分类';
+        h1[nFixed] = '专家打分';
+        h1[nFixed + nExperts] = '资料分';
+        h1[nFixed + nExperts + 1] = '完成名称';
+        h1[nFixed + nExperts + 2] = '申报单位';
+        h1[nFixed + nExperts + 3] = '小组成员';
+        aoa.push(h1);
+
+        // 第2行：专家子列头 + 资料分备注
+        var h2 = new Array(nTotal).fill('');
+        for (var i = 0; i < experts.length; i++) {
+            h2[nFixed + i] = experts[i].loginAccount || '';
+        }
+        h2[nFixed + nExperts] = '小数点后两位';
+        aoa.push(h2);
+
+        // 数据行
+        for (var j = 0; j < projects.length; j++) {
+            var pro = projects[j];
+            var row = new Array(nTotal).fill('');
+            row[0] = j + 1;
+            row[1] = pro.proCode || '';
+            row[2] = pro.topicName || '';
+            row[3] = pro.groupName || '';
+            row[4] = pro.topicType || '';
+            for (var k = 0; k < experts.length; k++) {
+                var acc = experts[k].loginAccount;
+                var score = pro.expertScores && pro.expertScores[acc];
+                row[nFixed + k] = (score != null && score !== '') ? score : '';
+            }
+            aoa.push(row);
+        }
+
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+
+        // 合并单元格
+        var merges = [
+            {s:{r:0,c:0}, e:{r:0,c:nTotal-1}},      // 标题行
+            {s:{r:1,c:0}, e:{r:2,c:0}},               // 序号
+            {s:{r:1,c:1}, e:{r:2,c:1}},               // 申报账号
+            {s:{r:1,c:2}, e:{r:2,c:2}},               // 课题名称
+            {s:{r:1,c:3}, e:{r:2,c:3}},               // 小组名称
+            {s:{r:1,c:4}, e:{r:2,c:4}},               // 分类
+            {s:{r:1,c:nFixed+nExperts},   e:{r:2,c:nFixed+nExperts}},    // 资料分
+            {s:{r:1,c:nFixed+nExperts+1}, e:{r:2,c:nFixed+nExperts+1}},  // 完成名称
+            {s:{r:1,c:nFixed+nExperts+2}, e:{r:2,c:nFixed+nExperts+2}},  // 申报单位
+            {s:{r:1,c:nFixed+nExperts+3}, e:{r:2,c:nFixed+nExperts+3}}   // 小组成员
+        ];
+        if (nExperts > 1) {
+            merges.push({s:{r:1,c:nFixed}, e:{r:1,c:nFixed+nExperts-1}}); // 专家打分跨列
+        }
+        ws['!merges'] = merges;
+
+        // 列宽
+        var cols = [{wch:6},{wch:14},{wch:28},{wch:16},{wch:10}];
+        for (var m = 0; m < nExperts; m++) cols.push({wch:9});
+        cols.push({wch:12},{wch:18},{wch:18},{wch:22});
+        ws['!cols'] = cols;
+
+        // 行高
+        ws['!rows'] = [{hpt:24},{hpt:30},{hpt:22}];
+
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '评分汇总');
+        XLSX.writeFile(wb, '评分汇总表.xlsx');
+    };
+
+    if (typeof XLSX !== 'undefined') {
+        doExport();
+    } else {
+        var s = document.createElement('script');
+        s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+        s.onload = function() { doExport(); };
+        s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', {icon: 2}); };
+        document.head.appendChild(s);
+    }
+}
+
+function _awardEscapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }

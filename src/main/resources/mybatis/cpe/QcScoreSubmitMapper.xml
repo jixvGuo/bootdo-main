@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  QC专家打分提交快照 Mapper
+  对应表：ass_qc_score_submit
+  专家 scoreOver=1 时写入快照，唯一键 (task_id, pro_id, expert_uid, phase)，INSERT IGNORE 保证幂等
+-->
+<mapper namespace="com.bootdo.cpe.dao.QcScoreSubmitDao">
+
+    <select id="get" resultType="com.bootdo.cpe.domain.QcScoreSubmitDO">
+        select `id`,`task_id`,`pro_id`,`expert_uid`,`topic_type`,`total_score`,`phase`,`source_id`,`submit_time`
+        from ass_qc_score_submit where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.QcScoreSubmitDO">
+        select `id`,`task_id`,`pro_id`,`expert_uid`,`topic_type`,`total_score`,`phase`,`source_id`,`submit_time`
+        from ass_qc_score_submit
+        <where>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="phase != null"> and phase = #{phase} </if>
+            <if test="topicType != null and topicType != ''"> and topic_type = #{topicType} </if>
+        </where>
+        order by pro_id asc, expert_uid asc
+        <if test="offset != null and limit != null">
+            limit #{offset}, #{limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_qc_score_submit
+        <where>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="phase != null"> and phase = #{phase} </if>
+        </where>
+    </select>
+
+    <!-- INSERT IGNORE：唯一键冲突时跳过，天然幂等 -->
+    <insert id="saveIgnore" parameterType="com.bootdo.cpe.domain.QcScoreSubmitDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT IGNORE INTO ass_qc_score_submit
+        (`task_id`, `pro_id`, `expert_uid`, `topic_type`, `total_score`, `phase`, `source_id`, `submit_time`)
+        VALUES
+        (#{taskId}, #{proId}, #{expertUid}, #{topicType}, #{totalScore}, #{phase}, #{sourceId}, #{submitTime})
+    </insert>
+
+    <delete id="remove">
+        delete from ass_qc_score_submit where id = #{value}
+    </delete>
+
+    <delete id="deleteByProAndPhase">
+        delete from ass_qc_score_submit
+        where task_id = #{taskId}
+          and pro_id  = #{proId}
+          and phase   = #{phase}
+    </delete>
+
+</mapper>

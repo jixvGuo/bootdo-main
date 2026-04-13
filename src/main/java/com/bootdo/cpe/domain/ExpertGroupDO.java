@@ -8,6 +8,9 @@ import java.util.List;
 
 /***
  * 专家组管理
+ * 连接数据库表 add_special_info 与 Java 业务逻辑
+ * 贯穿了专家从“被分派”到“完成打分/淘汰确认”的全生命周期管理。
+ *
   */
 public class ExpertGroupDO implements Serializable {
     private static final long serialVersionUID = 1L;
@@ -59,6 +62,14 @@ public class ExpertGroupDO implements Serializable {
      * 淘汰确认提交状态：0-未提交，1-已提交
      */
     private Integer eliminateOver;
+
+    /**
+     * 打分确认提交状态：0-未提交，1-已提交
+     *
+     * qc专家提交最终打分结果后，后端设置为1，禁用"提交最终打分结果"按钮
+     * 连带 在提交后，评分输入框 也会被锁定为只读
+     */
+    private Integer scoreOver;
 
     /**
      * 新增：已分派的项目ID列表（用于页面回显，不存数据库）
@@ -200,6 +211,14 @@ public class ExpertGroupDO implements Serializable {
 
     public void setEliminateOver(Integer eliminateOver) {
         this.eliminateOver = eliminateOver;
+    }
+
+    public Integer getScoreOver() {
+        return scoreOver;
+    }
+
+    public void setScoreOver(Integer scoreOver) {
+        this.scoreOver = scoreOver;
     }
 
     public String getProType() {

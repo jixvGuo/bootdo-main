@@ -128,6 +128,20 @@ public class QcController extends BaseQcProController {
         map.put("isEnterpriseUser", isEnterpriseUser);
         map.put("canExportEliminate", canExportEliminate);
         map.put("isExternalExpert", isExternalExpert);
+        // 新增分数查询权限控制功能
+        // 分数查询按钮可见：管理员、协会领导、协会联系人、外聘专家、QC评审专家
+        boolean isQcSpecialist = roleIdList.contains(ROLE_QC_SPECIALIST_ID); // 检查用户是否是 QC评审专家
+        // 权限汇总
+        boolean canViewScores = roleIdList.contains(ROLE_ADMIN_ID) || isAssociationLeader || isAssociationContact || isExternalExpert || isQcSpecialist;
+        map.put("canViewScores", canViewScores);
+        // 检查为什么查看不到按钮 但现在好像权限取消了   带权限控制（已注释）
+        System.out.println("[QC分数查询按钮] userId=" + user.getUserId() + ", roleIds=" + roleIdList
+                + ", canViewScores=" + canViewScores
+                + " (admin=" + roleIdList.contains(ROLE_ADMIN_ID)
+                + ", leader=" + isAssociationLeader
+                + ", contact=" + isAssociationContact
+                + ", external=" + isExternalExpert
+                + ", specialist=" + isQcSpecialist + ")");
         // 新代码：外聘人员查出其所属专业组名称，用于导出淘汰时按组过滤
         String externalGroupName = "";
         if (isExternalExpert) {

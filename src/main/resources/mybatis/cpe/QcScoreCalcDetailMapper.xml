@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  QC评分计算明细 Mapper
+  对应表：ass_qc_score_calc_detail
+  记录一次平均分计算中每位专家的原始分、是否回避、是否参与计算、是否被剔除最高/最低分等行级明细
+-->
+<mapper namespace="com.bootdo.cpe.dao.QcScoreCalcDetailDao">
+
+    <select id="get" resultType="com.bootdo.cpe.domain.QcScoreCalcDetailDO">
+        select `id`,`result_id`,`task_id`,`pro_id`,`phase`,`expert_uid`,`raw_score`,`is_avoided`,`is_valid`,`is_removed_low`,`is_removed_high`,`created`
+        from ass_qc_score_calc_detail where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.QcScoreCalcDetailDO">
+        select `id`,`result_id`,`task_id`,`pro_id`,`phase`,`expert_uid`,`raw_score`,`is_avoided`,`is_valid`,`is_removed_low`,`is_removed_high`,`created`
+        from ass_qc_score_calc_detail
+        <where>
+            <if test="resultId != null and resultId != ''"> and result_id = #{resultId} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
+            <if test="phase != null and phase != ''"> and phase = #{phase} </if>
+            <if test="expertUid != null and expertUid != ''"> and expert_uid = #{expertUid} </if>
+        </where>
+        order by id asc
+        <if test="offset != null and limit != null">
+            limit #{offset}, #{limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_qc_score_calc_detail
+        <where>
+            <if test="resultId != null and resultId != ''"> and result_id = #{resultId} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
+            <if test="phase != null and phase != ''"> and phase = #{phase} </if>
+            <if test="expertUid != null and expertUid != ''"> and expert_uid = #{expertUid} </if>
+        </where>
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.QcScoreCalcDetailDO" useGeneratedKeys="true" keyProperty="id">
+        insert into ass_qc_score_calc_detail
+        (
+            `result_id`,
+            `task_id`,
+            `pro_id`,
+            `phase`,
+            `expert_uid`,
+            `submit_id`,
+            `raw_score`,
+            `is_avoided`,
+            `is_valid`,
+            `is_removed_low`,
+            `is_removed_high`,
+            `created`
+        )
+        values
+        (
+            #{resultId},
+            #{taskId},
+            #{proId},
+            #{phase},
+            #{expertUid},
+            #{submitId},
+            #{rawScore},
+            #{isAvoided},
+            #{isValid},
+            #{isRemovedLow},
+            #{isRemovedHigh},
+            now()
+        )
+    </insert>
+
+    <insert id="batchSave">
+        insert into ass_qc_score_calc_detail
+        (
+            `result_id`,
+            `task_id`,
+            `pro_id`,
+            `phase`,
+            `expert_uid`,
+            `submit_id`,
+            `raw_score`,
+            `is_avoided`,
+            `is_valid`,
+            `is_removed_low`,
+            `is_removed_high`,
+            `created`
+        )
+        values
+        <foreach collection="list" item="d" separator=",">
+            (
+                #{d.resultId},
+                #{d.taskId},
+                #{d.proId},
+                #{d.phase},
+                #{d.expertUid},
+                #{d.submitId},
+                #{d.rawScore},
+                #{d.isAvoided},
+                #{d.isValid},
+                #{d.isRemovedLow},
+                #{d.isRemovedHigh},
+                now()
+            )
+        </foreach>
+    </insert>
+
+    <update id="update" parameterType="com.bootdo.cpe.domain.QcScoreCalcDetailDO">
+        update ass_qc_score_calc_detail
+        <set>
+            <if test="resultId != null"> `result_id` = #{resultId}, </if>
+            <if test="taskId != null"> `task_id` = #{taskId}, </if>
+            <if test="proId != null"> `pro_id` = #{proId}, </if>
+            <if test="phase != null"> `phase` = #{phase}, </if>
+            <if test="expertUid != null"> `expert_uid` = #{expertUid}, </if>
+            <if test="rawScore != null"> `raw_score` = #{rawScore}, </if>
+            <if test="isAvoided != null"> `is_avoided` = #{isAvoided}, </if>
+            <if test="isValid != null"> `is_valid` = #{isValid}, </if>
+            <if test="isRemovedLow != null"> `is_removed_low` = #{isRemovedLow}, </if>
+            <if test="isRemovedHigh != null"> `is_removed_high` = #{isRemovedHigh}, </if>
+            <if test="created != null"> `created` = #{created}, </if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="remove">
+        delete from ass_qc_score_calc_detail where id = #{value}
+    </delete>
+
+    <delete id="batchRemove">
+        delete from ass_qc_score_calc_detail where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteByResultId">
+        delete from ass_qc_score_calc_detail where result_id = #{value}
+    </delete>
+
+</mapper>

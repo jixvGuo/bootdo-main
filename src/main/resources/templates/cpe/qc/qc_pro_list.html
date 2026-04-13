@@ -9,7 +9,6 @@
         <div class="col-sm-12">
             <div class="ibox">
                 <div class="ibox-title">
-<!--                    <button  th:disabled="${!isApply}" th:if="${apply_type != null && apply_type != ''}" onclick="toApplyPro()" class="btn btn-primary" style="width:100px" type="button"><i class="fa fa-plus"></i>&nbsp;申报</button>-->
 					<button th:if="${canApplyBtn and apply_type != null && apply_type != ''}"
 							onclick="toApplyPro()"
 							class="btn btn-primary" style="width:100px" type="button">
@@ -24,18 +23,33 @@
 						<i class="fa fa-ban"></i>&nbsp;导出淘汰
 					</button>
 					<!--  专业组管理按钮（外聘人员）	-->
-					<button class="btn btn-info" onclick="toExpertGroupManage()" th:if="${isExternalExpert}">
-						<i class="fa fa-th-large"></i>&nbsp;专业组管理
+<!--					<button class="btn btn-info" onclick="toExpertGroupManage()" th:if="${isExternalExpert}">-->
+<!--						<i class="fa fa-th-large"></i>&nbsp;专业组管理-->
+<!--					</button>-->
+					<!--  分数查询按钮（以课题为维度） -->
+					<!-- 原代码：带权限控制 -->
+					<!-- <button class="btn btn-primary" onclick="viewTaskScores()" th:if="${canViewScores}">
+						<i class="fa fa-list-alt"></i>&nbsp;分数查询
+					</button> -->
+					<!-- 新代码：取消权限控制，所有人可见 -->
+					<!-- 任务分数查询 -->
+					<button class="btn btn-primary" onclick="viewTaskScores()">
+						<i class="fa fa-list-alt"></i>&nbsp;任务分数查询
 					</button>
 					<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
 					<input type="hidden" id="isAssociationLeader" th:value="${isAssociationLeader}" />
 					<input type="hidden" id="externalGroupName" th:value="${externalGroupName}" />
-<!--					<select class="btn btn-default" id="statusFilter">-->
-<!--						<option value="">全部</option>-->
+<!--					<select class="btn btn-default" id="statusFilter">
+						<option value="">全部</option>
+						<option value="NOT_SUBMITTED">未提交</option>
+						<option value="check">审核中</option>
+						<option value="已驳回">已驳回</option>
+					</select>-->
 <!--						<option value="NOT_SUBMITTED">未提交</option>-->
 <!--						<option value="check">审核中</option>-->
 <!--						<option value="已驳回">已驳回</option>-->
 <!--					</select>-->
+<!--					任务下的申报账号信息  带筛选-->
 					<div class="columns ui pull-right action input" style="display: none;">
 						<div class="ui floating dropdown  icon button">
 							<input type="hidden" name="keyType" id="keyType" value="">
@@ -177,6 +191,7 @@
 			var s_save_code_h = 'hidden';
 		</script>
 	</div>
+<!-- 权限控制 -->
 	<div shiro:hasPermission="cpe:qcGroupApplyInfo:ass_validate_pro" th:if="${isReview}">
 		<script type="text/javascript">
 			s_assValidatePro_h = '';
@@ -256,7 +271,7 @@
 </div>
 
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/qcGroupApplyInfo/qcGroupApplyInfo.js?v=1.9"></script>
+<script type="text/javascript" src="/js/appjs/cpe/qcGroupApplyInfo/qcGroupApplyInfo.js?v=2.1"></script>
 
 <script th:inline="javascript">
 	let projectTypes =  /*[[${projectTypes}]]*/ [];
@@ -522,6 +537,249 @@
 			s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', { icon: 2 }); };
 			document.head.appendChild(s);
 		}
+	}
+
+	function viewTaskScores() {
+		var taskId = $('#taskId').val();
+		if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }
+		$.ajax({
+			// data:jQuery 语法规定
+			type: "GET", url: "/qcScore/getTaskScores", data: { taskId: taskId },
+			success: function(data) {
+				if (data.code == 0) { _qcShowTaskScoresModal(data.data, taskId); }
+				else { layer.msg(data.msg || '查询失败', {icon: 2}); }
+			},
+			error: function() { layer.msg('查询失败，请稍后重试', {icon: 2}); }
+		});
+	}
+
+	// 自定义函数 渲染打分详情弹窗  查询的任务分数弹窗
+	function _qcShowTaskScoresModal(projects, taskId) {
+		if (!projects || projects.length == 0) { layer.msg('该任务暂无打分记录', {icon: 0}); return; }
+		window._qcTaskScoreTaskId = taskId;
+		var html = '<div style="padding:10px;">';
+		html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
+		html += '<h4 style="margin:0;">任务打分情况总览</h4>';
+		html += '<button class="btn btn-success btn-sm" onclick="_qcExportTaskScoreMatrix(window._qcTaskScoreTaskId)" style="white-space:nowrap;"><i class="fa fa-file-excel-o"></i>&nbsp;导出Excel</button>';
+		html += '</div>';
+		html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+		html += '<thead><tr><th style="width:50px;">序号</th><th style="width:110px;">申报账号</th><th>课题名称</th><th style="width:130px;">小组名称</th><th style="width:80px;">课题类型</th><th style="width:70px;">打分人数</th><th style="width:70px;">平均分</th><th style="width:70px;">操作</th></tr></thead><tbody>';
+		for (var i = 0; i < projects.length; i++) {
+			var item = projects[i];
+			var escapedName = (item.topicName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+			var scoreCountHtml = item.scorerCount > 0
+				? '<span style="color:#337ab7;font-weight:bold;">' + item.scorerCount + '人</span>'
+				: '<span style="color:#999;">未打分</span>';
+			var avgScoreHtml = item.avgScore != null
+				? '<span style="color:#5cb85c;font-weight:bold;">' + item.avgScore + '</span>'
+				: '<span style="color:#999;">-</span>';
+			html += '<tr>';
+			html += '<td>' + (i + 1) + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.proCode || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.topicName || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.groupName || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.topicType || '-') + '</td>';
+			html += '<td>' + scoreCountHtml + '</td>';
+			html += '<td>' + avgScoreHtml + '</td>';
+			html += '<td><button class="btn btn-primary btn-xs" onclick="_qcViewProjectScoreDetail(' + item.proId + ', \'' + escapedName + '\', \'' + taskId + '\')">详情</button></td>';
+			html += '</tr>';
+		}
+		html += '</tbody></table></div>';
+		layer.open({
+			type: 1, title: '任务打分情况', area: ['1000px', '650px'], content: html,
+			btn: ['关闭']
+		});
+	}
+
+	// 查看单个课题的专家打分明细
+	// 触发时机：“任务分数查询”弹窗中，点击某个课题后面的 “详情” 按钮时触发
+	// 向后台发送一个 AJAX 请求
+	// /qcScore/getProjectScoreDetail），带上 taskId 和 proId
+	// 后端会返回该课题下每一位专家的具体打分记录（包括专家姓名、分数、是否回避等)
+	// 收到数据后，它会调用 _qcShowProjectScoreDetailModal 函数，
+	// 弹出一个新的窗口，以表格形式列出所有专家的评分详情
+	function _qcViewProjectScoreDetail(proId, topicName, taskId) {
+		$.ajax({
+			type: "GET", url: "/qcScore/getProjectScoreDetail", data: { taskId: taskId, proId: proId },
+			success: function(data) {
+				if (data.code == 0) { _qcShowProjectScoreDetailModal(data.data, topicName); }
+				else { layer.msg(data.msg || '查询失败', {icon: 2}); }
+			},
+			error: function() { layer.msg('查询失败，请稍后重试', {icon: 2}); }
+		});
+	}
+
+	// 将单个课题的专家打分明细渲染并展示在弹窗中
+	function _qcShowProjectScoreDetailModal(scores, topicName) {
+		if (!scores || scores.length == 0) { layer.msg('该课题暂无打分记录', {icon: 0}); return; }
+		var html = '<div style="padding:10px;">';
+		html += '<h4 style="margin-bottom:15px;">课题：' + _qcEscapeHtml(topicName) + ' 的打分详情</h4>';
+		html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+		html += '<thead><tr><th style="width:60px;">序号</th><th>专家姓名</th><th style="width:100px;">评分</th><th style="width:150px;">打分时间</th><th style="width:100px;">是否回避</th></tr></thead><tbody>';
+		for (var i = 0; i < scores.length; i++) {
+			var item = scores[i];
+			var rowStyle = item.isAvoided ? 'background-color:#fff5f5;' : '';
+			var scoreHtml = item.isAvoided && item.score == null
+				? '<span style="color:#d9534f;">-</span>'
+				: (item.score != null ? '<span style="font-weight:bold;color:#5cb85c;">' + item.score + '</span>' : '<span style="color:#999;">-</span>');
+			var avoidedBadge = item.isAvoided ? '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;">已回避</span>' : '';
+			html += '<tr style="' + rowStyle + '">';
+			html += '<td>' + (i + 1) + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.expertName || '-') + ' ' + avoidedBadge + '</td>';
+			html += '<td>' + scoreHtml + '</td>';
+			html += '<td style="color:#999;">' + (item.scoreTime || '-') + '</td>';
+			html += '<td>' + (item.isAvoided ? '<span style="color:#d9534f;">是</span>' : '否') + '</td>';
+			html += '</tr>';
+		}
+		html += '</tbody></table></div>';
+		layer.open({ type: 1, title: '课题打分详情', area: ['700px', '500px'], content: html });
+	}
+
+
+	/**
+	 * XSS 攻击（跨站脚本攻击）
+	 * 它把字符串里的特殊字符（如 <, >, &, ", '）转换成 HTML 实体编码。
+	 * 例如：把 <script> 变成 &lt;script&gt;
+	 * 确保从后端拿到的数据（比如课题名称、专家姓名）在页面上只是作为纯文本显示，而不会被浏览器当成 HTML 代码或 JavaScript 脚本执行。
+	 * @param str
+	 * @returns {string}
+	 * @private
+	 */
+	function _qcEscapeHtml(str) {
+		if (!str) return '';
+		return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+	}
+
+	/**
+	 * 为任务维度矩阵 sheet 批量施加边框 + 表头颜色
+	 * nFixed: 左侧固定列数(5)  nExperts: 专家列数  ws: worksheet
+	 */
+	function _applyMatrixStyles(ws, nFixed, nExperts) {
+		if (!ws['!ref']) return;
+		var range = XLSX.utils.decode_range(ws['!ref']);
+		var thin      = { style: 'thin', color: { rgb: '000000' } };
+		var border    = { top: thin, bottom: thin, left: thin, right: thin };
+		var titleFill = { patternType: 'solid', fgColor: { rgb: 'BDD7EE' } }; // 蓝色：标题行
+		var fixFill   = { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } }; // 蓝灰：固定列头
+		var expFill   = { patternType: 'solid', fgColor: { rgb: 'FCE4D6' } }; // 浅橙：专家打分列头
+		var tailFill  = { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } }; // 浅绿：尾部列头
+		var avoidFill = { patternType: 'solid', fgColor: { rgb: 'FFFF00' } }; // 亮黄：回避
+		var avgFill   = { patternType: 'solid', fgColor: { rgb: 'D9F0D9' } }; // 浅绿：平均分
+		var evenFill  = { patternType: 'solid', fgColor: { rgb: 'F5F7FA' } }; // 浅灰：偶数数据行
+		var titleFont  = { bold: true, sz: 12 };
+		var headerFont = { bold: true, sz: 10 };
+		var dataFont   = { sz: 9 };
+		var boldFont   = { sz: 9, bold: true };
+		var avoidFont  = { sz: 9, bold: true, color: { rgb: 'CC0000' } };
+		var avgFont    = { sz: 9, bold: true, color: { rgb: '1F6B20' } };
+		var center = { horizontal: 'center', vertical: 'center', wrapText: true };
+		var left   = { horizontal: 'left',   vertical: 'center', wrapText: true };
+		var nAvgCol = nFixed + nExperts;
+		for (var R = range.s.r; R <= range.e.r; R++) {
+			for (var C = range.s.c; C <= range.e.c; C++) {
+				var addr = XLSX.utils.encode_cell({ r: R, c: C });
+				if (!ws[addr]) ws[addr] = { v: '', t: 's' };
+				var s = { border: border };
+				if (R === 0) {
+					s.font = titleFont; s.fill = titleFill; s.alignment = center;
+				} else if (R === 1 || R === 2) {
+					s.font = headerFont; s.alignment = center;
+					if (C < nFixed)             s.fill = fixFill;
+					else if (C < nFixed + nExperts) s.fill = expFill;
+					else                            s.fill = tailFill;
+				} else {
+					var isEven = ((R - 3) % 2 === 1);
+					var cellVal = ws[addr].v;
+					if (cellVal === '回避') {
+						s.fill = avoidFill; s.font = avoidFont; s.alignment = center;
+					} else if (C === nAvgCol) {
+						s.fill = avgFill; s.font = avgFont; s.alignment = center;
+					} else if (C === 2 || C === 3) {
+						s.font = dataFont; s.alignment = left;
+						if (isEven) s.fill = evenFill;
+					} else {
+						s.font = dataFont; s.alignment = center;
+						if (isEven) s.fill = evenFill;
+					}
+				}
+				ws[addr].s = s;
+			}
+		}
+	}
+
+	function _qcExportTaskScoreMatrix(taskId) {
+		if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }
+		window.location.href = '/qcScore/exportTaskScoreMatrixExcel?taskId=' + encodeURIComponent(taskId);
+	}
+
+	function _qcBuildAndDownload(matrixData, taskId) {
+		var doExport = function() {
+			var experts  = matrixData.experts  || [];
+			var projects = matrixData.projects || [];
+			var year = new Date().getFullYear();
+			var wb = XLSX.utils.book_new();
+			var solveItems    = projects.filter(function(p) { return p.topicType === '问题解决型'; });
+			var innovateItems = projects.filter(function(p) { return p.topicType === '创新型'; });
+			XLSX.utils.book_append_sheet(wb, _qcBuildMatrixSheet(solveItems,    experts, year, '问题解决型'), '问题解决型');
+			XLSX.utils.book_append_sheet(wb, _qcBuildMatrixSheet(innovateItems, experts, year, '（创新型）'),  '创新型');
+			var safe = (taskId || '').replace(/[\/\\:*?"<>|]/g, '_');
+			XLSX.writeFile(wb, '任务打分情况_' + safe + '.xlsx');
+		};
+		if (typeof XLSX !== 'undefined') { doExport(); }
+		else {
+			var s = document.createElement('script');
+			s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+			s.onload = function() { doExport(); };
+			s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', {icon: 2}); };
+			document.head.appendChild(s);
+		}
+	}
+
+	function _qcBuildMatrixSheet(items, experts, year, typeLabel) {
+		var nFixed = 5, nExperts = experts.length, nTotal = nFixed + nExperts + 4;
+		var aoa = [];
+		var r0 = new Array(nTotal).fill('');
+		r0[0] = year + '年石油工程建设优秀质量管理小组活动成果资料评分表——' + typeLabel;
+		aoa.push(r0);
+		var r1 = new Array(nTotal).fill('');
+		r1[0]='序号'; r1[1]='申报号'; r1[2]='课题名称'; r1[3]='小组名称'; r1[4]='分类';
+		if (nExperts > 0) r1[nFixed] = '专家打分';
+		r1[nFixed+nExperts]='资料分\n（小数点后两位）'; r1[nFixed+nExperts+1]='完成单位'; r1[nFixed+nExperts+2]='申报单位'; r1[nFixed+nExperts+3]='小组成员';
+		aoa.push(r1);
+		var r2 = new Array(nTotal).fill('');
+		for (var i = 0; i < experts.length; i++) r2[nFixed+i] = experts[i].loginAccount || '';
+		aoa.push(r2);
+		for (var j = 0; j < items.length; j++) {
+			var pro = items[j], row = new Array(nTotal).fill('');
+			row[0]=j+1; row[1]=pro.proCode||''; row[2]=pro.topicName||''; row[3]=pro.groupName||''; row[4]=pro.topicType||'';
+			for (var k = 0; k < experts.length; k++) {
+				var acc = experts[k].loginAccount, score = pro.expertScores && pro.expertScores[acc];
+				row[nFixed+k] = (score != null && score !== '') ? score : '';
+			}
+			row[nFixed+nExperts]=(pro.avgScore != null ? pro.avgScore : ''); row[nFixed+nExperts+1]=pro.completeUnit||''; row[nFixed+nExperts+2]=pro.companyName||''; row[nFixed+nExperts+3]=pro.groupMember||'';
+			aoa.push(row);
+		}
+		var ws = XLSX.utils.aoa_to_sheet(aoa);
+		// 冻结前3行和左侧5列
+		ws['!freeze'] = { xSplit: nFixed, ySplit: 3 };
+		var merges = [
+			{s:{r:0,c:0},e:{r:0,c:nTotal-1}},
+			{s:{r:1,c:0},e:{r:2,c:0}},{s:{r:1,c:1},e:{r:2,c:1}},{s:{r:1,c:2},e:{r:2,c:2}},{s:{r:1,c:3},e:{r:2,c:3}},{s:{r:1,c:4},e:{r:2,c:4}},
+			{s:{r:1,c:nFixed+nExperts},e:{r:2,c:nFixed+nExperts}},{s:{r:1,c:nFixed+nExperts+1},e:{r:2,c:nFixed+nExperts+1}},
+			{s:{r:1,c:nFixed+nExperts+2},e:{r:2,c:nFixed+nExperts+2}},{s:{r:1,c:nFixed+nExperts+3},e:{r:2,c:nFixed+nExperts+3}}
+		];
+		if (nExperts > 1) merges.push({s:{r:1,c:nFixed},e:{r:1,c:nFixed+nExperts-1}});
+		else if (nExperts === 1) merges.push({s:{r:1,c:nFixed},e:{r:2,c:nFixed}});
+		ws['!merges'] = merges;
+		var cols = [{wch:6},{wch:14},{wch:26},{wch:14},{wch:8}];
+		for (var m = 0; m < nExperts; m++) cols.push({wch:9});
+		cols.push({wch:10},{wch:14},{wch:14},{wch:18});
+		ws['!cols'] = cols;
+		var rows = [{hpt:26},{hpt:42},{hpt:32}];
+		for (var n = 0; n < items.length; n++) rows.push({hpt:18});
+		ws['!rows'] = rows;
+		_applyMatrixStyles(ws, nFixed, nExperts);
+		return ws;
 	}
 
 </script>
