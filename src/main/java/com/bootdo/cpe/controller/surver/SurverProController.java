@@ -243,7 +243,23 @@ public class SurverProController extends BaseSurverController {
 
         params.remove("offset");
         params.remove("limit");
-        List<SurverProjectInfo> proList = surverAwardService.listProInfo(params);
+
+        List<SurverProjectInfo> proList = new ArrayList<>();
+        Object proSubTypeObj = params.get("proSubType");
+        if (proSubTypeObj == null || StringUtils.isBlank(proSubTypeObj.toString())) {
+            // 未指定项目类别时，固定导出四个奖项
+            String[] exportSubTypes = {"contribution", "design", "software", "standard"};
+            for (String subType : exportSubTypes) {
+                Map<String, Object> queryParams = new HashMap<>(params);
+                queryParams.put("proSubType", subType);
+                List<SurverProjectInfo> subList = surverAwardService.listProInfo(queryParams);
+                if (subList != null && !subList.isEmpty()) {
+                    proList.addAll(subList);
+                }
+            }
+        } else {
+            proList = surverAwardService.listProInfo(params);
+        }
 
         String[] header = {
                 "序号", "proId", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单", "申报账号", "申报联系方式", "分组", "形审结果", "形审评语", "状态"

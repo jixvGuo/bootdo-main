@@ -288,8 +288,8 @@ function subCheck(proId) {
 // 状态点击事件
 function printExcelPro() {
     var taskId = $("#taskId").val();
-    var proSubType = $("#proSubType").val();
-    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId) + "&proSubType=" + encodeURIComponent(proSubType);
+    // 不按当前标签分类，统一导出四个奖项
+    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId);
 }
 
 function importCheckResult() {
