@@ -51,6 +51,8 @@ public class SurverProController extends BaseSurverController {
     private SurverStandardApplyTableInfoService surverStandardApplyTableInfoService;
     @Autowired
     private SurverExcellentApplyTableInfoService surverExcellentApplyTableInfoService;
+    @Autowired
+    private SurverBaseApplyTableInfoService surverBaseApplyTableInfoService;
 
     @RequiresPermissions("surveraward:to:prolist")
     @RequestMapping("/toProListMain")
@@ -409,7 +411,7 @@ public class SurverProController extends BaseSurverController {
         } else if ("contribution".equals(proSubType)) {
             header = new String[]{"序号", "项目编号", "项目名称", "申报专业", "工程建设时间", "工程起止时间", "验收时间", "验收部门", "计划编号", "勘察起止时间", "勘察面积/长度", "主要勘察单位", "协作单位", "通讯地址", "邮政编码", "联系人", "联系电话", "传真"};
             for (SurverProjectInfo pro : proList) {
-                SurverExcellentApplyTableInfoDO t = getExcellentTable(pro.getProId(), params.get("taskId"));
+                SurverBaseApplyTableInfoDO t = getContributionTable(pro.getProId(), params.get("taskId"));
                 Map<String, String> row = new LinkedHashMap<>();
                 row.put("序号", safe(pro.getId()));
                 row.put("项目编号", safe(pro.getProCode()));
@@ -448,6 +450,10 @@ public class SurverProController extends BaseSurverController {
         p.put("proId", proId);
         p.put("taskId", taskId);
         List<SurverDesignApplyTableInfoDO> list = surverDesignApplyTableInfoService.list(p);
+        if (list == null || list.isEmpty()) {
+            p.remove("taskId");
+            list = surverDesignApplyTableInfoService.list(p);
+        }
         return list == null || list.isEmpty() ? null : list.get(0);
     }
 
@@ -456,6 +462,10 @@ public class SurverProController extends BaseSurverController {
         p.put("proId", proId);
         p.put("taskId", taskId);
         List<SurverSoftApplyTableInfoDO> list = surverSoftApplyTableInfoService.list(p);
+        if (list == null || list.isEmpty()) {
+            p.remove("taskId");
+            list = surverSoftApplyTableInfoService.list(p);
+        }
         return list == null || list.isEmpty() ? null : list.get(0);
     }
 
@@ -464,6 +474,10 @@ public class SurverProController extends BaseSurverController {
         p.put("proId", proId);
         p.put("taskId", taskId);
         List<SurverStandardApplyTableInfoDO> list = surverStandardApplyTableInfoService.list(p);
+        if (list == null || list.isEmpty()) {
+            p.remove("taskId");
+            list = surverStandardApplyTableInfoService.list(p);
+        }
         return list == null || list.isEmpty() ? null : list.get(0);
     }
 
@@ -472,6 +486,22 @@ public class SurverProController extends BaseSurverController {
         p.put("proId", proId);
         p.put("taskId", taskId);
         List<SurverExcellentApplyTableInfoDO> list = surverExcellentApplyTableInfoService.list(p);
+        if (list == null || list.isEmpty()) {
+            p.remove("taskId");
+            list = surverExcellentApplyTableInfoService.list(p);
+        }
+        return list == null || list.isEmpty() ? null : list.get(0);
+    }
+
+    private SurverBaseApplyTableInfoDO getContributionTable(Integer proId, Object taskId) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("proId", proId);
+        p.put("taskId", taskId);
+        List<SurverBaseApplyTableInfoDO> list = surverBaseApplyTableInfoService.list(p);
+        if (list == null || list.isEmpty()) {
+            p.remove("taskId");
+            list = surverBaseApplyTableInfoService.list(p);
+        }
         return list == null || list.isEmpty() ? null : list.get(0);
     }
 
