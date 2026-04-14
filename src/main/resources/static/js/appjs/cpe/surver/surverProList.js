@@ -292,6 +292,22 @@ function printExcelPro() {
     window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId);
 }
 
+function printDetailExcelPro() {
+    var taskId = $("#taskId").val();
+    var proSubType = $("#proSubType").val();
+    if (!proSubType) {
+        layer.msg("请在具体奖项页导出详情");
+        return;
+    }
+    var allowSubType = ['contribution', 'design', 'software', 'standard'];
+    if (allowSubType.indexOf(proSubType) < 0) {
+        layer.msg("仅支持优秀勘察奖、优秀设计奖、计算机软件奖、标准设计奖导出详情");
+        return;
+    }
+    window.location.href = prefix + "/exportDetailExcel?taskId=" + encodeURIComponent(taskId)
+        + "&proSubType=" + encodeURIComponent(proSubType);
+}
+
 function importCheckResult() {
     var taskId = $("#taskId").val();
     if (!taskId) {

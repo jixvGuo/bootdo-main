@@ -4,11 +4,11 @@
 <mapper namespace="com.bootdo.cpe.dao.SurverExcellentApplyTableInfoDao">
 
 	<select id="get" resultType="com.bootdo.system.domain.SurverExcellentApplyTableInfoDO">
-		select `id`,`apply_major`,`pro_name`,`pro_build_time`,`pro_start_end`,`acceptance_time`,`acceptance_department`,`plan_number`,`survey_start_end`,`survey_area_length`,`main_survey_unit`,`cooperation_unit`,`mailing_address`,`post_code`,`contact_phone`,`contact_name`,`contact_fox`,`accessories_catalog`,`general_advanced_exploration`,`award_received_level`,`reporting_unit_opinion`,`up_recommendation`,`opt_uid`,`pro_id`,`task_id`,`created`,`updated`,`deleted`, build_scope from ass_surver_excellent_apply_table_info where id = #{value}
+		select `id`,`apply_major`,`pro_name`,`pro_build_time`,`pro_start_end`,`acceptance_time`,`acceptance_department`,`plan_number`,`survey_start_end`,`survey_area_length`,`main_survey_unit`,`cooperation_unit`,`mailing_address`,`post_code`,`contact_phone`,`contact_name`,`contact_fox`,`accessories_catalog`,`general_advanced_exploration`,`award_received_level`,`reporting_unit_opinion`,`up_recommendation`,`opt_uid`,`pro_id`,`task_id`,`created`,`updated`,`deleted` from ass_surver_excellent_apply_table_info where id = #{value}
 	</select>
 
 	<select id="list" resultType="com.bootdo.system.domain.SurverExcellentApplyTableInfoDO">
-		select `id`,`apply_major`,`pro_name`,`pro_build_time`,`pro_start_end`,`acceptance_time`,`acceptance_department`,`plan_number`,`survey_start_end`,`survey_area_length`,`main_survey_unit`,`cooperation_unit`,`mailing_address`,`post_code`,`contact_phone`,`contact_name`,`contact_fox`,`accessories_catalog`,`general_advanced_exploration`,`award_received_level`,`reporting_unit_opinion`,`up_recommendation`,`opt_uid`,`pro_id`,`task_id`,`created`,`updated`,`deleted`, build_scope from ass_surver_excellent_apply_table_info
+		select `id`,`apply_major`,`pro_name`,`pro_build_time`,`pro_start_end`,`acceptance_time`,`acceptance_department`,`plan_number`,`survey_start_end`,`survey_area_length`,`main_survey_unit`,`cooperation_unit`,`mailing_address`,`post_code`,`contact_phone`,`contact_name`,`contact_fox`,`accessories_catalog`,`general_advanced_exploration`,`award_received_level`,`reporting_unit_opinion`,`up_recommendation`,`opt_uid`,`pro_id`,`task_id`,`created`,`updated`,`deleted` from ass_surver_excellent_apply_table_info
         <where>
 		  		  <if test="id != null and id != ''"> and id = #{id} </if>
 		  		  <if test="applyMajor != null and applyMajor != ''"> and apply_major = #{applyMajor} </if>
@@ -113,8 +113,7 @@
 			`up_recommendation`,
 			`opt_uid`,
 			`pro_id`,
-			`task_id`,
-		     build_scope
+			`task_id`
 		)
 		values
 		(
@@ -142,8 +141,7 @@
 			#{upRecommendation},
 			#{optUid},
 			#{proId},
-			#{taskId},
-		    #{buildScope}
+			#{taskId}
 		)
 	</insert>
 

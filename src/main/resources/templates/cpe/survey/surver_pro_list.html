@@ -10,6 +10,7 @@
             <div class="ibox">
                 <div class="ibox-title">
 					<button class="btn btn-success" onclick="printExcelPro()">导出excel</button>
+					<button class="btn btn-primary" onclick="printDetailExcelPro()">导出详情</button>
 					<button class="btn btn-warning" onclick="importCheckResult()" th:if="${isAssociationLeader}">导入形式审查结果</button>
 					<button class="btn btn-info" onclick="toGroupManage()" th:if="${isAssociationLeader}">
 						<i class="fa fa-th-large"></i>&nbsp;分组管理
