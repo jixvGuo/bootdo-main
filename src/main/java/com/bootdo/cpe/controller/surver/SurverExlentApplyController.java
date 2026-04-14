@@ -147,7 +147,7 @@ public class SurverExlentApplyController extends BaseSurverController {
         }
         if (cooperationUnit != null && cooperationUnit.trim().length() > 0) {
             if (sb.length() > 0) {
-                sb.append("+");
+                sb.append(" ");
             }
             sb.append(cooperationUnit.trim());
         }
