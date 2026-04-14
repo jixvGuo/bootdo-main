@@ -4,6 +4,7 @@
 <head th:include="include :: header"></head>
 <link rel="stylesheet" href="/js/semantic/semantic.min.css">
 <body class="gray-bg">
+<!--QC奖项列表界面-->
 <div class="wrapper wrapper-content animated fadeInRight">
     <div class="row">
         <div class="col-sm-12">
@@ -22,23 +23,19 @@
 					<button class="btn btn-warning" onclick="showEliminatedProjects()" th:if="${canExportEliminate}">
 						<i class="fa fa-ban"></i>&nbsp;导出淘汰
 					</button>
-					<!--  专业组管理按钮（外聘人员）	-->
-<!--					<button class="btn btn-info" onclick="toExpertGroupManage()" th:if="${isExternalExpert}">-->
-<!--						<i class="fa fa-th-large"></i>&nbsp;专业组管理-->
-<!--					</button>-->
-					<!--  分数查询按钮（以课题为维度） -->
-					<!-- 原代码：带权限控制 -->
-					<!-- <button class="btn btn-primary" onclick="viewTaskScores()" th:if="${canViewScores}">
-						<i class="fa fa-list-alt"></i>&nbsp;分数查询
-					</button> -->
 					<!-- 新代码：取消权限控制，所有人可见 -->
 					<!-- 任务分数查询 -->
 					<button class="btn btn-primary" onclick="viewTaskScores()">
 						<i class="fa fa-list-alt"></i>&nbsp;任务分数查询
 					</button>
-					<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
+
+					<!-- 页面上下文数据：任务ID、用户角色标识、外聘专家组名称，供前端JS读取用于请求参数和权限控制 -->
+					<input type="hidden" id="taskId" name="taskId" th:value="${taskId}">
 					<input type="hidden" id="isAssociationLeader" th:value="${isAssociationLeader}" />
 					<input type="hidden" id="externalGroupName" th:value="${externalGroupName}" />
+
+
+
 <!--					<select class="btn btn-default" id="statusFilter">
 						<option value="">全部</option>
 						<option value="NOT_SUBMITTED">未提交</option>
@@ -539,6 +536,7 @@
 		}
 	}
 
+	// 查询并展示任务打分总览
 	function viewTaskScores() {
 		var taskId = $('#taskId').val();
 		if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }

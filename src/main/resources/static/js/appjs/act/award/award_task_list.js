@@ -1,5 +1,6 @@
-
+// 动态交互和数据处理
 var prefix = "/award_flow"
+// 页面初始化
 $(function() {
 	load();
 });
@@ -46,6 +47,7 @@ function isQcApplyClosed(row) {
  * 第 2 步修改：获取 QC 任务阶段（优先后端 taskStageCode，兜底用时间推断）
  * 返回：WAIT_APPLY / APPLYING / CHECKING / CHECK_END
  */
+// 根据当前时间和任务时间节点，判断QC奖任务所处阶段
 function resolveQcTaskStageCode(row) {
 	if (row.taskStageCode) return row.taskStageCode;
 
@@ -96,6 +98,8 @@ function resolveQcTaskStageCode(row) {
 //     if (stageCode === "CHECK_END") return "结束"; // 若你要显示“形审结束”，改这里
 //     return "等待申请";
 // }
+
+// 将任务阶段代码映射为中文显示文本
 function resolveQcStageText(stageCode) {
 	if (stageCode === "WAIT_APPLY") return "等待申请";
 	if (stageCode === "APPLYING") return "申请中";
@@ -148,6 +152,15 @@ function resolveQcStageText(stageCode) {
 //
 //     return state;
 // }
+
+/**
+ * 根据任务阶段决定"QC项目申报"按钮的显示与可用状态
+ * 调用resolveQcTaskStageCode判断当前阶段
+ * 配置状态：返回对象包含showBtn（是否显示）和enableBtn（是否可点）
+ * 规则：申报中/已结束时可点；等待申请时置灰；形审结束及后续阶段隐藏按钮
+ * @param row
+ * @returns {{enableBtn: boolean, stageText: string, showBtn: boolean, stageCode: (*|string)}}
+ */
 function resolveQcApplyBtnState(row) {
 	var stageCode = resolveQcTaskStageCode(row);
 	var applyClosed = isQcApplyClosed(row);
@@ -330,8 +343,13 @@ function qcGroup(taskId) {
 //     return canImport || canManage;
 // }
 
-
+// bootstrap Table 配置和数据加载
 function load() {
+	/**
+	 * 从浏览器本地存储中读取当前选中的奖项类型ID（如QC奖=3、科技奖=1等）
+	 * 用于后续过滤只显示该类型的任务
+	 * @type {string}
+	 */
 	var awrdId =  localStorage.getItem("enterType") + "" ;//输出
 	$('#exampleTable')
 		.bootstrapTable(
@@ -466,16 +484,23 @@ function load() {
 
 							// var isSpecialAdmin = row.isSpecialAdmin ? '' : ' style="pointer-events:none" disabled="true" ';
 							var isSpecialAdmin = '';
+							// 科技进步奖的专家分派页面
 							let specGroupAdminUrl = '/scienceProgressScience/toAssignExperts?taskId='+row.id+"&proType=science_progress";
 							let managementBtn = row.isSpecialAdmin ? s_management_h : 'hidden';
-							var f = '<a class="btn btn-primary btn-sm ' + managementBtn + '" ' + isSpecialAdmin + ' href="javascript:page(\''+ specGroupAdminUrl  +'\',\'专业组管理\')" title="专业组管理"  mce_href="#">专业组管理</a> ';
+							// 作用域：所有非QC奖的任务（科技奖、勘察奖、优质工程奖等）
+							var f = '<a class="btn btn-primary btn-sm ' +
+								managementBtn + '" ' +
+								isSpecialAdmin +
+								' href="javascript:page(\''+ specGroupAdminUrl  +'\',\'专业组管理\')" title="专业组管理"  mce_href="#">专业组管理</a> ';
 
 							let projectScoreBtn = row.isScore ? '' : 'hidden';
 							let viewScoreUrl = '/specialist/associationViewScore?taskId='+row.id+"&proType=science_progress";
 							if (row.awardId == 2) {
                             	viewScoreUrl = '/surverScore/associationViewScore?taskId=' + row.id
                             }
-							var g = '<a class="btn btn-primary btn-sm  ' + projectScoreBtn +  '"  href="javascript:page(\''+ viewScoreUrl  +'\',\'分数查询\')" title="分数查询"  mce_href="#">分数查询</a> ';
+							var g = '<a class="btn btn-primary btn-sm  ' +
+								projectScoreBtn +
+								'"  href="javascript:page(\''+ viewScoreUrl  +'\',\'分数查询\')" title="分数查询"  mce_href="#">分数查询</a> ';
 
 							var ha = '<a class="btn btn-success btn-sm '+ s_project_summary +'" href="#" title="项目汇总"  mce_href="#" onclick="listPro(\''
 								+ row.id
@@ -648,6 +673,7 @@ function load() {
 									? '<a class="btn btn-success btn-sm" href="javascript:page(\'/qcProcess/toAssign?taskId=' + row.id + '\',\'分派\',2022020700)" title="分派项目" mce_href="#">分派</a> '
 									: '';
 
+								// 作用域：仅QC奖 + 协会管理角色
 								// 专业组管理（移除时间限制，只要有权限就始终显示）
 								var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden')
 									? '<a class="btn btn-primary btn-sm" href="javascript:page(\'/qcProcess/toAddSpecialist?taskId=' + row.id + '\',\'专业组管理\')" title="专业组管理" mce_href="#">专业组管理</a> '
@@ -672,7 +698,7 @@ function load() {
 							// 	// 协会矩阵：分派/分组/导入...
 							// 	return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn  + qcAssignBtn + qcDeleteBtn;
 							// }
-							
+
 							if (row.awardId == 3 && !isQcManagerRole()) {
 								// 企业矩阵：只保留项目列表 + 申报入口
 								return applyQcBtn+a;
@@ -762,6 +788,7 @@ function addData(val) {
     }
 
 }
+// 业务逻辑函数及复杂业务规则判断
 function add() {
 	var index =  localStorage.getItem("enterType") + "" ;//输出
 
@@ -1116,6 +1143,7 @@ function uplaodFile(taskId){
 	page('/specialistDoc/view_doc?taskId=' + taskId, '上传资料', 2023082500);
 }
 
+// AJAX 数据请求
 function viewTaskScoresByTaskId(taskId) {
     $.ajax({
         type: "GET",

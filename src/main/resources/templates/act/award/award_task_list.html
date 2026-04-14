@@ -1,21 +1,26 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
 <meta charset="utf-8">
+<!-- 引入外部资源 -->
 <head th:include="include :: header"></head>
+<!--QC奖项任务列表界面-->
+<!-- 页面结构/结构框架 、 静态内容 -->
 <body class="gray-bg">
 	<div class="wrapper wrapper-content ">
+		<!-- 页面布局 -->
 		<div class="col-sm-12">
 			<div class="ibox">
 				<div class="ibox-body">
 					<div class="fixed-table-toolbar">
 						<div class="columns pull-left">
-
+							<!--   Thymeleaf 模板语法（服务端渲染）:权限控制、后端传递过来的数据	-->
 							<button shiro:hasPermission="act:award:publish_award_task" type="button"
 								class="btn  btn-primary" onclick="add()">
 								<i class="fa fa-plus" aria-hidden="true"></i>创建
 							</button>
 
-							<button shiro:hasPermission="award_flow:publish_award_task:publish_award_task" type="button"
+							<button shiro:hasPermission="award_flow:publish_award_task:publish_award_task"
+									type="button"
 								class="btn  btn-danger" onclick="batchRemove()">
 								<i class="fa fa-trash" aria-hidden="true"></i>删除
 							</button>
@@ -23,6 +28,7 @@
 						<div class="columns pull-right">
 							<button class="btn btn-success" onclick="reLoad()">查询</button>
 						</div>
+						<!--  页面布局组件 -->
 						<div class="columns pull-right col-md-2 nopadding">
 							<input id="searchName" type="text" class="form-control"
 								placeholder="">
@@ -41,6 +47,7 @@
 		<input type="hidden" id="isAssociationRole" th:value="${isAssociationRole}">
         <input type="hidden" id="isExpertRole" th:value="${isExpertRole}">
 
+		<!-- 权限变量初始化 -->
         <script type="text/javascript">
 			var s_watch_h = 'hidden'// 查看
 			var s_edit_h = 'hidden';// 编辑

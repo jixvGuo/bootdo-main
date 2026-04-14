@@ -739,6 +739,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
         if (expertUidStr.isEmpty() || taskId.isEmpty()) {
             return R.error("参数不完整");
         }
+        // 潜在问题：未初始化就使用
         Long expertUid;
         try {
             expertUid = Long.parseLong(expertUidStr);
@@ -748,6 +749,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("optUid", expertUid);
         queryParams.put("taskId", taskId);
+        // 查询该专家的问题解决型和创新型评分记录
         List<QcResultSolveScoreDO> solveList = qcResultSolveScoreService.list(queryParams);
         List<QcResultInnovateScoreDO> innovateList = qcResultInnovateScoreService.list(queryParams);
         int updated = 0;
@@ -768,6 +770,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
             expertQuery.put("userId", expertUidStr);
             expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
             expertQuery.put("taskId", taskId);
+            // 查询该专家在任务中的分组信息，用于更新整体打分状态
             List<ExpertGroupDO> expertList = expertGroupService.list(expertQuery);
             if (!expertList.isEmpty()) {
                 ExpertGroupDO expert = expertList.get(0);

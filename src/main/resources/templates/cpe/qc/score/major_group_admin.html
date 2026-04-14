@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<!-- 专业组管理-->
+<!-- 专业组管理界面 -->
 <html xmlns:th="http://www.w3.org/1999/xhtml">
 
 
@@ -96,8 +96,12 @@
                                           <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>
                                           <button type="button" class="btn btn-success btn-xs" th:onclick="'javascript:exportExpertEliminateWord(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">导出淘汰</button>
                                           <button type="button" class="btn btn-info btn-xs" th:onclick="'javascript:viewExpertScores(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\', \'' + ${sel.groupName} + '\')'">分数查询-专家</button>
-<!--                                          驳回专家打分按钮 -->
-<!--                                          <button type="button" class="btn btn-danger btn-xs" th:onclick="'javascript:rejectScore(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">驳回打分</button>-->
+                                          <!--  驳回专家打分按钮 -->
+                                          <button type="button"
+                                                  class="btn btn-danger btn-xs"
+                                                  th:onclick="'javascript:rejectScore(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">
+                                              驳回打分
+                                          </button>
                                       </td>
                                   </tr>
                             </tbody>
