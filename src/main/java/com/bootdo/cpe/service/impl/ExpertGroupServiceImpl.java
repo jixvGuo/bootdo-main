@@ -120,4 +120,19 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
     public List<String> getDistinctGroupNames(Map<String, Object> params) {
         return expertGroupDao.getDistinctGroupNames(params);
     }
+
+    @Override
+    public int deleteByUserIdAndTaskIdAndProType(String userId, String taskId, String proType) {
+        return expertGroupDao.deleteByUserIdAndTaskIdAndProType(userId, taskId, proType);
+    }
+
+    /**
+     * 直接将专家分组数据保存到数据库，不做任何业务逻辑校验,用于形审专家绑定功能
+     * @param expertGroupDO
+     * @return
+     */
+    @Override
+    public int directSave(ExpertGroupDO expertGroupDO) {
+        return expertGroupDao.save(expertGroupDO);
+    }
 }

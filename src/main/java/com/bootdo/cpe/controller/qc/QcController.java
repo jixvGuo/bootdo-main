@@ -113,8 +113,6 @@ public class QcController extends BaseQcProController {
     @RequestMapping("/view/proList")
     public String toQcProjectList(ModelMap map, @RequestParam Map<String, Object> params) {
         packageAwardTaskId(map, params);
-        boolean isApply = isTaskIsApply(map, params);
-        map.put("isApply", isApply);
         UserDO user = getUser();
         // 判断用户是否属于三种特定角色：企业用户(QC奖)、协会领导、QC奖协会联系人
         List<Long> roleIdList = user.getRoleIds();
@@ -122,6 +120,35 @@ public class QcController extends BaseQcProController {
         boolean isAssociationLeader = roleIdList.contains(ROLE_ASSOCIATION_LEADER);
         boolean isAssociationContact = roleIdList.contains(ROLE_QC_ASSOCIATION_ID);
         boolean isExternalExpert = roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID);
+
+        // 新代码：形审专家从菜单进入时，页面默认 taskId 可能不是其实际绑定任务
+        // 若当前 taskId 下查不到 qc_view_scope 绑定，则回退到该专家已绑定的任务
+        if (isExternalExpert) {
+            String currentTaskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+            Map<String, Object> currentBindingQuery = new HashMap<>();
+            currentBindingQuery.put("userId", String.valueOf(user.getUserId()));
+            currentBindingQuery.put("proType", "qc_view_scope");
+            if (StringUtils.isNotBlank(currentTaskId)) {
+                currentBindingQuery.put("taskId", currentTaskId);
+            }
+            List<ExpertGroupDO> currentBindings = expertGroupService.list(currentBindingQuery);
+            if (currentBindings == null || currentBindings.isEmpty()) {
+                Map<String, Object> fallbackBindingQuery = new HashMap<>();
+                fallbackBindingQuery.put("userId", String.valueOf(user.getUserId()));
+                fallbackBindingQuery.put("proType", "qc_view_scope");
+                List<ExpertGroupDO> allBindings = expertGroupService.list(fallbackBindingQuery);
+                if (allBindings != null && !allBindings.isEmpty()) {
+                    String boundTaskId = allBindings.get(0).getTaskId();
+                    if (StringUtils.isNotBlank(boundTaskId) && !boundTaskId.equals(currentTaskId)) {
+                        params.put("taskId", boundTaskId);
+                        map.put("taskId", boundTaskId);
+                    }
+                }
+            }
+        }
+
+        boolean isApply = isTaskIsApply(map, params);
+        map.put("isApply", isApply);
         boolean canExportEliminate = isAssociationLeader || isExternalExpert;
         map.put("isAssociationContact", isAssociationContact);
         map.put("isAssociationLeader", isAssociationLeader);
@@ -158,6 +185,9 @@ public class QcController extends BaseQcProController {
             }
         }
         map.put("externalGroupName", externalGroupName);
+        // 新代码：将当前用户ID和形审专家标识传入模板，供前端形审专家绑定功能使用
+        map.put("currentUserId", getUserId());
+        map.put("isExternalExpert", isExternalExpert);
         // 原代码：boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) || roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID) || roleIdList.contains(ROLE_SPECIALIST_ID) || roleIdList.contains(ROLE_ASSOCIATION_LEADER);
         // 新代码：增加QC奖评审专家角色(85)
         boolean isReview = roleIdList.contains(ROLE_QC_ASSOCIATION_ID) ||
@@ -262,6 +292,13 @@ public class QcController extends BaseQcProController {
 
         return prefix + "/qc_pro_list";
     }
+
+    @RequestMapping("/view/test111")
+    public String toQcTest111(ModelMap map, @RequestParam Map<String, Object> params) {
+        packageAwardTaskId(map, params);
+        return prefix + "/qc_test_111";
+    }
+
     @RequestMapping("/get/latestReviewComment")
     @ResponseBody
     public R getLatestReviewComment(Integer proId) {

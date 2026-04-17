@@ -115,6 +115,8 @@ public class AwardFlowController extends BaseScienceTechnologyController {
         //是否协会联系人
         boolean isAssociationRole = RoleAwardParamData.isAssociationRole(roleIdList);
         map.put("isAssociationRole", isAssociationRole);
+        boolean isQcAssociationContactRole70 = roleIdList != null && roleIdList.contains(70L);
+        map.put("isQcAssociationContactRole70", isQcAssociationContactRole70);
         return prefix + "/award_task_list";
     }
 

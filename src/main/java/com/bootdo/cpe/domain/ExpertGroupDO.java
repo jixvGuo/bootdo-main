@@ -72,6 +72,11 @@ public class ExpertGroupDO implements Serializable {
     private Integer scoreOver;
 
     /**
+     * 发布分提交状态：0-未提交，1-已提交
+     */
+    private Integer presentScoreOver;
+
+    /**
      * 新增：已分派的项目ID列表（用于页面回显，不存数据库）
      */
     private List<Integer> assignedProjectIds;
@@ -219,6 +224,14 @@ public class ExpertGroupDO implements Serializable {
 
     public void setScoreOver(Integer scoreOver) {
         this.scoreOver = scoreOver;
+    }
+
+    public Integer getPresentScoreOver() {
+        return presentScoreOver;
+    }
+
+    public void setPresentScoreOver(Integer presentScoreOver) {
+        this.presentScoreOver = presentScoreOver;
     }
 
     public String getProType() {

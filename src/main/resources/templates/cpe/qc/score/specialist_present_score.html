@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+
+<head th:include="include :: header_lu"></head>
+<!--QC 奖专家发布分（第二次打分）页面-->
+<body>
+    <div class="ui container">
+        <div class="ui bottom attached segment">
+            <form action="" class="ui basic form" id="presentScoreForm">
+                <input type="hidden" id="proId" name="proId" th:value="${proId}" />
+                <input type="hidden" id="taskId" name="taskId" th:value="${taskId}" />
+                <input type="hidden" id="expertUid" name="expertUid" th:value="${expertUid}" />
+                <input type="hidden" id="topicType" name="topicType" th:value="${topicType}" />
+
+                <h4 class="ui red horizontal divider header">基本信息</h4>
+                <div class="ui two fields">
+                    <div class="ui field disabled">
+                        <label>课题名称</label>
+                        <input type="text" placeholder="课题名称" readonly="readonly"
+                               th:value="${proInfo != null ? proInfo.topicName : ''}" />
+                    </div>
+                </div>
+
+                <h4 class="ui red horizontal divider header">打分详情</h4>
+
+                <div class="ui grid">
+                    <div class="eight wide column">
+                        <div class="ui field">
+                            <label>逻辑性（6）：</label>
+                            <input type="number" id="logicScore" name="logicScore" min="0" max="6" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>发布形式（4）：</label>
+                            <input type="number" id="presentFormatScore" name="presentFormatScore" min="0" max="4" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>回答问题（4）：</label>
+                            <input type="number" id="answerScore" name="answerScore" min="0" max="4" step="0.01" placeholder="请输入..." />
+                        </div>
+                    </div>
+
+                    <div class="eight wide column">
+                        <div class="ui field">
+                            <label>专业性（6）：</label>
+                            <input type="number" id="professionalScore" name="professionalScore" min="0" max="6" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>表达（4）：</label>
+                            <input type="number" id="expressionScore" name="expressionScore" min="0" max="4" step="0.01" placeholder="请输入..." />
+                        </div>
+                        <div class="ui field">
+                            <label>成员/时间（4）：</label>
+                            <input type="number" id="memberTimeScore" name="memberTimeScore" min="0" max="4" step="0.01" placeholder="请输入..." />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui field disabled">
+                    <label>总分</label>
+                    <input type="number" id="appraiseSum" name="appraiseSum" readonly="readonly" />
+                </div>
+
+                <div class="ui basic center aligned segment">
+                    <div class="ui blue button" onclick="savePresentScore()">保存</div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div th:include="include :: footer_lu"></div>
+
+    <script>
+        function parseNum(val) {
+            if (val === null || val === undefined || val === '') return 0;
+            var n = Number(val);
+            return isNaN(n) ? 0 : n;
+        }
+
+        function fixed2(n) {
+            return (Math.round(n * 100) / 100).toFixed(2);
+        }
+
+        function calcTotal() {
+            var total = 0;
+            total += parseNum($('#logicScore').val());
+            total += parseNum($('#professionalScore').val());
+            total += parseNum($('#presentFormatScore').val());
+            total += parseNum($('#expressionScore').val());
+            total += parseNum($('#answerScore').val());
+            total += parseNum($('#memberTimeScore').val());
+            $('#appraiseSum').val(fixed2(total));
+        }
+
+        function autoCorrectScore(input) {
+            var min = parseFloat(input.attr('min')) || 0;
+            var max = parseFloat(input.attr('max')) || 999;
+            var label = input.closest('.ui.field').find('label').text() || '该字段';
+            var nativeInput = input[0];
+            if (nativeInput && nativeInput.validity && !nativeInput.validity.valid) {
+                alert(label + '格式不正确，请输入数字，已重置为0');
+                input.val(0);
+                return;
+            }
+            var raw = input.val();
+            if (raw === null || raw === undefined || raw === '') return;
+            if (isNaN(Number(raw))) {
+                alert(label + '格式不正确，请输入数字，已重置为0');
+                input.val(0);
+                return;
+            }
+            var val = parseNum(raw);
+            if (val < min) {
+                alert(label + '不能小于' + min + '，已自动修正');
+                input.val(min);
+            } else if (val > max) {
+                alert(label + '不能超过' + max + '分，已自动修正');
+                input.val(max);
+            }
+        }
+
+        function loadPresentScore() {
+            var proId = $('#proId').val();
+            var taskId = $('#taskId').val();
+            if (!proId || !taskId) return;
+            $.ajax({
+                type: 'GET',
+                url: '/qcScore/getPresentScore',
+                data: { proId: proId, taskId: taskId },
+                success: function (r) {
+                    if (!r || r.code != 0) return;
+                    var s = r.score || {};
+                    $('#logicScore').val(s.logicScore);
+                    $('#professionalScore').val(s.professionalScore);
+                    $('#presentFormatScore').val(s.presentFormatScore);
+                    $('#expressionScore').val(s.expressionScore);
+                    $('#answerScore').val(s.answerScore);
+                    $('#memberTimeScore').val(s.memberTimeScore);
+                    $('#appraiseSum').val(s.appraiseSum);
+                    calcTotal();
+                }
+            });
+        }
+
+        function savePresentScore() {
+            var proId = $('#proId').val();
+            var taskId = $('#taskId').val();
+            if (!proId || !taskId) {
+                alert('项目信息缺失，无法保存');
+                return;
+            }
+            calcTotal();
+            var data = {
+                proId: proId,
+                taskId: taskId,
+                logicScore: $('#logicScore').val(),
+                professionalScore: $('#professionalScore').val(),
+                presentFormatScore: $('#presentFormatScore').val(),
+                expressionScore: $('#expressionScore').val(),
+                answerScore: $('#answerScore').val(),
+                memberTimeScore: $('#memberTimeScore').val(),
+                topicType: $('#topicType').val(),
+                appraiseSum: $('#appraiseSum').val()
+            };
+            $.ajax({
+                url: '/qcScore/savePresentScore',
+                type: 'POST',
+                data: data,
+                success: function (r) {
+                    if (r && r.code == 0) {
+                        alert('保存成功！');
+                        try {
+                            var index = parent.layer.getFrameIndex(window.name);
+                            parent.layer.close(index);
+                            if (parent.reLoad && typeof parent.reLoad === 'function') {
+                                parent.reLoad();
+                            }
+                        } catch (e) {
+                            loadPresentScore();
+                        }
+                    } else {
+                        alert('保存失败: ' + (r && r.msg ? r.msg : '未知错误'));
+                    }
+                },
+                error: function (xhr, status, error) {
+                    alert('请求失败: ' + (error || status));
+                }
+            });
+        }
+
+        function getUrlParam(name) {
+            var reg = new RegExp('(^|&)' + name + '=([^&]*)(&|$)');
+            var r = window.location.search.substr(1).match(reg);
+            return r ? decodeURIComponent(r[2]) : null;
+        }
+
+        $(function () {
+            loadPresentScore();
+
+            if (getUrlParam('viewOnly') === '1') {
+                $('#presentScoreForm input[type="number"]').prop('readonly', true).css('background', '#f5f5f5');
+                $('#presentScoreForm .ui.blue.button').hide();
+                $('<div class="ui info message" style="margin-bottom:10px;padding:10px 15px;background:#d9edf7;border:1px solid #bce8f1;border-radius:4px;color:#31708f;">'
+                    + '<i class="fa fa-info-circle"></i> 打分已提交，当前为只读查看模式。'
+                    + '</div>').prependTo('.ui.bottom.attached.segment');
+            } else {
+                $('#presentScoreForm').on('keyup change', "input[type='number']", function () {
+                    calcTotal();
+                });
+                $('#presentScoreForm').on('blur', "input[type='number']:not([readonly])", function () {
+                    autoCorrectScore($(this));
+                    calcTotal();
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

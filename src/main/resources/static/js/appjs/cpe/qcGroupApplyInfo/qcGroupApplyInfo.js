@@ -1098,6 +1098,7 @@ function showTaskScoresModal(projects) {
     html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
     html += '<thead><tr>';
     html += '<th style="width:50px;">序号</th>';
+    html += '<th style="width:130px;">分派专业组</th>';
     html += '<th style="width:110px;">申报账号</th>';
     html += '<th>课题名称</th>';
     html += '<th style="width:130px;">小组名称</th>';
@@ -1118,6 +1119,7 @@ function showTaskScoresModal(projects) {
             ? '<span style="color:#5cb85c;font-weight:bold;">' + item.avgScore + '</span>'
             : '<span style="color:#999;">-</span>';
         html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + escapeHtml(item.qcGroupName || '-') + '</td>';
         html += '<td>' + escapeHtml(item.proCode || '-') + '</td>';
         html += '<td>' + escapeHtml(item.topicName || '-') + '</td>';
         html += '<td>' + escapeHtml(item.groupName || '-') + '</td>';
@@ -1134,7 +1136,7 @@ function showTaskScoresModal(projects) {
     layer.open({
         type: 1,
         title: '任务打分情况',
-        area: ['1000px', '650px'],
+        area: ['1120px', '650px'],
         content: html,
         btn: ['导出Excel', '关闭'],
         yes: function() {
@@ -1276,11 +1278,11 @@ function _buildTaskMatrixExcel(matrixData, taskId) {
 
 /**
  * 构建任务维度矩阵sheet（项目×专家得分）
- * 列：序号(0)、申报号(1)、课题名称(2)、小组名称(3)、分类(4)、
- *     [专家1](5)...[专家N](4+N)、资料分(5+N)、完成单位(6+N)、申报单位(7+N)、小组成员(8+N)
+ * 列：序号(0)、分派专业组(1)、申报号(2)、课题名称(3)、小组名称(4)、分类(5)、
+ *     [专家1](6)...[专家N](5+N)、资料分(6+N)、完成单位(7+N)、申报单位(8+N)、小组成员(9+N)
  */
 function _buildMatrixSheet(items, experts, year, typeLabel) {
-    var nFixed   = 5;
+    var nFixed   = 6;
     var nExperts = experts.length;
     var nTotal   = nFixed + nExperts + 4; // +1资料分 +3其他
 
@@ -1291,7 +1293,7 @@ function _buildMatrixSheet(items, experts, year, typeLabel) {
     aoa.push(r0);
 
     var r1 = new Array(nTotal).fill('');
-    r1[0] = '序号'; r1[1] = '申报号'; r1[2] = '课题名称'; r1[3] = '小组名称'; r1[4] = '分类';
+    r1[0] = '序号'; r1[1] = '分派专业组'; r1[2] = '申报号'; r1[3] = '课题名称'; r1[4] = '小组名称'; r1[5] = '分类';
     if (nExperts > 0) r1[nFixed] = '专家打分';
     r1[nFixed + nExperts]     = '资料分\n（小数点后两位）';
     r1[nFixed + nExperts + 1] = '完成单位';
@@ -1309,16 +1311,36 @@ function _buildMatrixSheet(items, experts, year, typeLabel) {
         var pro = items[j];
         var row = new Array(nTotal).fill('');
         row[0] = j + 1;
-        row[1] = pro.proCode    || '';
-        row[2] = pro.topicName  || '';
-        row[3] = pro.groupName  || '';
-        row[4] = pro.topicType  || '';
+        row[1] = pro.qcGroupName || '';
+        row[2] = pro.proCode    || '';
+        row[3] = pro.topicName  || '';
+        row[4] = pro.groupName  || '';
+        row[5] = pro.topicType  || '';
+        // 原代码：直接写原始分
+        // for (var k = 0; k < experts.length; k++) {
+        //     var acc   = experts[k].loginAccount;
+        //     var score = pro.expertScores && pro.expertScores[acc];
+        //     row[nFixed + k] = (score != null && score !== '') ? score : '';
+        // }
+        // row[nFixed + nExperts] = '';
+        // 新代码：各专家分 * 0.6，资料分 = avgScore * 0.6
         for (var k = 0; k < experts.length; k++) {
             var acc   = experts[k].loginAccount;
             var score = pro.expertScores && pro.expertScores[acc];
-            row[nFixed + k] = (score != null && score !== '') ? score : '';
+            if (score === '回避') {
+                row[nFixed + k] = '回避';
+            } else if (score != null && score !== '') {
+                var sv = parseFloat(score) * 0.6;
+                row[nFixed + k] = isNaN(sv) ? score : (sv % 1 === 0 ? sv : parseFloat(sv.toFixed(2)));
+            } else {
+                row[nFixed + k] = '';
+            }
         }
-        row[nFixed + nExperts]     = '';
+        var rawAvg = pro.avgScore;
+        row[nFixed + nExperts] = (rawAvg != null && rawAvg !== '') ? (function() {
+            var av = parseFloat(rawAvg) * 0.6;
+            return isNaN(av) ? '' : (av % 1 === 0 ? av : parseFloat(av.toFixed(2)));
+        }()) : '';
         row[nFixed + nExperts + 1] = pro.completeUnit || '';
         row[nFixed + nExperts + 2] = pro.companyName  || '';
         row[nFixed + nExperts + 3] = pro.groupMember  || '';
@@ -1331,7 +1353,7 @@ function _buildMatrixSheet(items, experts, year, typeLabel) {
         {s:{r:0,c:0}, e:{r:0,c:nTotal-1}},
         {s:{r:1,c:0}, e:{r:2,c:0}}, {s:{r:1,c:1}, e:{r:2,c:1}},
         {s:{r:1,c:2}, e:{r:2,c:2}}, {s:{r:1,c:3}, e:{r:2,c:3}},
-        {s:{r:1,c:4}, e:{r:2,c:4}},
+        {s:{r:1,c:4}, e:{r:2,c:4}}, {s:{r:1,c:5}, e:{r:2,c:5}},
         {s:{r:1,c:nFixed+nExperts},   e:{r:2,c:nFixed+nExperts}},
         {s:{r:1,c:nFixed+nExperts+1}, e:{r:2,c:nFixed+nExperts+1}},
         {s:{r:1,c:nFixed+nExperts+2}, e:{r:2,c:nFixed+nExperts+2}},
@@ -1344,7 +1366,7 @@ function _buildMatrixSheet(items, experts, year, typeLabel) {
     }
     ws['!merges'] = merges;
 
-    var cols = [{wch:6},{wch:14},{wch:26},{wch:14},{wch:8}];
+    var cols = [{wch:6},{wch:14},{wch:14},{wch:26},{wch:14},{wch:8}];
     for (var m = 0; m < nExperts; m++) cols.push({wch:9});
     cols.push({wch:10},{wch:14},{wch:14},{wch:18});
     ws['!cols'] = cols;

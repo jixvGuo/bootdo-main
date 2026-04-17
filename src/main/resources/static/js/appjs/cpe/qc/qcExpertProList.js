@@ -20,6 +20,7 @@ $(function () {
      */
     // 初始化打分提交状态
     updateScoreSubmitUI();
+    updatePresentScoreSubmitUI();
 });
 
 function load() {
@@ -127,11 +128,36 @@ function load() {
                                     + '\')">淘汰</a>';
                             }
 
-                            var recommend = '<a class="btn btn-info btn-sm" href="#" title="主评意见" onclick="openRecommend(\''
-                                + row.proId + '\',\'' + row.taskId + '\',\'' + (row.topicType || '') 
-                                + '\')">主评意见</a> ';
+                            // 发布分评分按钮（第二次打分入口，仅在第二阶段专家评审时间范围内显示）
+                            // var presentScore = '';
+                            // (function () {
+                            //     var now = new Date();
+                            //     var s2Start = window.expertStartTimeSecond
+                            //         ? new Date((window.expertStartTimeSecond + '').replace(/-/g, '/'))
+                            //         : null;
+                            //     var s2End = window.expertEndTimeSecond
+                            //         ? new Date((window.expertEndTimeSecond + '').replace(/-/g, '/'))
+                            //         : null;
+                            //     var inSecondPhase = s2Start && s2End
+                            //         && !isNaN(s2Start.getTime()) && !isNaN(s2End.getTime())
+                            //         && now >= s2Start && now <= s2End;
+                            //     if (inSecondPhase) {
+                            //         presentScore = '<a class="btn btn-primary btn-sm" href="#" title="发布分评分" onclick="openPresentScore(\''
+                            //             + row.proId + '\',\'' + row.taskId
+                            //             + '\',\'' + (row.topicType || '')
+                            //             + '\')">发布分评分</a>';
+                            //     }
+                            // }());
 
-                            return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate;
+                            var recommend = '<a class="btn btn-info btn-sm" href="#" title="主评意见" onclick="openRecommend(\''
+                                + row.proId + '\',\'' + row.taskId + '\',\'' + (row.topicType || '')
+                                + '\',\'' + (row.unitName || '').replace(/'/g, "\\'") + '\',\'' + (row.groupDesc || '').replace(/'/g, "\\'")
+                                + '\',\'' + (row.proCode || '').replace(/'/g, "\\'") + '\',\'' + (row.topicName || '').replace(/'/g, "\\'")
+                                + '\',\'' + (row.groupName || '').replace(/'/g, "\\'")
+                                + '\')">'+'主评意见</a> ';
+
+                            // return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate + ' ' + presentScore;
+                            return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate ;
                         }
                     }]
             });
@@ -646,7 +672,7 @@ function exportEliminateExcel() {
 /**
  * 打开主评意见弹窗
  */
-function openRecommend(proId, taskId, topicType) {
+function openRecommend(proId, taskId, topicType, unitName, groupDesc, proCode, topicName, groupName) {
     var html = '<div style="padding:20px;">'
         + '<div style="margin-bottom:15px;">'
         + '<label style="display:block;margin-bottom:5px;font-weight:bold;">推荐意见等级</label>'
@@ -669,7 +695,8 @@ function openRecommend(proId, taskId, topicType) {
         title: '主评意见',
         area: ['500px', '400px'],
         content: html,
-        btn: ['保存', '取消'],
+        // 导出Word 按钮
+        btn: ['导出', '保存', '取消'],
         success: function () {
             // 加载已有的主评意见
             $.ajax({
@@ -688,7 +715,11 @@ function openRecommend(proId, taskId, topicType) {
                 }
             });
         },
-        yes: function (index) {
+        yes: function () {
+            exportRecommendWord(unitName, groupDesc, proCode, topicName, groupName);
+            return false;
+        },
+        btn2: function (index) {
             var recommendLevel = $('#rec_recommendLevel').val();
             var sumRecommend = $('#rec_sumRecommend').val();
             $.ajax({
@@ -713,6 +744,107 @@ function openRecommend(proId, taskId, topicType) {
                     layer.alert('保存失败，请稍后重试');
                 }
             });
+            return false;
         }
     });
+}
+
+/**
+ * 导出主评意见为 Word（.doc）
+ */
+function exportRecommendWord(unitName, groupDesc, proCode, topicName, groupName) {
+    function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    var sumRecommend = esc($('#rec_sumRecommend').val() || '').replace(/\n/g, '<br>');
+    var year = new Date().getFullYear();
+
+    var html = '<html xmlns:o="urn:schemas-microsoft-com:office:office"'
+        + ' xmlns:w="urn:schemas-microsoft-com:office:word"'
+        + ' xmlns="http://www.w3.org/TR/REC-html40">'
+        + '<head><meta charset="UTF-8">'
+        + '<style>'
+        + 'body{font-family:宋体,SimSun,serif;font-size:12pt;}'
+        + 'p{margin:0;padding:0;line-height:1.8;}'
+        + '.t{text-align:center;font-size:16pt;font-weight:bold;line-height:2.2;}'
+        + 'table{width:100%;border-collapse:collapse;}'
+        + 'td{border:1px solid black;padding:6px 12px;font-size:12pt;}'
+        + '</style></head><body>'
+        + '<p class="t">' + year + ' 年度石油工程建设优秀质量管理小组活动成果</p>'
+        + '<p class="t" style="margin-bottom:10pt;">评价意见表</p>'
+        + '<table>'
+        + '<tr><td>申报单位：' + esc(unitName) + '</td></tr>'
+        + '<tr><td>完成单位：' + esc(groupDesc) + '</td></tr>'
+        + '<tr><td>资料编号（申报账号）：' + esc(proCode) + '</td></tr>'
+        + '<tr><td>课题名称：' + esc(topicName) + '</td></tr>'
+        + '<tr><td>小组名称：' + esc(groupName) + '</td></tr>'
+        + '<tr><td style="height:280px;vertical-align:top;">评价意见：<br>' + sumRecommend + '</td></tr>'
+        + '<tr><td style="height:120px;vertical-align:bottom;padding-bottom:20px;">'
+        + '<p style="text-align:center;">主评专家：</p>'
+        + '<p style="text-align:center;margin-top:12pt;">副评专家：</p>'
+        + '<p style="text-align:center;margin-top:12pt;">' + year + ' 年&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;月&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;日</p>'
+        + '</td></tr>'
+        + '</table>'
+        + '<p style="margin-top:8pt;">说明：</p>'
+        + '<p>1、评价意见包括：亮点、不足和改进措施等内容</p>'
+        + '<p>2、评价意见由主评专家和副评专家签字。</p>'
+        + '</body></html>';
+
+    var blob = new Blob(['\ufeff' + html], { type: 'application/msword' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = year + '年度评价意见表.doc';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 200);
+}
+
+// ==================== 发布分提交功能 ====================
+
+function updatePresentScoreSubmitUI() {
+    if (window.presentScoreIsOver == 1) {
+        $("#btnSubmitPresentScore").prop('disabled', true).removeClass('btn-warning').addClass('btn-default').html('<i class="fa fa-check"></i> 发布分已提交');
+        $("#presentScoreSubmittedTip").show();
+    }
+}
+
+function submitPresentScore() {
+    layer.confirm('提交后不可再次修改发布分，是否确定提交?', {
+        btn: ['确定', '取消']
+    }, function (confirmIndex) {
+        layer.close(confirmIndex);
+        $.ajax({
+            type: "POST",
+            url: prefix + "/submitPresentScore",
+            data: { taskId: $("#taskId").val() },
+            async: false,
+            error: function () { parent.layer.alert("Connection error"); },
+            success: function (data) {
+                if (data.code == 0) {
+                    parent.layer.msg("发布分提交成功", {icon: 1, time: 2000});
+                    window.presentScoreIsOver = 1;
+                    updatePresentScoreSubmitUI();
+                } else {
+                    parent.layer.alert(data.msg);
+                }
+            }
+        });
+    }, function () {});
+}
+
+// ==================== 发布分评分功能 ====================
+
+/**
+ * 打开发布分评分弹窗（第二次打分入口）
+ */
+function openPresentScore(proId, taskId, topicType) {
+    var url = prefix + '/toPresentScore?proId=' + proId + '&taskId=' + taskId + '&topicType=' + encodeURIComponent(topicType || '');
+    var index = layer.open({
+        type: 2,
+        title: 'QC专家发布分评分',
+        maxmin: true,
+        shadeClose: false,
+        area: ['800px', '560px'],
+        content: url
+    });
+    layer.full(index);
 }

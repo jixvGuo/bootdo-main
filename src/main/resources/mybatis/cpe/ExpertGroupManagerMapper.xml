@@ -54,7 +54,8 @@
          (SELECT url FROM sys_file where id = asi.signature_id limit 1) expertSignUrl,
          pro_type,
          IFNULL(eliminate_over, 0) as eliminateOver,
-         IFNULL(score_over, 0) as scoreOver
+         IFNULL(score_over, 0) as scoreOver,
+         IFNULL(present_score_over, 0) as presentScoreOver
                from add_special_info asi
         <where>
             <if test="id != null and id != ''">and id = #{id}</if>
@@ -168,6 +169,7 @@
             <if test="expertName != null">`expert_name` = #{expertName},</if>
             <if test="eliminateOver != null">`eliminate_over` = #{eliminateOver},</if>
             <if test="scoreOver != null">`score_over` = #{scoreOver},</if>
+            <if test="presentScoreOver != null">`present_score_over` = #{presentScoreOver},</if>
 
         </set>
         where id = #{id}
@@ -205,6 +207,14 @@
     <update id="delByLoginAccount">
         update add_special_info set deleted = 1 where login_account = #{loginAccount}
     </update>
+
+    <!-- 新增：按userId+taskId+proType物理删除记录，用于形审专家分组绑定的清理 -->
+    <delete id="deleteByUserIdAndTaskIdAndProType">
+        DELETE FROM add_special_info
+        WHERE user_id = #{userId}
+          AND task_id = #{taskId}
+          AND pro_type = #{proType}
+    </delete>
 
     <!-- 新增：获取指定taskId和proType下的所有不重复的专业组名称，用于左侧专业分类展示(得删或者得改) -->
     <select id="getDistinctGroupNames" resultType="java.lang.String">

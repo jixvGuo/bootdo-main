@@ -653,7 +653,9 @@ function load() {
 								var qcOps = resolveQcManagerTaskOps(stageCode);
 
 								// 修复：该页面没有 s_qc_pro_list_btn 变量，使用已存在的 qcProListBtn 权限变量
-								var qcProListBtn = '<a class="btn btn-success btn-sm ' + s_qc_pro_list_btn + '" href="#" title="QC奖项目列表" mce_href="#" onclick="QcProList(\'' + row.id + '\')">QC奖项目列表</a> ';
+								var qcProListBtn = '<a class="btn btn-success btn-sm '
+									+ s_qc_pro_list_btn
+									+ '" href="#" title="QC奖项目列表" mce_href="#" onclick="QcProList(\'' + row.id + '\')">QC奖项目列表</a> ';
 
 								// 查看
 								var qcViewBtn = qcOps.showView
@@ -675,8 +677,14 @@ function load() {
 
 								// 作用域：仅QC奖 + 协会管理角色
 								// 专业组管理（移除时间限制，只要有权限就始终显示）
-								var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden')
-									? '<a class="btn btn-primary btn-sm" href="javascript:page(\'/qcProcess/toAddSpecialist?taskId=' + row.id + '\',\'专业组管理\')" title="专业组管理" mce_href="#">专业组管理</a> '
+								// 管理员都可见的专业组管理按钮、无权限的专业组管理按钮
+								var isQcAssociationContactRole70 = $("#isQcAssociationContactRole70").val();
+								 var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden')
+								// var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden'
+								// 		&& String(isQcAssociationContactRole70) !== 'true')
+									? '<a class="btn btn-primary btn-sm" href="javascript:page(\'/qcProcess/toAddSpecialist?taskId='
+									+ row.id
+									+ '\',\'专业组管理\')" title="专业组管理" mce_href="#">专业组管理</a> '
 									: '';
 
 								// // 分数查询（含导出评分汇总表）
@@ -692,6 +700,7 @@ function load() {
 
 								// 第3步修改：QC角色冲突按钮不拼（企业列表/其他奖项申报入口）
 								return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcExpertGroupBtn + qcDeleteBtn;
+								// return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcDeleteBtn;
 							}
 
 							// if (row.awardId == 3 && isQcManagerRole()) {
@@ -1161,7 +1170,7 @@ function viewTaskScoresByTaskId(taskId) {
         }
     });
 }
-
+// 任务打分情况的总览弹窗
 function _awardShowTaskScoresModal(projects, taskId) {
     if (!projects || projects.length == 0) {
         layer.msg('该任务暂无打分记录', {icon: 0});
@@ -1175,6 +1184,7 @@ function _awardShowTaskScoresModal(projects, taskId) {
     html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
     html += '<thead><tr>';
     html += '<th style="width:50px;">序号</th>';
+    html += '<th style="width:130px;">分派专业组</th>';
     html += '<th style="width:110px;">申报账号</th>';
     html += '<th>课题名称</th>';
     html += '<th style="width:130px;">小组名称</th>';
@@ -1183,6 +1193,7 @@ function _awardShowTaskScoresModal(projects, taskId) {
     html += '<th style="width:70px;">平均分</th>';
     html += '<th style="width:70px;">操作</th>';
     html += '</tr></thead><tbody>';
+
     for (var i = 0; i < projects.length; i++) {
         var item = projects[i];
         var escapedName = (item.topicName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -1194,6 +1205,7 @@ function _awardShowTaskScoresModal(projects, taskId) {
             : '<span style="color:#999;">-</span>';
         html += '<tr>';
         html += '<td>' + (i + 1) + '</td>';
+        html += '<td>' + _awardEscapeHtml(item.qcGroupName || '-') + '</td>';
         html += '<td>' + _awardEscapeHtml(item.proCode || '-') + '</td>';
         html += '<td>' + _awardEscapeHtml(item.topicName || '-') + '</td>';
         html += '<td>' + _awardEscapeHtml(item.groupName || '-') + '</td>';
@@ -1201,14 +1213,16 @@ function _awardShowTaskScoresModal(projects, taskId) {
         html += '<td>' + scoreCountHtml + '</td>';
         html += '<td>' + avgScoreHtml + '</td>';
         html += '<td><button class="btn btn-primary btn-xs" onclick="_awardViewProjectScoreDetail(' + item.proId + ', \'' + escapedName + '\', \'' + taskId + '\')">详情</button></td>';
+
         html += '</tr>';
+
     }
     html += '</tbody></table>';
     html += '</div>';
     layer.open({
         type: 1,
         title: '任务打分情况',
-        area: ['1000px', '650px'],
+        area: ['1120px', '650px'],
         content: html,
         btn: ['关闭']
     });
@@ -1294,7 +1308,7 @@ function _buildAndDownloadScoreMatrix(matrixData) {
     var doExport = function() {
         var experts = matrixData.experts || [];
         var projects = matrixData.projects || [];
-        var nFixed = 5; // 序号、申报账号、课题名称、小组名称、分类
+        var nFixed = 6; // 序号、分派专业组、申报账号、课题名称、小组名称、分类
         var nExperts = experts.length;
         var nTotal = nFixed + nExperts + 1 + 3; // +1资料分 +3灰色列
 
@@ -1307,7 +1321,7 @@ function _buildAndDownloadScoreMatrix(matrixData) {
 
         // 第1行：主列头
         var h1 = new Array(nTotal).fill('');
-        h1[0] = '序号'; h1[1] = '申报账号'; h1[2] = '课题名称'; h1[3] = '小组名称'; h1[4] = '分类';
+        h1[0] = '序号'; h1[1] = '分派专业组'; h1[2] = '申报账号'; h1[3] = '课题名称'; h1[4] = '小组名称'; h1[5] = '分类';
         h1[nFixed] = '专家打分';
         h1[nFixed + nExperts] = '资料分';
         h1[nFixed + nExperts + 1] = '完成名称';
@@ -1328,10 +1342,11 @@ function _buildAndDownloadScoreMatrix(matrixData) {
             var pro = projects[j];
             var row = new Array(nTotal).fill('');
             row[0] = j + 1;
-            row[1] = pro.proCode || '';
-            row[2] = pro.topicName || '';
-            row[3] = pro.groupName || '';
-            row[4] = pro.topicType || '';
+            row[1] = pro.qcGroupName || '';
+            row[2] = pro.proCode || '';
+            row[3] = pro.topicName || '';
+            row[4] = pro.groupName || '';
+            row[5] = pro.topicType || '';
             for (var k = 0; k < experts.length; k++) {
                 var acc = experts[k].loginAccount;
                 var score = pro.expertScores && pro.expertScores[acc];
@@ -1346,10 +1361,11 @@ function _buildAndDownloadScoreMatrix(matrixData) {
         var merges = [
             {s:{r:0,c:0}, e:{r:0,c:nTotal-1}},      // 标题行
             {s:{r:1,c:0}, e:{r:2,c:0}},               // 序号
-            {s:{r:1,c:1}, e:{r:2,c:1}},               // 申报账号
-            {s:{r:1,c:2}, e:{r:2,c:2}},               // 课题名称
-            {s:{r:1,c:3}, e:{r:2,c:3}},               // 小组名称
-            {s:{r:1,c:4}, e:{r:2,c:4}},               // 分类
+            {s:{r:1,c:1}, e:{r:2,c:1}},               // 分派专业组
+            {s:{r:1,c:2}, e:{r:2,c:2}},               // 申报账号
+            {s:{r:1,c:3}, e:{r:2,c:3}},               // 课题名称
+            {s:{r:1,c:4}, e:{r:2,c:4}},               // 小组名称
+            {s:{r:1,c:5}, e:{r:2,c:5}},               // 分类
             {s:{r:1,c:nFixed+nExperts},   e:{r:2,c:nFixed+nExperts}},    // 资料分
             {s:{r:1,c:nFixed+nExperts+1}, e:{r:2,c:nFixed+nExperts+1}},  // 完成名称
             {s:{r:1,c:nFixed+nExperts+2}, e:{r:2,c:nFixed+nExperts+2}},  // 申报单位
@@ -1361,7 +1377,7 @@ function _buildAndDownloadScoreMatrix(matrixData) {
         ws['!merges'] = merges;
 
         // 列宽
-        var cols = [{wch:6},{wch:14},{wch:28},{wch:16},{wch:10}];
+        var cols = [{wch:6},{wch:14},{wch:14},{wch:28},{wch:16},{wch:10}];
         for (var m = 0; m < nExperts; m++) cols.push({wch:9});
         cols.push({wch:12},{wch:18},{wch:18},{wch:22});
         ws['!cols'] = cols;
@@ -1385,7 +1401,15 @@ function _buildAndDownloadScoreMatrix(matrixData) {
     }
 }
 
+/**
+ * 防止XSS（跨站脚本攻击）和确保数据正确显示
+ * 将用户输入的特殊字符转义
+ */
 function _awardEscapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    return String(str).replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;');
 }

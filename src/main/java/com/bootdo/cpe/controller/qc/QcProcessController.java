@@ -47,6 +47,8 @@ import com.bootdo.cpe.domain.QcGroupMember;
 import com.bootdo.cpe.service.QcGroupApplyInfoService;
 import com.bootdo.cpe.service.QcExpertEliminateConfirmedService;
 import com.bootdo.cpe.service.QcGroupMemberService;
+import static com.bootdo.common.config.Constant.ROLE_ASSOCIATION_LEADER;
+import static com.bootdo.common.config.Constant.ROLE_QC_ASSOCIATION_ID;
 import static com.bootdo.common.config.Constant.ROLE_QC_EXTERNAL_EMPLOYMENT_ID;
 import static com.bootdo.common.config.Constant.ROLE_QC_SPECIALIST_ID;
 import com.bootdo.cpe.domain.science_process.ScienceAssignUserInfo;
@@ -400,27 +402,47 @@ public class QcProcessController extends BaseQcProController {
         // 动态加载QC分组列表
         String taskId = (String) params.get("taskId");
         List<QcGroupDO> qcGroupList = qcGroupService.getGroupsByTaskId(taskId);
-        map.put("qcGroupList", qcGroupList);
 
         Map<String, Object> selParams = new HashMap<>();
         selParams.put("taskId", params.get("taskId"));
         selParams.put("groupName", params.get("major"));
         selParams.put("proType", proType);
         List<ExpertGroupDO> selList = expertGroupService.list(selParams);
+
+        UserDO currentUser = getUser();
+        boolean isQcAssociationContactRole70 = currentUser.getRoleIds() != null && currentUser.getRoleIds().contains(70L);
+        map.put("isQcAssociationContactRole70", isQcAssociationContactRole70);
+        boolean canManageExpertBinding = currentUser.getRoleIds().contains(ROLE_ASSOCIATION_LEADER)
+                || currentUser.getRoleIds().contains(ROLE_QC_ASSOCIATION_ID);
+        map.put("canManageExpertBinding", canManageExpertBinding);
+
+        // 形审专家（角色72）按 qc_view_scope 绑定记录过滤可见专业组；无绑定则显示空数据
+        if (currentUser.getRoleIds().contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)) {
+            Map<String, Object> bindingQuery = new HashMap<>();
+            bindingQuery.put("taskId", taskId);
+            bindingQuery.put("userId", String.valueOf(getUserId()));
+            bindingQuery.put("proType", "qc_view_scope");
+            List<ExpertGroupDO> bindings = expertGroupService.list(bindingQuery);
+            Set<String> allowedGroups = new HashSet<>();
+            for (ExpertGroupDO b : bindings) {
+                if (b.getGroupName() != null) {
+                    allowedGroups.add(b.getGroupName().trim());
+                }
+            }
+            qcGroupList = qcGroupList.stream()
+                    .filter(g -> g.getName() != null && allowedGroups.contains(g.getName().trim()))
+                    .collect(java.util.stream.Collectors.toList());
+            selList = selList.stream()
+                    .filter(e -> e.getGroupName() != null && allowedGroups.contains(e.getGroupName().trim()))
+                    .collect(java.util.stream.Collectors.toList());
+        }
+
+        map.put("qcGroupList", qcGroupList);
         map.put("selInfoList", selList);
 
         return prefix + "/score/major_group_admin";
     }
 
-    // 原代码：重置时无条件将所有专家的eliminateOver设为0，导致已确认提交的专家需要二次提交
-    // /**
-    //  * 重置所有专家的淘汰记录（管理员操作）
-    //  * 将 ass_qc_expert_eliminate 记录软删除，并重置所有专家的 eliminate_over=0
-    //  */
-    // @ResponseBody
-    // @RequestMapping("/resetAllEliminate")
-    // public R resetAllEliminate(@RequestParam Map<String, Object> params) {
-    //     String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
     //     if (StringUtils.isBlank(taskId)) {
     //         return R.error("任务ID不能为空");
     //     }
@@ -790,6 +812,106 @@ public class QcProcessController extends BaseQcProController {
             } catch (Exception ignored) {
             }
         }
+    }
+
+    // ==================== 临时调试接口（排查绑定问题后可删除） ====================
+    @RequestMapping("/debugBinding")
+    @ResponseBody
+    public R debugBinding(@RequestParam String taskId) {
+        UserDO cur = getUser();
+        Map<String, Object> bq = new HashMap<>();
+        bq.put("taskId", taskId);
+        bq.put("userId", String.valueOf(getUserId()));
+        bq.put("proType", "qc_view_scope");
+        List<ExpertGroupDO> bindings = expertGroupService.list(bq);
+        
+        List<QcGroupDO> qcGroupList = qcGroupService.getGroupsByTaskId(taskId);
+        
+        Map<String, Object> info = new HashMap<>();
+        info.put("currentUserId", getUserId());
+        info.put("currentUsername", cur.getUsername());
+        info.put("roleIds", cur.getRoleIds());
+        info.put("isExternalExpert", cur.getRoleIds().contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID));
+        info.put("queryTaskId", taskId);
+        info.put("bindings", bindings);
+        info.put("allTaskGroups", qcGroupList);
+        return R.ok().put("data", info);
+    }
+
+    // ==================== 形审专家分组绑定（新增） ====================
+
+    /**
+     * 获取形审专家（角色72）列表及其当前分组绑定情况
+     * proType = "qc_view_scope" 的记录用于存储绑定关系
+     */
+    @RequestMapping("/getExpertGroupBindings")
+    @ResponseBody
+    public R getExpertGroupBindings(@RequestParam String taskId) {
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+        // 查询所有角色72（形审专家）用户
+        Map<String, Object> userQuery = new HashMap<>();
+        userQuery.put("roleId", String.valueOf(ROLE_QC_EXTERNAL_EMPLOYMENT_ID));
+        List<UserDO> expertUsers = userService.list(userQuery);
+
+        // 查询该任务下所有已保存的绑定记录
+        Map<String, Object> bindingQuery = new HashMap<>();
+        bindingQuery.put("taskId", taskId);
+        bindingQuery.put("proType", "qc_view_scope");
+        List<ExpertGroupDO> allBindings = expertGroupService.list(bindingQuery);
+
+        // 按 userId 归组绑定的 groupName 列表
+        Map<String, List<String>> bindingMap = new HashMap<>();
+        for (ExpertGroupDO b : allBindings) {
+            String uid = b.getUserId();
+            if (uid == null) continue;
+            bindingMap.computeIfAbsent(uid, k -> new ArrayList<>()).add(b.getGroupName());
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (UserDO u : expertUsers) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("userId", u.getUserId());
+            item.put("username", u.getUsername());
+            item.put("name", u.getName());
+            List<String> boundGroups = bindingMap.getOrDefault(String.valueOf(u.getUserId()), new ArrayList<>());
+            item.put("boundGroups", boundGroups);
+            result.add(item);
+        }
+        return R.ok().put("data", result);
+    }
+
+    /**
+     * 保存形审专家的分组绑定关系
+     * 先清除该专家+任务下的旧绑定，再插入新绑定（每个组一条记录）
+     */
+    @RequestMapping("/saveExpertGroupBinding")
+    @ResponseBody
+    public R saveExpertGroupBinding(@RequestParam String taskId,
+                                    @RequestParam String expertUserId,
+                                    @RequestParam(value = "groupNames", required = false, defaultValue = "") String groupNames) {
+        if (StringUtils.isBlank(taskId) || StringUtils.isBlank(expertUserId)) {
+            return R.error("参数不完整");
+        }
+        // 清除旧绑定
+        expertGroupService.deleteByUserIdAndTaskIdAndProType(expertUserId, taskId, "qc_view_scope");
+
+        // 插入新绑定（每个组名一条记录）
+        if (StringUtils.isNotBlank(groupNames)) {
+            String[] groups = groupNames.split(",");
+            for (String groupName : groups) {
+                groupName = groupName.trim();
+                if (groupName.isEmpty()) continue;
+                ExpertGroupDO binding = new ExpertGroupDO();
+                binding.setUserId(expertUserId);
+                binding.setTaskId(taskId);
+                binding.setGroupName(groupName);
+                binding.setProType("qc_view_scope");
+                expertGroupService.directSave(binding);
+            }
+        }
+        return R.ok("绑定保存成功");
     }
 
 }

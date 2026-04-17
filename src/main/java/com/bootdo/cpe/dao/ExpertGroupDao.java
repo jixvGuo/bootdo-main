@@ -46,4 +46,9 @@ public interface ExpertGroupDao {
      * @return 不重复的group_name列表
      */
     List<String> getDistinctGroupNames(Map<String, Object> params);
+
+    /**
+     * 按 userId + taskId + proType 物理删除记录（用于形审专家分组绑定的清理）
+     */
+    int deleteByUserIdAndTaskIdAndProType(@Param("userId") String userId, @Param("taskId") String taskId, @Param("proType") String proType);
 }

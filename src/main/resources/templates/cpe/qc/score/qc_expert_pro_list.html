@@ -36,6 +36,18 @@
                                   style="display:none; margin-left:10px; font-size:13px;">
                                 打分结果已确认提交
                             </span>
+<!--                            <button id="btnSubmitPresentScore"-->
+<!--                                    type="button"-->
+<!--                                    class="btn btn-warning"-->
+<!--                                    style="margin-left:15px;"-->
+<!--                                    onclick="submitPresentScore()">-->
+<!--                                <i class="fa fa-check" aria-hidden="true"></i> 提交发布分-->
+<!--                            </button>-->
+                            <span id="presentScoreSubmittedTip"
+                                  class="label label-success"
+                                  style="display:none; margin-left:10px; font-size:13px;">
+                                发布分已确认提交
+                            </span>
                         </div>
 
                         <!-- 查询筛选条件 -->
@@ -122,10 +134,13 @@
     window.classifications = /*[[${classifications}]]*/ [];
     window.eliminateIsOver = /*[[${eliminateIsOver}]]*/ 0;
     window.scoreIsOver = /*[[${scoreIsOver}]]*/ 0;
+    window.presentScoreIsOver = /*[[${presentScoreIsOver}]]*/ 0;
+    window.expertStartTimeSecond = /*[[${expertStartTimeSecond}]]*/ null;
+    window.expertEndTimeSecond = /*[[${expertEndTimeSecond}]]*/ null;
 </script>
 <!--SheetJS (xlsx) - Excel导出库-->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" async></script>
-<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.15"></script>
+<script type="text/javascript" src="/js/appjs/cpe/qc/qcExpertProList.js?v=3.17"></script>
 
 </body>
 </html>

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.bootdo.cpe.dao.QcPresentScoreDao">
+
+    <select id="get" resultType="com.bootdo.cpe.domain.QcPresentScoreDO">
+        select `id`,`opt_uid`,`pro_id`,`task_id`,`logic_score`,`professional_score`,`present_format_score`,`expression_score`,`answer_score`,`member_time_score`,`topic_type`,`appraise_sum`,`score_over`,`created`,`updated`,`deleted`
+        from ass_qc_present_score where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.QcPresentScoreDO">
+        select `id`,`opt_uid`,`pro_id`,`task_id`,`logic_score`,`professional_score`,`present_format_score`,`expression_score`,`answer_score`,`member_time_score`,`topic_type`,`appraise_sum`,`score_over`,`created`,`updated`,`deleted`
+        from ass_qc_present_score
+        <where>
+            <if test="id != null and id != ''"> and id = #{id} </if>
+            <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
+            <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="scoreOver != null and scoreOver != ''"> and score_over = #{scoreOver} </if>
+            <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
+        </where>
+        <choose>
+            <when test="sort != null and sort.trim() != ''">
+                order by ${sort} ${order}
+            </when>
+            <otherwise>
+                order by id desc
+            </otherwise>
+        </choose>
+        <if test="offset != null and limit != null">
+            limit #{offset}, #{limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_qc_present_score
+        <where>
+            <if test="id != null and id != ''"> and id = #{id} </if>
+            <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
+            <if test="proId != null and proId != ''"> and pro_id = #{proId} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="scoreOver != null and scoreOver != ''"> and score_over = #{scoreOver} </if>
+            <if test="deleted != null and deleted != ''"> and deleted = #{deleted} </if>
+        </where>
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.QcPresentScoreDO" useGeneratedKeys="true" keyProperty="id">
+        insert into ass_qc_present_score
+        (
+            `opt_uid`,
+            `pro_id`,
+            `task_id`,
+            `logic_score`,
+            `professional_score`,
+            `present_format_score`,
+            `expression_score`,
+            `answer_score`,
+            `member_time_score`,
+            `topic_type`,
+            `appraise_sum`,
+            `score_over`,
+            `created`,
+            `updated`,
+            `deleted`
+        )
+        values
+        (
+            #{optUid},
+            #{proId},
+            #{taskId},
+            #{logicScore},
+            #{professionalScore},
+            #{presentFormatScore},
+            #{expressionScore},
+            #{answerScore},
+            #{memberTimeScore},
+            #{topicType},
+            #{appraiseSum},
+            #{scoreOver},
+            now(),
+            #{updated},
+            #{deleted}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.bootdo.cpe.domain.QcPresentScoreDO">
+        update ass_qc_present_score
+        <set>
+            <if test="optUid != null">`opt_uid` = #{optUid}, </if>
+            <if test="proId != null">`pro_id` = #{proId}, </if>
+            <if test="taskId != null">`task_id` = #{taskId}, </if>
+            <if test="logicScore != null">`logic_score` = #{logicScore}, </if>
+            <if test="professionalScore != null">`professional_score` = #{professionalScore}, </if>
+            <if test="presentFormatScore != null">`present_format_score` = #{presentFormatScore}, </if>
+            <if test="expressionScore != null">`expression_score` = #{expressionScore}, </if>
+            <if test="answerScore != null">`answer_score` = #{answerScore}, </if>
+            <if test="memberTimeScore != null">`member_time_score` = #{memberTimeScore}, </if>
+            <if test="topicType != null">`topic_type` = #{topicType}, </if>
+            <if test="appraiseSum != null">`appraise_sum` = #{appraiseSum}, </if>
+            <if test="scoreOver != null">`score_over` = #{scoreOver}, </if>
+            <if test="updated != null">`updated` = #{updated}, </if>
+            <if test="deleted != null">`deleted` = #{deleted}</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="remove">
+        delete from ass_qc_present_score where id = #{value}
+    </delete>
+
+    <delete id="batchRemove">
+        delete from ass_qc_present_score where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

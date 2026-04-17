@@ -45,4 +45,14 @@ public interface ExpertGroupService {
      */
     List<String> getDistinctGroupNames(Map<String, Object> params);
 
+    /**
+     * 按 userId + taskId + proType 物理删除记录（用于形审专家分组绑定的清理）
+     */
+    int deleteByUserIdAndTaskIdAndProType(String userId, String taskId, String proType);
+
+    /**
+     * 直接插入一条记录（不做重复检查，用于形审专家分组绑定）
+     */
+    int directSave(ExpertGroupDO expertGroupDO);
+
 }
