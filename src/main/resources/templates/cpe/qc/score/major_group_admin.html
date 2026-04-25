@@ -6,1527 +6,1718 @@
 <head th:include="include :: header"></head>
 
 <body class="gray-bg">
-    <div class="wrapper wrapper-content animated fadeInRight">
-        <div class="row">
-            <div class="col-sm-12" style="margin-bottom:10px;">
-                <h2 style="display:inline-block; margin:0 15px 0 0;">专业组管理</h2>
-                <button type="button" class="btn btn-warning btn-sm" onclick="resetAllEliminate()">
-                    <i class="fa fa-refresh"></i> 更新分组
-                </button>
-            </div>
+<div class="wrapper wrapper-content animated fadeInRight">
+    <div class="row">
+        <div class="col-sm-12" style="margin-bottom:10px;">
+            <h2 style="display:inline-block; margin:0 15px 0 0;">专业组管理</h2>
+            <button type="button" class="btn btn-warning btn-sm" onclick="resetAllEliminate()">
+                <i class="fa fa-refresh"></i> 更新分组
+            </button>
         </div>
-        <div class="row">
-            <input id="taskId" name="taskId" type="hidden" th:value="${taskId}">
-            <input id="proType" name="proType" type="hidden" th:value="${proType}">
-            <input id="isQcAssociationContactRole70" name="isQcAssociationContactRole70" type="hidden" th:value="${isQcAssociationContactRole70}">
-            <!--  QC 奖评审专业组管理页面的左侧分组导航栏    -->
-            <div class="col-sm-3">
-                <div class="ibox float-e-margins">
-                    <div class="ibox-content">
-                        <ul class="folder-list" style="padding: 0">
-                            <!--   显示全部   -->
-                            <li>
-                                <a href="javascript:showMajorAccount('')" style="display:inline-block"><i class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a>
-                            </li>
-                            <!--   按专业组筛选   -->
-                            <li th:each="group : ${qcGroupList}">
-                                <!--   通过 showMajorAccount(组名) 函数切换不同专业组的项目列表   -->
-                                <a th:href="'javascript:showMajorAccount(\'' + ${group.name} + '\')'" style="display:inline-block">
-                                    <i class="fa fa-folder"></i>
-                                    <span th:text="${group.name}"></span>&nbsp;&nbsp;&nbsp;&nbsp;
-                                </a>
-                                <!--   通过 add(组名) 函数为该组添加新项目   -->
-                                <a th:href="'javascript:add(\'' + ${group.name} + '\')'" style="display:inline-block"><i class="fa fa-plus"></i></a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-            <div class="col-sm-9" style="margin-top:0;">
-                <div class="ibox float-e-margins">
-                    <div class="ibox-title">
-                        <h5 style="display:inline-block;">已分配：</h5>
-                        <!-- 新代码：形审专家绑定按钮 -->
-                        <button type="button" class="btn btn-info btn-sm" onclick="openExpertBindingModal()" style="margin-left:10px;" th:if="${canManageExpertBinding}">
-                            <i class="fa fa-link"></i> 形审专家绑定
-                        </button>
-<!--                        原代码：更新分组按钮已移至页面顶部标题旁-->
-<!--                        <button type="button" class="btn btn-warning btn-sm pull-right" onclick="resetAllEliminate()">-->
-<!--                            <i class="fa fa-refresh"></i> 更新分组-->
-<!--                        </button>-->
-<!--                        <button type="button" class="btn btn-danger btn-sm" onclick="showGroupEliminated()" style="margin-left:10px;">-->
-<!--                            <i class="fa fa-ban"></i> 导出淘汰-->
-<!--                        </button>-->
-                    </div>
-                    <div class="ibox-content">
-                        <table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th><input type="checkbox" class="i-checks" name="input[]"></th>
-                                    <th>序号</th>
-                                    <!--   QC是按照分组显示   -->
-                                    <th>分组</th>
-                                    <th>账号</th>
-                                    <th>专家名称</th>
-                                    <th>工作单位</th>
-<!--                                    <th th:style="${isQcAssociationContactRole70} ? 'display:none' : ''">专家名称</th>-->
-<!--                                    <th th:style="${isQcAssociationContactRole70} ? 'display:none' : ''">工作单位</th>-->
-                                    <th>签章</th>
-                                    <th>操作</th>
-                                </tr>
-                            </thead>
-                            <tbody id="list">
-                                  <tr th:each="sel,selStat:${selInfoList}" th:id="'tr_' + ${sel.loginAccount}">
-                                      <th><input type="checkbox" class="i-checks" name="input[]"></th>
-                                      <td name='trNum' th:text="${selStat.count}"></td>
-                                      <input type='hidden' th:value ='${sel.groupName}' name="major" th:id="'majorName' + ${sel.loginAccount}" />
-                                      <input type='hidden' th:value ='${sel.isGroupLeader}' name="isGroupLeader" th:id="'isGroupLeader' + ${sel.loginAccount}" />
-                                      <input type='hidden' th:value ='${sel.userId}' name="expertUserId" th:id="'expertUserId' + ${sel.loginAccount}" />
-                                      <td th:text="${sel.groupName}"></td>
-                                      <td th:text="${sel.loginAccount}" th:id="'accountId' + ${sel.loginAccount}"></td>
-                                      <td ><input th:value="${sel.expertName}" type="text" class="form-control" placeholder="专家名称" th:id="'accountName'+${sel.loginAccount}"></td>
-                                      <td ><input th:value="${sel.company}" th:id="'accountCom' + ${sel.loginAccount}" class="form-control" type="text" placeholder="工作单位"></td>
-<!--                                      <td th:style="${isQcAssociationContactRole70} ? 'display:none' : ''"><input th:value="${sel.expertName}" type="text" class="form-control" placeholder="专家名称" th:id="'accountName'+${sel.loginAccount}"></td>-->
-<!--                                      <td th:style="${isQcAssociationContactRole70} ? 'display:none' : ''"><input th:value="${sel.company}" th:id="'accountCom' + ${sel.loginAccount}" class="form-control" type="text" placeholder="工作单位"></td>-->
-<!--                                      <td ><input th:value="${sel.bankAccount}" th:id="'accountBank' + ${sel.loginAccount}" class="form-control" type="text" placeholder="银行账户"></td>-->
-<!--                                      <td ><input th:value="${sel.phone}" th:id="'accountPhone' + ${sel.loginAccount}" class="form-control" type="text" placeholder="手机号"></td>-->
-                                      <td th:id="'signImg_'+${sel.loginAccount}"><img th:if="${sel.expertSignUrl != null}" th:src="${sel.expertSignUrl}" width='75' height='40'></td>
-                                      <td>
-                                          <!--   <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save('+${sel.loginAccount}+')'">更新</button>-->
-                                          <!-- 原代码：loginAccount未加引号，含字母的账号会导致JS语法错误 -->
-                                          <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign('+${sel.loginAccount}+')'">上传签章</button> -->
-                                          <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove('+${sel.loginAccount}+')'">移出</button> -->
-                                          <!-- 新代码：loginAccount加引号，避免含字母账号的语法错误 -->
-                                          <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save(\'' + ${sel.loginAccount} + '\')'">更新</button>
-                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章</button>
-                                          <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove(\'' + ${sel.loginAccount} + '\')'">移出</button>
-                                          <button type="button" class="btn btn-warning btn-xs" th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避</button>
-                                          <button type="button" class="btn btn-success btn-xs" th:onclick="'javascript:exportExpertEliminateWord(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">导出淘汰</button>
-                                          <button type="button"
-                                                  class="btn btn-info btn-xs"
-                                                  th:onclick="'javascript:viewExpertScores(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\', \'' + ${sel.groupName} + '\')'">
-                                              分数查询-专家
-                                          </button>
-                                          <!--  驳回专家打分按钮 -->
-                                          <button type="button"
-                                                  class="btn btn-danger btn-xs"
-                                                  th:onclick="'javascript:rejectScore(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">
-                                              驳回打分
-                                          </button>
-<!--                                          发布分驳回和查询按钮-->
-<!--                                          <button type="button" class="btn btn-primary btn-xs"-->
-<!--                                                  th:onclick="'javascript:viewExpertPresentScores(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\', \'' + ${sel.groupName} + '\')'">-->
-<!--                                              发布分查询-->
-<!--                                          </button>-->
-<!--                                          <button type="button" class="btn btn-danger btn-xs"-->
-<!--                                                  th:onclick="'javascript:rejectPresentScore(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">-->
-<!--                                              发布分驳回-->
-<!--                                          </button>-->
-                                      </td>
-                                  </tr>
-                            </tbody>
-                        </table>
-
-                    </div>
+    </div>
+    <div class="row">
+        <input id="taskId" name="taskId" type="hidden" th:value="${taskId}">
+        <input id="proType" name="proType" type="hidden" th:value="${proType}">
+        <input id="isQcAssociationContactRole70" name="isQcAssociationContactRole70" type="hidden"
+               th:value="${isQcAssociationContactRole70}">
+        <!--  QC 奖评审专业组管理页面的左侧分组导航栏    -->
+        <div class="col-sm-3">
+            <div class="ibox float-e-margins">
+                <div class="ibox-content">
+                    <ul class="folder-list" style="padding: 0">
+                        <!--   显示全部   -->
+                        <li>
+                            <a href="javascript:showMajorAccount('')" style="display:inline-block"><i
+                                    class="fa fa-folder"></i>全部 &nbsp;&nbsp;&nbsp;&nbsp;</a>
+                        </li>
+                        <!--   按专业组筛选   -->
+                        <li th:each="group : ${qcGroupList}">
+                            <!--   通过 showMajorAccount(组名) 函数切换不同专业组的项目列表   -->
+                            <a th:href="'javascript:showMajorAccount(\'' + ${group.name} + '\')'"
+                               style="display:inline-block">
+                                <i class="fa fa-folder"></i>
+                                <span th:text="${group.name}"></span>&nbsp;&nbsp;&nbsp;&nbsp;
+                            </a>
+                            <!--   通过 add(组名) 函数为该组添加新项目   -->
+                            <a th:href="'javascript:add(\'' + ${group.name} + '\')'" style="display:inline-block"><i
+                                    class="fa fa-plus"></i></a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </div>
-    </div>
-    
-    <!-- 回避管理弹窗（供layer.open使用） -->
-    <div id="avoidanceModal" style="display:none; padding: 20px;">
-        <input type="hidden" id="currentExpertUserId" />
-        
-        <!-- 筛选条件 -->
-        <div class="row" style="margin-bottom: 10px;">
-            <div class="col-sm-3">
-                <input type="text" class="form-control" id="avoidance_filter_topicName" placeholder="项目名称">
-            </div>
-            <div class="col-sm-3">
-                <input type="text" class="form-control" id="avoidance_filter_proCode" placeholder="申报账号">
-            </div>
-            <div class="col-sm-3">
-                <input type="text" class="form-control" id="avoidance_filter_unitName" placeholder="申报单位">
-            </div>
-            <div class="col-sm-3">
-                <input type="text" class="form-control" id="avoidance_filter_groupDesc" placeholder="完成单位">
+        <div class="col-sm-9" style="margin-top:0;">
+            <div class="ibox float-e-margins">
+                <div class="ibox-title">
+                    <h5 style="display:inline-block;">已分配：</h5>
+                    <!-- 新代码：形审专家绑定按钮 -->
+                    <button type="button" class="btn btn-info btn-sm" onclick="openExpertBindingModal()"
+                            style="margin-left:10px;" th:if="${canManageExpertBinding}">
+                        <i class="fa fa-link"></i> 形审专家绑定
+                    </button>
+                    <!--                        原代码：更新分组按钮已移至页面顶部标题旁-->
+                    <!--                        <button type="button" class="btn btn-warning btn-sm pull-right" onclick="resetAllEliminate()">-->
+                    <!--                            <i class="fa fa-refresh"></i> 更新分组-->
+                    <!--                        </button>-->
+                    <!--                        <button type="button" class="btn btn-danger btn-sm" onclick="showGroupEliminated()" style="margin-left:10px;">-->
+                    <!--                            <i class="fa fa-ban"></i> 导出淘汰-->
+                    <!--                        </button>-->
+                </div>
+                <div class="ibox-content">
+                    <table class="table table-bordered">
+                        <thead>
+                        <tr>
+                            <th><input type="checkbox" class="i-checks" name="input[]"></th>
+                            <th>序号</th>
+                            <!--   QC是按照分组显示   -->
+                            <th>分组</th>
+                            <th>账号</th>
+                            <th>专家名称</th>
+                            <th>工作单位</th>
+                            <!--                                    <th th:style="${isQcAssociationContactRole70} ? 'display:none' : ''">专家名称</th>-->
+                            <!--                                    <th th:style="${isQcAssociationContactRole70} ? 'display:none' : ''">工作单位</th>-->
+                            <th>签章</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="list">
+                        <tr th:each="sel,selStat:${selInfoList}" th:id="'tr_' + ${sel.loginAccount}">
+                            <th><input type="checkbox" class="i-checks" name="input[]"></th>
+                            <td name='trNum' th:text="${selStat.count}"></td>
+                            <input type='hidden' th:value='${sel.groupName}' name="major"
+                                   th:id="'majorName' + ${sel.loginAccount}"/>
+                            <input type='hidden' th:value='${sel.isGroupLeader}' name="isGroupLeader"
+                                   th:id="'isGroupLeader' + ${sel.loginAccount}"/>
+                            <input type='hidden' th:value='${sel.userId}' name="expertUserId"
+                                   th:id="'expertUserId' + ${sel.loginAccount}"/>
+                            <td th:text="${sel.groupName}"></td>
+                            <td th:text="${sel.loginAccount}" th:id="'accountId' + ${sel.loginAccount}"></td>
+                            <td><input th:value="${sel.expertName}" type="text" class="form-control"
+                                       placeholder="专家名称" th:id="'accountName'+${sel.loginAccount}"></td>
+                            <td><input th:value="${sel.company}" th:id="'accountCom' + ${sel.loginAccount}"
+                                       class="form-control" type="text" placeholder="工作单位"></td>
+                            <!--                                      <td th:style="${isQcAssociationContactRole70} ? 'display:none' : ''"><input th:value="${sel.expertName}" type="text" class="form-control" placeholder="专家名称" th:id="'accountName'+${sel.loginAccount}"></td>-->
+                            <!--                                      <td th:style="${isQcAssociationContactRole70} ? 'display:none' : ''"><input th:value="${sel.company}" th:id="'accountCom' + ${sel.loginAccount}" class="form-control" type="text" placeholder="工作单位"></td>-->
+                            <!--                                      <td ><input th:value="${sel.bankAccount}" th:id="'accountBank' + ${sel.loginAccount}" class="form-control" type="text" placeholder="银行账户"></td>-->
+                            <!--                                      <td ><input th:value="${sel.phone}" th:id="'accountPhone' + ${sel.loginAccount}" class="form-control" type="text" placeholder="手机号"></td>-->
+                            <td th:id="'signImg_'+${sel.loginAccount}"><img th:if="${sel.expertSignUrl != null}"
+                                                                            th:src="${sel.expertSignUrl}" width='75'
+                                                                            height='40'></td>
+                            <td>
+                                <!--   <button th:id="'saveBtn_'+${sel.loginAccount}" type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:save('+${sel.loginAccount}+')'">更新</button>-->
+                                <!-- 原代码：loginAccount未加引号，含字母的账号会导致JS语法错误 -->
+                                <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:onAddSign('+${sel.loginAccount}+')'">上传签章</button> -->
+                                <!-- <button type="button" class="btn btn-primary btn-xs" th:onclick="'javascript:remove('+${sel.loginAccount}+')'">移出</button> -->
+                                <!-- 新代码：loginAccount加引号，避免含字母账号的语法错误 -->
+                                <button th:id="'saveBtn_'+${sel.loginAccount}" type="button"
+                                        class="btn btn-primary btn-xs"
+                                        th:onclick="'javascript:save(\'' + ${sel.loginAccount} + '\')'">更新
+                                </button>
+                                <button type="button" class="btn btn-primary btn-xs"
+                                        th:onclick="'javascript:onAddSign(\'' + ${sel.loginAccount} + '\')'">上传签章
+                                </button>
+                                <button type="button" class="btn btn-primary btn-xs"
+                                        th:onclick="'javascript:remove(\'' + ${sel.loginAccount} + '\')'">移出
+                                </button>
+                                <button type="button" class="btn btn-warning btn-xs"
+                                        th:onclick="'javascript:manageAvoidance(\'' + ${sel.loginAccount} + '\')'">回避
+                                </button>
+                                <button type="button" class="btn btn-success btn-xs"
+                                        th:onclick="'javascript:exportExpertEliminateWord(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">
+                                    导出淘汰
+                                </button>
+                                <button type="button"
+                                        class="btn btn-info btn-xs"
+                                        th:onclick="'javascript:viewExpertScores(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\', \'' + ${sel.groupName} + '\')'">
+                                    分数查询-专家
+                                </button>
+                                <!--  驳回专家打分按钮 -->
+                                <button type="button"
+                                        class="btn btn-danger btn-xs"
+                                        th:onclick="'javascript:rejectScore(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">
+                                    驳回打分
+                                </button>
+                                <!--                                          发布分驳回和查询按钮-->
+                                <button type="button" class="btn btn-primary btn-xs"
+                                        th:onclick="'javascript:viewExpertPresentScores(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\', \'' + ${sel.groupName} + '\')'">
+                                    发布分查询
+                                </button>
+                                <button type="button" class="btn btn-danger btn-xs"
+                                        th:onclick="'javascript:rejectPresentScore(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\')'">
+                                    发布分驳回
+                                </button>
+                                <button type="button" class="btn btn-success btn-xs"
+                                        th:onclick="'javascript:exportExpertFinalOpinion(\'' + ${sel.userId} + '\', \'' + ${sel.expertName} + '\', \'' + ${sel.groupName} + '\')'">
+                                    专家终版意见导出
+                                </button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                </div>
             </div>
         </div>
-        <div class="row" style="margin-bottom: 15px;">
-            <div class="col-sm-3">
-                <select class="form-control" id="avoidance_filter_status">
-                    <option value="">状态 - 全选</option>
-                    <option value="1">已回避</option>
-                    <option value="0">未回避</option>
-                </select>
-            </div>
-            <div class="col-sm-3">
-                <button class="btn btn-primary btn-sm" onclick="applyAvoidanceFilters()">筛选</button>
-                <button class="btn btn-default btn-sm" onclick="clearAvoidanceFilters()">重置</button>
-            </div>
-        </div>
-        
-        <table class="table table-bordered table-hover">
-            <thead>
-                <tr>
-                    <th>项目名称</th>
-                    <th>申报账号</th>
-                    <th>申报单位</th>
-                    <th>完成单位</th>
-                    <th>状态</th>
-                    <th>回避状态</th>
-                    <th>操作</th>
-                </tr>
-            </thead>
-            <tbody id="avoidanceTableBody">
-                <tr><td colspan="7" class="text-center">加载中...</td></tr>
-            </tbody>
-        </table>
     </div>
-    
-    <!-- 淘汰名单弹窗 -->
-    <div id="eliminatedModal" style="display:none; padding: 20px;">
-        <div style="margin-bottom:10px;">
-            <span id="eliminatedGroupTitle" style="font-weight:bold;"></span>
-            <button class="btn btn-success btn-sm" onclick="exportGroupEliminatedExcel()" style="margin-left:15px;"><i class="fa fa-download"></i> 导出Excel</button>
+</div>
+
+<!-- 回避管理弹窗（供layer.open使用） -->
+<div id="avoidanceModal" style="display:none; padding: 20px;">
+    <input type="hidden" id="currentExpertUserId"/>
+
+    <!-- 筛选条件 -->
+    <div class="row" style="margin-bottom: 10px;">
+        <div class="col-sm-3">
+            <input type="text" class="form-control" id="avoidance_filter_topicName" placeholder="项目名称">
         </div>
-        <table class="table table-bordered table-hover">
-            <thead>
-                <tr>
-                    <th>序号</th>
-                    <th>申报账号</th>
-                    <th>课题名称</th>
-                    <th>小组名称</th>
-                    <th>申报单位</th>
-                    <th>专家名称</th>
-                    <th>淘汰意见</th>
-                </tr>
-            </thead>
-            <tbody id="eliminatedTableBody">
-                <tr><td colspan="7" class="text-center">暂无数据</td></tr>
-            </tbody>
-        </table>
+        <div class="col-sm-3">
+            <input type="text" class="form-control" id="avoidance_filter_proCode" placeholder="申报账号">
+        </div>
+        <div class="col-sm-3">
+            <input type="text" class="form-control" id="avoidance_filter_unitName" placeholder="申报单位">
+        </div>
+        <div class="col-sm-3">
+            <input type="text" class="form-control" id="avoidance_filter_groupDesc" placeholder="完成单位">
+        </div>
+    </div>
+    <div class="row" style="margin-bottom: 15px;">
+        <div class="col-sm-3">
+            <select class="form-control" id="avoidance_filter_status">
+                <option value="">状态 - 全选</option>
+                <option value="1">已回避</option>
+                <option value="0">未回避</option>
+            </select>
+        </div>
+        <div class="col-sm-3">
+            <button class="btn btn-primary btn-sm" onclick="applyAvoidanceFilters()">筛选</button>
+            <button class="btn btn-default btn-sm" onclick="clearAvoidanceFilters()">重置</button>
+        </div>
     </div>
 
-    <div th:include="include :: footer"></div>
-    <script type="text/javascript" th:inline="none">
-        $(document).ready(function () { $(".i-checks").iCheck({ checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green", }) });
+    <table class="table table-bordered table-hover">
+        <thead>
+        <tr>
+            <th>项目名称</th>
+            <th>申报账号</th>
+            <th>申报单位</th>
+            <th>完成单位</th>
+            <th>状态</th>
+            <th>回避状态</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="avoidanceTableBody">
+        <tr>
+            <td colspan="7" class="text-center">加载中...</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
 
-        function getYearMonth() {
-            var date = new Date;
-            var year = date.getFullYear();
-            var month = date.getMonth() + 1;
-            month = (month < 10 ? "0" + month : month);
-            return mydate = (year.toString() + month.toString());
-        }
+<!-- 淘汰名单弹窗 -->
+<div id="eliminatedModal" style="display:none; padding: 20px;">
+    <div style="margin-bottom:10px;">
+        <span id="eliminatedGroupTitle" style="font-weight:bold;"></span>
+        <button class="btn btn-success btn-sm" onclick="exportGroupEliminatedExcel()" style="margin-left:15px;"><i
+                class="fa fa-download"></i> 导出Excel
+        </button>
+    </div>
+    <table class="table table-bordered table-hover">
+        <thead>
+        <tr>
+            <th>序号</th>
+            <th>申报账号</th>
+            <th>课题名称</th>
+            <th>小组名称</th>
+            <th>申报单位</th>
+            <th>专家名称</th>
+            <th>淘汰意见</th>
+        </tr>
+        </thead>
+        <tbody id="eliminatedTableBody">
+        <tr>
+            <td colspan="7" class="text-center">暂无数据</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
 
-        var currentGroupName = '';
-        function showMajorAccount(major) {
-            currentGroupName = major;
-            $("#list tr").each(function(index, ele){
-                let mVal = $(this).find("input[name='major']").val()
-                if(major == mVal || major == '') {
-                    $(this).show();
-                }else {
-                    $(this).hide();
-                }
-            });
-        }
+<div th:include="include :: footer"></div>
+<script type="text/javascript" th:inline="none">
+    $(document).ready(function () {
+        $(".i-checks").iCheck({checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green",})
+    });
 
-        function add(major) {
+    function getYearMonth() {
+        var date = new Date;
+        var year = date.getFullYear();
+        var month = date.getMonth() + 1;
+        month = (month < 10 ? "0" + month : month);
+        return mydate = (year.toString() + month.toString());
+    }
 
-            var items = ['1', '2', '4', '5', '6', '7', '8', '9', '10', 'a', 'b', 'c', 'e', 'g', 's', '1', 'q', 'f', 'A'];
+    var currentGroupName = '';
 
-            var aindex = ($("#list").children().length + 1);
-
-            // console.log("----== " + major);
-
-            //var raondom = getYearMonth() + '03' + aindex + items[Math.floor(Math.random() * items.length)];
-            var raondom = getYearMonth() + "_" + Math.random().toString(36).substr(2, 7);
-            let loginAccount = raondom;
-
-            var isQcAssociationContactRole70 = $("#isQcAssociationContactRole70").val();
-            var hideNameAndCompany = String(isQcAssociationContactRole70) === 'true';
-
-
-            console.log("----" + raondom)
-
-            var html = " <tr id='tr_"+loginAccount+"'>" +
-                "             <td style=\"width:50px\">"+
-                "                 <input type=\"checkbox\" class=\"i-checks\" name=\"input[]\">"+
-                "             </td>"+
-                "             <td name='trNum' style=\"width:50px\">" + aindex + "</td>" +
-                "             <td style=\"width:50px\"><input type='hidden' name=\"major\" value='"+major+"' id='majorName"+loginAccount+"' /><input type='hidden' name=\"isGroupLeader\" value='0' id='isGroupLeader"+loginAccount+"' /><input type='hidden' name=\"expertUserId\" value='' id='expertUserId"+loginAccount+"' /> " + major + "</td>" +
-                "             <td style=\"width:120px\" id=\"accountId" + loginAccount + "\">" + raondom + " </td>" +
-                 "             <td style=\"width:120px\"contentEditable=\"true\"> " +
-                // "             <td style=\"width:120px;" + (hideNameAndCompany ? "display:none;" : "") + "\" contentEditable=\"true\"> " +
-                "                 <input type='text' class=\"form-control\" placeholder='专家名称' id='accountName" + loginAccount + "'/> " +
-                "             </td>" +
-                "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountCom" + loginAccount +
-                // "             <td style=\"width:120px;" + (hideNameAndCompany ? "display:none;" : "") + "\" contentEditable=\"true\"><input id='accountCom" + loginAccount +
-                "' class=\"form-control\" type='text' placeholder='工作单位'></td>" +
-                "             <td id='signImg_"+loginAccount+"' style=\"width:120px\"></td>" +
-                "             <td style=\"width:200px\">" +
-                "              <button id='saveBtn_"+loginAccount+"' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(\"" + loginAccount + "\")'  >保存</button>" +
-                "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(\"" + loginAccount + "\")'>上传签章</button>" +
-                "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(\"" + loginAccount + "\")' >移出</button>" +
-                "              <button type=\"button\" class=\"btn btn-warning btn-xs\" onclick='manageAvoidance(\"" + loginAccount + "\")' >回避</button>" +
-                "             </td>" +
-                "         </tr>";
-            $("#list").append(html);
-
-
-
-            $(".i-checks").iCheck({checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green",})
-        }
-
-
-        /***
-         * 删除某个条目/移出专家
-         * @param a
-         */
-        // 原代码（v3）：直接移出，无二次确认，物理删除
-        // function remove(a) {
-        //     let loginAccount = $.trim($("#accountId" + a).text());
-        //     console.log("[移出] 参数a=" + a + ", 选择器=#accountId" + a + ", loginAccount=[" + loginAccount + "]");
-        //     $.ajax({
-        //         cache: true,
-        //         url: "/qcProcess/expert/remove",
-        //         type: 'POST',
-        //         data: { loginAccount:loginAccount },
-        //         async: false,
-        //         error: function (request) {
-        //             parent.layer.alert("Connection error");
-        //         },
-        //         success: function (data) {
-        //             if (data.code == 0) {
-        //                 parent.layer.msg("操作成功");
-        //                 $("#tr_"+a).remove();
-        //                 $("td[name = 'trNum']").each(function (index,e) {
-        //                     $(this).html(index+1);
-        //                 })
-        //             } else {
-        //                 parent.layer.alert(data.msg)
-        //             }
-        //         }
-        //     })
-        // }
-        // 新代码（v4）：先检查专家是否有淘汰数据，弹窗二次确认后再软删除
-        function remove(a) {
-            let loginAccount = $.trim($("#accountId" + a).text());
-            let taskId = $("#taskId").val();
-            if (!loginAccount) {
-                layer.msg('账号为空', {icon: 2});
-                return;
+    function showMajorAccount(major) {
+        currentGroupName = major;
+        $("#list tr").each(function (index, ele) {
+            let mVal = $(this).find("input[name='major']").val()
+            if (major == mVal || major == '') {
+                $(this).show();
+            } else {
+                $(this).hide();
             }
-            // 先检查是否有淘汰数据
-            $.ajax({
-                type: "GET",
-                url: "/qcProcess/expert/checkData",
-                data: { loginAccount: loginAccount, taskId: taskId },
-                success: function(checkResult) {
-                    var confirmMsg = "确定要移出专家 [" + loginAccount + "] 吗？";
-                    if (checkResult.code == 0 && checkResult.hasEliminate) {
-                        confirmMsg = "该专家已有淘汰数据（" + (checkResult.elimCount || 0) + "条淘汰, " + (checkResult.confirmedCount || 0) + "条已确认快照），确定要移出吗？\n移出后数据保留，可通过重新添加恢复。";
-                    }
-                    layer.confirm(confirmMsg, {icon: 3, title: '移出确认'}, function(index) {
-                        layer.close(index);
-                        doRemoveExpert(a, loginAccount);
-                    });
-                },
-                error: function() {
-                    // 检查接口失败，仍允许移出但给基础确认
-                    layer.confirm("确定要移出专家 [" + loginAccount + "] 吗？", {icon: 3, title: '移出确认'}, function(index) {
-                        layer.close(index);
-                        doRemoveExpert(a, loginAccount);
-                    });
-                }
-            });
+        });
+    }
+
+    function add(major) {
+
+        var items = ['1', '2', '4', '5', '6', '7', '8', '9', '10', 'a', 'b', 'c', 'e', 'g', 's', '1', 'q', 'f', 'A'];
+
+        var aindex = ($("#list").children().length + 1);
+
+        // console.log("----== " + major);
+
+        //var raondom = getYearMonth() + '03' + aindex + items[Math.floor(Math.random() * items.length)];
+        var raondom = getYearMonth() + "_" + Math.random().toString(36).substr(2, 7);
+        let loginAccount = raondom;
+
+        var isQcAssociationContactRole70 = $("#isQcAssociationContactRole70").val();
+        var hideNameAndCompany = String(isQcAssociationContactRole70) === 'true';
+
+
+        console.log("----" + raondom)
+
+        var html = " <tr id='tr_" + loginAccount + "'>" +
+            "             <td style=\"width:50px\">" +
+            "                 <input type=\"checkbox\" class=\"i-checks\" name=\"input[]\">" +
+            "             </td>" +
+            "             <td name='trNum' style=\"width:50px\">" + aindex + "</td>" +
+            "             <td style=\"width:50px\"><input type='hidden' name=\"major\" value='" + major + "' id='majorName" + loginAccount + "' /><input type='hidden' name=\"isGroupLeader\" value='0' id='isGroupLeader" + loginAccount + "' /><input type='hidden' name=\"expertUserId\" value='' id='expertUserId" + loginAccount + "' /> " + major + "</td>" +
+            "             <td style=\"width:120px\" id=\"accountId" + loginAccount + "\">" + raondom + " </td>" +
+            "             <td style=\"width:120px\"contentEditable=\"true\"> " +
+            // "             <td style=\"width:120px;" + (hideNameAndCompany ? "display:none;" : "") + "\" contentEditable=\"true\"> " +
+            "                 <input type='text' class=\"form-control\" placeholder='专家名称' id='accountName" + loginAccount + "'/> " +
+            "             </td>" +
+            "             <td style=\"width:120px\"contentEditable=\"true\"><input id='accountCom" + loginAccount +
+            // "             <td style=\"width:120px;" + (hideNameAndCompany ? "display:none;" : "") + "\" contentEditable=\"true\"><input id='accountCom" + loginAccount +
+            "' class=\"form-control\" type='text' placeholder='工作单位'></td>" +
+            "             <td id='signImg_" + loginAccount + "' style=\"width:120px\"></td>" +
+            "             <td style=\"width:200px\">" +
+            "              <button id='saveBtn_" + loginAccount + "' type=\"button\" class=\"btn btn-primary btn-xs\" onclick='save(\"" + loginAccount + "\")'  >保存</button>" +
+            "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='onAddSign(\"" + loginAccount + "\")'>上传签章</button>" +
+            "              <button type=\"button\" class=\"btn btn-primary btn-xs\" onclick='remove(\"" + loginAccount + "\")' >移出</button>" +
+            "              <button type=\"button\" class=\"btn btn-warning btn-xs\" onclick='manageAvoidance(\"" + loginAccount + "\")' >回避</button>" +
+            "             </td>" +
+            "         </tr>";
+        $("#list").append(html);
+
+
+        $(".i-checks").iCheck({checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green",})
+    }
+
+
+    /***
+     * 删除某个条目/移出专家
+     * @param a
+     */
+    // 原代码（v3）：直接移出，无二次确认，物理删除
+    // function remove(a) {
+    //     let loginAccount = $.trim($("#accountId" + a).text());
+    //     console.log("[移出] 参数a=" + a + ", 选择器=#accountId" + a + ", loginAccount=[" + loginAccount + "]");
+    //     $.ajax({
+    //         cache: true,
+    //         url: "/qcProcess/expert/remove",
+    //         type: 'POST',
+    //         data: { loginAccount:loginAccount },
+    //         async: false,
+    //         error: function (request) {
+    //             parent.layer.alert("Connection error");
+    //         },
+    //         success: function (data) {
+    //             if (data.code == 0) {
+    //                 parent.layer.msg("操作成功");
+    //                 $("#tr_"+a).remove();
+    //                 $("td[name = 'trNum']").each(function (index,e) {
+    //                     $(this).html(index+1);
+    //                 })
+    //             } else {
+    //                 parent.layer.alert(data.msg)
+    //             }
+    //         }
+    //     })
+    // }
+    // 新代码（v4）：先检查专家是否有淘汰数据，弹窗二次确认后再软删除
+    function remove(a) {
+        let loginAccount = $.trim($("#accountId" + a).text());
+        let taskId = $("#taskId").val();
+        if (!loginAccount) {
+            layer.msg('账号为空', {icon: 2});
+            return;
         }
-        // 执行移出操作（软删除）
-        function doRemoveExpert(a, loginAccount) {
-            $.ajax({
-                cache: true,
-                url: "/qcProcess/expert/remove",
-                type: 'POST',
-                data: { loginAccount: loginAccount },
-                async: false,
-                error: function (request) {
-                    parent.layer.alert("Connection error");
-                },
-                success: function (data) {
-                    if (data.code == 0) {
-                        parent.layer.msg("操作成功（逻辑删除，数据已保留）");
-                        $("#tr_"+a).remove();
-                        $("td[name = 'trNum']").each(function (index,e) {
-                            $(this).html(index+1);
-                        })
+        // 先检查是否有淘汰数据
+        $.ajax({
+            type: "GET",
+            url: "/qcProcess/expert/checkData",
+            data: {loginAccount: loginAccount, taskId: taskId},
+            success: function (checkResult) {
+                var confirmMsg = "确定要移出专家 [" + loginAccount + "] 吗？";
+                if (checkResult.code == 0 && checkResult.hasEliminate) {
+                    confirmMsg = "该专家已有淘汰数据（" + (checkResult.elimCount || 0) + "条淘汰, " + (checkResult.confirmedCount || 0) + "条已确认快照），确定要移出吗？\n移出后数据保留，可通过重新添加恢复。";
+                }
+                layer.confirm(confirmMsg, {icon: 3, title: '移出确认'}, function (index) {
+                    layer.close(index);
+                    doRemoveExpert(a, loginAccount);
+                });
+            },
+            error: function () {
+                // 检查接口失败，仍允许移出但给基础确认
+                layer.confirm("确定要移出专家 [" + loginAccount + "] 吗？", {
+                    icon: 3,
+                    title: '移出确认'
+                }, function (index) {
+                    layer.close(index);
+                    doRemoveExpert(a, loginAccount);
+                });
+            }
+        });
+    }
+
+    // 执行移出操作（软删除）
+    function doRemoveExpert(a, loginAccount) {
+        $.ajax({
+            cache: true,
+            url: "/qcProcess/expert/remove",
+            type: 'POST',
+            data: {loginAccount: loginAccount},
+            async: false,
+            error: function (request) {
+                parent.layer.alert("Connection error");
+            },
+            success: function (data) {
+                if (data.code == 0) {
+                    parent.layer.msg("操作成功（逻辑删除，数据已保留）");
+                    $("#tr_" + a).remove();
+                    $("td[name = 'trNum']").each(function (index, e) {
+                        $(this).html(index + 1);
+                    })
+                } else {
+                    parent.layer.alert(data.msg)
+                }
+            }
+        })
+    }
+
+    /***
+     * 删除某个条目
+     * @param a
+     */
+    function onAddSign(a) {
+
+        let taskId = $("#taskId").val();
+        // 原代码：.html()可能包含尾部空格
+        // var loginAccount = $("#accountId" + a).html();
+        // 新代码：使用.text().trim()
+        var loginAccount = $.trim($("#accountId" + a).text());
+        let saveBtnHtml = $("#saveBtn_" + a).html();
+
+        if (saveBtnHtml != "保存") {
+            toUploadSignImg(taskId, loginAccount, a);
+            return;
+        }
+
+        save(a, function () {
+            toUploadSignImg(taskId, loginAccount, a);
+        });
+
+    }
+
+    function toUploadSignImg(taskId, loginAccount, a) {
+        layer.open({
+            title: '上传转件签名 ',
+            maxmin: true,
+            type: 2,
+            shadeClose: false, // 点击遮罩关闭层
+            area: ['800px', '520px'],
+            // content: '/scienceProgressScience/toUploadExpertSign?taskId='+taskId+'&loginAccount=' + loginAccount+"&trIndex="+a
+            content: '/qcProcess/toUploadExpertSign?taskId=' + taskId + '&loginAccount=' + loginAccount + "&trIndex=" + a
+        });
+    }
+
+
+    /***
+     * 保存专家名字
+     * @param a
+     */
+    function save(a, callback) {
+        var fd = {
+            // 原代码：.html()可能包含尾部空格导致用户名带空格入库
+            // "username": $("#accountId" + a).html(),
+            // 新代码：使用.text().trim()确保用户名无多余空格
+            "username": $.trim($("#accountId" + a).text()),
+            "password": "123456",
+            "name": $("#accountName" + a).val(),
+            "bankCard": $("#accountBank" + a).val(),
+            "mobile": $("#accountPhone" + a).val(),
+            "roleIds": "85",  // 新代码：使用QC奖评审专家角色
+            "status": "1",
+            "accountCom": $("#accountCom" + a).val()
+        };
+        // console.log("保存专家数据" + JSON.stringify(fd) + fd);
+        $.ajax({
+            cache: true,
+            url: "/sys/user/savepro",
+            type: 'POST',
+            data: fd,
+            async: false,
+            error: function (request) {
+                // layui 框架
+                parent.layer.alert("Connection error");
+            },
+            success: function (data) {
+                if (data.code == 0) {
+                    // parent.layer.msg("操作成功");
+                    // console.log(data.msg + "userid");
+                    // 原代码：.get(0)返回DOM元素而非jQuery对象，调用.find()会报TypeError崩溃，导致saveExpertInfo永远不会被调用
+                    // var isLeader = a == $("#list").find("tr").get(0).find("td").get(2).html();
+                    // 新代码：使用jQuery的.eq()方法代替.get()，并增加异常保护
+                    var isLeader = false;
+                    var majorName = $("#majorName" + a).val();
+                    try {
+                        var leaderVal = $("#isGroupLeader" + a).val();
+                        isLeader = ('' + leaderVal) === '1';
+                    } catch (e) {
+                        console.log('判断isLeader异常:', e);
+                        isLeader = false;
+                    }
+                    saveExpertInfo(data.msg, isLeader, majorName, fd, a, callback);
+
+                } else {
+                    parent.layer.alert(data.msg)
+                }
+            }
+        })
+    }
+
+    /***
+     * 保存对应的专业信息/专业组
+     * @param uid
+     */
+    function saveExpertInfo(uid, isLeader, majorName, userFd, trIndex, callback) {
+        // console.log("== this.selfProfession =" + uid);
+        var proType = $("#proType").val();  //获取选中的项
+        var fd = {
+            "userName": majorName,
+            "taskId": $("#taskId").val(),
+            "userId": uid,
+            "proId": "0",
+            "isGroupLeader": isLeader ? 1 : 0,
+            "groupName": majorName,
+            "company": userFd.accountCom,
+            "bankAccount": userFd.bankCard,
+            "phone": userFd.mobile,
+            "expertName": userFd.name,
+            "loginAccount": userFd.username,
+            "proType": proType
+        };
+        console.log("===" + JSON.stringify(fd));
+
+        $.ajax({
+            cache: true,
+            url: "/qcProcess/expert/add",
+            type: 'POST',
+            data: fd,
+            async: false,
+            error: function (request) {
+                parent.layer.alert("Connection error");
+            },
+            success: function (data) {
+                if (data.code == 0) {
+                    $("#saveBtn_" + trIndex).html("更新");
+                    // 保存userId到隐藏字段，供回避功能使用
+                    if (data.id) {
+                        $("#expertUserId" + trIndex).val(data.id);
+                    }
+                    // $("#saveBtn_" + trIndex).remove();
+                    if (callback) {
+                        callback();
                     } else {
-                        parent.layer.alert(data.msg)
+                        parent.layer.msg("操作成功");
                     }
+                } else {
+                    parent.layer.alert(data.msg)
                 }
-            })
+
+            }
+        })
+
+
+    }
+
+    function showSpeclist(major) {
+        var proType = $("#proType").val();  //获取选中的项
+        let taskId = $("#taskId").val();
+        // window.location.href= "/scienceProgressScience/toAssignExperts?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
+        window.location.href = "/qcProcess/toAddSpecialist?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
+    }
+
+    // ==================== 回避管理功能 ====================
+    var currentExpertUserId = null;
+    var currentExpertLoginAccount = null;
+
+    /**
+     * 打开回避管理弹窗
+     */
+    function manageAvoidance(loginAccount) {
+        var taskId = $("#taskId").val();
+        var expertName = $("#accountName" + loginAccount).val() || loginAccount;
+
+        // 从DOM读取userId
+        var expertUserId = $("#expertUserId" + loginAccount).val();
+
+        // console.log('[回避] loginAccount=' + loginAccount + ', expertUserId=' + expertUserId);
+
+        if (!expertUserId || expertUserId === 'null' || expertUserId === '') {
+            layer.alert("无法获取专家用户ID，请先保存专家信息");
+            return;
         }
 
-        /***
-         * 删除某个条目
-         * @param a
-         */
-        function onAddSign(a) {
+        currentExpertUserId = expertUserId;
+        currentExpertLoginAccount = loginAccount;
 
-            let taskId = $("#taskId").val();
-            // 原代码：.html()可能包含尾部空格
-            // var loginAccount = $("#accountId" + a).html();
-            // 新代码：使用.text().trim()
-            var loginAccount = $.trim($("#accountId" + a).text());
-            let saveBtnHtml = $("#saveBtn_" + a).html();
+        // 使用layer.open显示弹窗
+        layer.open({
+            type: 1,
+            title: '专家回避管理 - ' + expertName,
+            area: ['1100px', '600px'],
+            content: $('#avoidanceModal'),
+            success: function () {
+                // 加载该专家已分配的项目列表
+                // loadExpertProjects(taskId, expertUserId);
+                refreshAvoidanceProjects(taskId);
+            }
+        });
+    }
 
-            if(saveBtnHtml != "保存") {
-                toUploadSignImg(taskId, loginAccount, a);
-                return;
+    // 存储原始项目数据，用于筛选
+    // 适配器模式
+    var allAvoidanceProjects = [];
+
+    // 封装层函数 刷新回避项目
+    function refreshAvoidanceProjects(taskId) {
+        // 引入全局变量 currentExpertUserId
+        // 避免了每次调用都要传递专家ID
+        loadExpertProjects(taskId, currentExpertUserId);
+    }
+
+    /**
+     * 加载专家已分配的项目列表
+     */
+    function loadExpertProjects(taskId, expertUserId) {
+        $.ajax({
+            type: "GET",
+            url: "/qcScore/get/expertProList",
+            data: {
+                taskId: taskId,
+                scoreSpecialistUid: expertUserId,
+                limit: 1000,
+                offset: 0
+            },
+            success: function (data) {
+                if (data && data.rows) {
+                    allAvoidanceProjects = data.rows; // 保存原始数据
+                    // 回避表格
+                    renderAvoidanceTable(data.rows);
+                } else {
+                    allAvoidanceProjects = [];
+                    $("#avoidanceTableBody").html('<tr><td colspan="5" class="text-center">暂无分配项目</td></tr>');
+                }
+            },
+            error: function () {
+                parent.layer.alert("加载项目列表失败");
+            }
+        });
+    }
+
+    /**
+     * 渲染回避表格
+     */
+    function renderAvoidanceTable(projects) {
+        var tbody = $("#avoidanceTableBody");
+        tbody.empty();
+
+        if (!projects || projects.length === 0) {
+            tbody.html('<tr><td colspan="7" class="text-center">暂无分配项目</td></tr>');
+            return;
+        }
+
+        projects.forEach(function (project) {
+            var statusText = getProStatText(project.proStat);
+            var isAvoided = project.isAvoided || false;
+            var avoidanceStatus = isAvoided ? '<span class="label label-warning">已回避</span>' : '<span class="label label-success">正常</span>';
+
+            var operationBtn = '';
+            if (isAvoided) {
+                operationBtn = '<button class="btn btn-sm btn-success" onclick="cancelAvoidance(' + project.proId + ')">取消回避</button>';
+            } else {
+                operationBtn = '<button class="btn btn-sm btn-warning" onclick="setAvoidance(' + project.proId + ')">设为回避</button>';
             }
 
-            save(a, function () {
-                toUploadSignImg(taskId, loginAccount, a);
-            });
+            var row = '<tr>' +
+                '<td>' + (project.topicName || '-') + '</td>' +
+                '<td>' + (project.applyId || '-') + '</td>' +
+                '<td>' + (project.unitName || '-') + '</td>' +
+                '<td>' + (project.groupDesc || '-') + '</td>' +
+                '<td>' + statusText + '</td>' +
+                '<td>' + avoidanceStatus + '</td>' +
+                '<td>' + operationBtn + '</td>' +
+                '</tr>';
+            tbody.append(row);
+        });
+    }
 
-        }
-        function toUploadSignImg(taskId, loginAccount, a) {
-            layer.open({
-                title: '上传转件签名 ',
-                maxmin: true,
-                type: 2,
-                shadeClose: false, // 点击遮罩关闭层
-                area: ['800px', '520px'],
-                // content: '/scienceProgressScience/toUploadExpertSign?taskId='+taskId+'&loginAccount=' + loginAccount+"&trIndex="+a
-                content: '/qcProcess/toUploadExpertSign?taskId='+taskId+'&loginAccount=' + loginAccount+"&trIndex="+a
-            });
-        }
+    /**
+     * 获取项目状态文本
+     */
+    function getProStatText(proStat) {
+        var statMap = {
+            '': '未提交',
+            'check': '审核中',
+            'partake_award': '参评',
+            'no_award': '不评',
+            'delayed_award': '缓评',
+            'reject': '已驳回',
+            'improve_partake': '完善后参评',
+            'eliminated': '已淘汰',
+            'to_validate': '审核中',
+            'to_assign_experts': '分派专家',
+            'experts_score': '专家打分',
+            'score': '专家打分'
+        };
+        return statMap[proStat] || proStat || '-';
+    }
 
+    /**
+     * 应用筛选条件
+     */
+    function applyAvoidanceFilters() {
+        var filterTopicName = $("#avoidance_filter_topicName").val().toLowerCase();
+        var filterProCode = $("#avoidance_filter_proCode").val().toLowerCase();
+        var filterUnitName = $("#avoidance_filter_unitName").val().toLowerCase();
+        var filterGroupDesc = $("#avoidance_filter_groupDesc").val().toLowerCase();
+        var filterStatus = $("#avoidance_filter_status").val();
 
-        /***
-         * 保存专家名字
-         * @param a
-         */
-        function save(a,callback) {
-            var fd = {
-                // 原代码：.html()可能包含尾部空格导致用户名带空格入库
-                // "username": $("#accountId" + a).html(),
-                // 新代码：使用.text().trim()确保用户名无多余空格
-                "username": $.trim($("#accountId" + a).text()),
-                "password": "123456",
-                "name": $("#accountName" + a).val(),
-                "bankCard": $("#accountBank" + a).val(),
-                "mobile": $("#accountPhone" + a).val(),
-                "roleIds": "85",  // 新代码：使用QC奖评审专家角色
-                "status": "1",
-                "accountCom":$("#accountCom" + a).val()
-            };
-            // console.log("保存专家数据" + JSON.stringify(fd) + fd);
-            $.ajax({
-                cache: true,
-                url: "/sys/user/savepro",
-                type: 'POST',
-                data: fd,
-                async: false,
-                error: function (request) {
-                    // layui 框架
-                    parent.layer.alert("Connection error");
-                },
-                success: function (data) {
-                    if (data.code == 0) {
-                        // parent.layer.msg("操作成功");
-                        // console.log(data.msg + "userid");
-                        // 原代码：.get(0)返回DOM元素而非jQuery对象，调用.find()会报TypeError崩溃，导致saveExpertInfo永远不会被调用
-                        // var isLeader = a == $("#list").find("tr").get(0).find("td").get(2).html();
-                        // 新代码：使用jQuery的.eq()方法代替.get()，并增加异常保护
-                        var isLeader = false;
-                        var majorName = $("#majorName"+a).val();
-                        try {
-                            var leaderVal = $("#isGroupLeader" + a).val();
-                            isLeader = ('' + leaderVal) === '1';
-                        } catch(e) {
-                            console.log('判断isLeader异常:', e);
-                            isLeader = false;
-                        }
-                        saveExpertInfo(data.msg,isLeader,majorName, fd, a, callback);
-
-                    } else {
-                        parent.layer.alert(data.msg)
-                    }
-                }
-            })
-        }
-
-        /***
-         * 保存对应的专业信息/专业组
-         * @param uid
-         */
-        function saveExpertInfo(uid,isLeader,majorName, userFd, trIndex, callback) {
-            // console.log("== this.selfProfession =" + uid);
-            var proType = $("#proType").val();  //获取选中的项
-            var fd = {
-                "userName": majorName,
-                "taskId": $("#taskId").val(),
-                "userId": uid,
-                "proId": "0",
-                "isGroupLeader": isLeader ? 1 : 0,
-                "groupName": majorName,
-                "company": userFd.accountCom,
-                "bankAccount": userFd.bankCard,
-                "phone": userFd.mobile,
-                "expertName":userFd.name,
-                "loginAccount":userFd.username,
-                "proType":proType
-            };
-            console.log("===" + JSON.stringify(fd));
-
-            $.ajax({
-                cache: true,
-                url: "/qcProcess/expert/add",
-                type: 'POST',
-                data: fd,
-                async: false,
-                error: function (request) {
-                    parent.layer.alert("Connection error");
-                },
-                success: function (data) {
-                    if (data.code == 0) {
-                        $("#saveBtn_" + trIndex).html("更新");
-                        // 保存userId到隐藏字段，供回避功能使用
-                        if (data.id) {
-                            $("#expertUserId" + trIndex).val(data.id);
-                        }
-                        // $("#saveBtn_" + trIndex).remove();
-                        if(callback) {
-                            callback();
-                        }else {
-                            parent.layer.msg("操作成功");
-                        }
-                    } else {
-                        parent.layer.alert(data.msg)
-                    }
-
-                }
-            })
-
-
-        }
-
-        function showSpeclist(major) {
-            var proType = $("#proType").val();  //获取选中的项
-            let taskId = $("#taskId").val();
-            // window.location.href= "/scienceProgressScience/toAssignExperts?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
-            window.location.href= "/qcProcess/toAddSpecialist?taskId=" + taskId + "&major=" + major + "&proType=" + proType;
-        }
-
-        // ==================== 回避管理功能 ====================
-        var currentExpertUserId = null;
-        var currentExpertLoginAccount = null;
-
-        /**
-         * 打开回避管理弹窗
-         */
-        function manageAvoidance(loginAccount) {
-            var taskId = $("#taskId").val();
-            var expertName = $("#accountName" + loginAccount).val() || loginAccount;
-            
-            // 从DOM读取userId
-            var expertUserId = $("#expertUserId" + loginAccount).val();
-            
-            // console.log('[回避] loginAccount=' + loginAccount + ', expertUserId=' + expertUserId);
-            
-            if (!expertUserId || expertUserId === 'null' || expertUserId === '') {
-                layer.alert("无法获取专家用户ID，请先保存专家信息");
-                return;
+        var filteredProjects = allAvoidanceProjects.filter(function (project) {
+            // 项目名称筛选
+            if (filterTopicName && (!project.topicName || project.topicName.toLowerCase().indexOf(filterTopicName) === -1)) {
+                return false;
             }
-            
-            currentExpertUserId = expertUserId;
-            currentExpertLoginAccount = loginAccount;
-            
-            // 使用layer.open显示弹窗
-            layer.open({
-                type: 1,
-                title: '专家回避管理 - ' + expertName,
-                area: ['1100px', '600px'],
-                content: $('#avoidanceModal'),
-                success: function() {
-                    // 加载该专家已分配的项目列表
-                    loadExpertProjects(taskId, expertUserId);
-                }
-            });
-        }
 
-        // 存储原始项目数据，用于筛选
-        var allAvoidanceProjects = [];
-        
-        /**
-         * 加载专家已分配的项目列表
-         */
-        function loadExpertProjects(taskId, expertUserId) {
+            // 申报账号筛选
+            if (filterProCode && (!project.applyId || project.applyId.toLowerCase().indexOf(filterProCode) === -1)) {
+                return false;
+            }
+
+            // 申报单位筛选
+            if (filterUnitName && (!project.unitName || project.unitName.toLowerCase().indexOf(filterUnitName) === -1)) {
+                return false;
+            }
+
+            // 完成单位筛选
+            if (filterGroupDesc && (!project.groupDesc || project.groupDesc.toLowerCase().indexOf(filterGroupDesc) === -1)) {
+                return false;
+            }
+
+            // 回避状态筛选
+            if (filterStatus !== "") {
+                var isAvoided = project.isAvoided || false;
+                if (filterStatus === "1" && !isAvoided) {
+                    return false;
+                }
+                if (filterStatus === "0" && isAvoided) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        renderAvoidanceTable(filteredProjects);
+    }
+
+    /**
+     * 清空筛选条件
+     */
+    function clearAvoidanceFilters() {
+        $("#avoidance_filter_topicName").val('');
+        $("#avoidance_filter_proCode").val('');
+        $("#avoidance_filter_unitName").val('');
+        $("#avoidance_filter_groupDesc").val('');
+        $("#avoidance_filter_status").val('');
+        renderAvoidanceTable(allAvoidanceProjects);
+    }
+
+    /**
+     * 设为回避
+     */
+    function setAvoidance(proId) {
+        var taskId = $("#taskId").val();
+
+        layer.confirm('确认将此项目设为回避？', {
+            btn: ['确认', '取消']
+        }, function (index) {
             $.ajax({
-                type: "GET",
-                url: "/qcScore/get/expertProList",
+                type: "POST",
+                url: "/cpe/qcAvoidance/manualAvoid",
                 data: {
                     taskId: taskId,
-                    scoreSpecialistUid: expertUserId,
-                    limit: 1000,
-                    offset: 0
+                    proId: proId,
+                    expertUserId: currentExpertUserId,
+                    reason: "手动回避"
                 },
-                success: function(data) {
-                    if (data && data.rows) {
-                        allAvoidanceProjects = data.rows; // 保存原始数据
-                        // 回避表格
-                        renderAvoidanceTable(data.rows);
+                success: function (data) {
+                    if (data.code === 0) {
+                        layer.msg("设置成功");
+                        // loadExpertProjects(taskId, currentExpertUserId);
+                        refreshAvoidanceProjects(taskId);
                     } else {
-                        allAvoidanceProjects = [];
-                        $("#avoidanceTableBody").html('<tr><td colspan="5" class="text-center">暂无分配项目</td></tr>');
+                        layer.alert(data.msg || "设置失败");
                     }
                 },
-                error: function() {
-                    parent.layer.alert("加载项目列表失败");
+                error: function () {
+                    layer.alert("设置回避失败");
                 }
             });
-        }
+            layer.close(index);
+        });
+    }
 
-        /**
-         * 渲染回避表格
-         */
-        function renderAvoidanceTable(projects) {
-            var tbody = $("#avoidanceTableBody");
-            tbody.empty();
-            
-            if (!projects || projects.length === 0) {
-                tbody.html('<tr><td colspan="7" class="text-center">暂无分配项目</td></tr>');
-                return;
+    /**
+     * 取消回避
+     */
+    function cancelAvoidance(proId) {
+        var taskId = $("#taskId").val();
+
+        layer.confirm('确认取消此项目的回避状态？', {
+            btn: ['确认', '取消']
+        }, function (index) {
+            $.ajax({
+                type: "POST",
+                url: "/cpe/qcAvoidance/cancelAvoid",
+                data: {
+                    taskId: taskId,
+                    proId: proId,
+                    expertUserId: currentExpertUserId
+                },
+                success: function (data) {
+                    if (data.code === 0) {
+                        layer.msg("取消成功");
+                        // loadExpertProjects(taskId, currentExpertUserId);
+                        refreshAvoidanceProjects(taskId);
+                    } else {
+                        layer.alert(data.msg || "取消失败");
+                    }
+                },
+                error: function () {
+                    layer.alert("取消回避失败");
+                }
+            });
+            layer.close(index);
+        });
+    }
+
+    /**
+     * 更新分组（重置淘汰）：撤销所有专家的淘汰记录 + 重置淘汰提交状态
+     */
+    // ==================== 驳回打分功能 ====================
+    function rejectScore(userId, expertName) {
+        var taskId = $("#taskId").val();
+        layer.confirm('确认驳回「' + expertName + '」的打分提交？驳回后该专家可重新修改并再次提交。', {
+            btn: ['确认驳回', '取消']
+        }, function () {
+            layer.closeAll();
+            $.ajax({
+                type: 'POST',
+                url: '/qcScore/rejectScore',
+                data: {expertUid: userId, taskId: taskId},
+                success: function (data) {
+                    if (data.code == 0) {
+                        layer.msg('驳回成功，该专家可重新修改并提交打分', {icon: 1});
+                    } else {
+                        layer.msg(data.msg || '驳回失败', {icon: 2});
+                    }
+                },
+                error: function () {
+                    layer.msg('操作失败，请稍后重试', {icon: 2});
+                }
+            });
+        });
+    }
+
+    function rejectPresentScore(userId, expertName) {
+        var taskId = $("#taskId").val();
+        layer.confirm('确认驳回「' + expertName + '」的发布分提交？驳回后该专家可重新修改并再次提交。', {
+            btn: ['确认驳回', '取消']
+        }, function () {
+            layer.closeAll();
+            $.ajax({
+                type: 'POST',
+                url: '/qcScore/rejectPresentScore',
+                data: {expertUid: userId, taskId: taskId},
+                success: function (data) {
+                    if (data.code == 0) {
+                        layer.msg('驳回成功，该专家可重新修改并提交发布分', {icon: 1});
+                    } else {
+                        layer.msg(data.msg || '驳回失败', {icon: 2});
+                    }
+                },
+                error: function () {
+                    layer.msg('操作失败，请稍后重试', {icon: 2});
+                }
+            });
+        });
+    }
+
+    // ==================== 导出淘汰功能 ====================
+    var groupEliminatedData = [];
+
+    function showGroupEliminated() {
+        var taskId = $("#taskId").val();
+        var groupTitle = currentGroupName ? ('分组：' + currentGroupName) : '全部分组';
+        $("#eliminatedGroupTitle").text(groupTitle + ' - 淘汰项目列表');
+        layer.open({
+            type: 1,
+            title: '淘汰项目列表',
+            area: ['1000px', '600px'],
+            content: $('#eliminatedModal'),
+            success: function () {
+                loadGroupEliminated(taskId, currentGroupName);
             }
-            
-            projects.forEach(function(project) {
-                var statusText = getProStatText(project.proStat);
-                var isAvoided = project.isAvoided || false;
-                var avoidanceStatus = isAvoided ? '<span class="label label-warning">已回避</span>' : '<span class="label label-success">正常</span>';
-                
-                var operationBtn = '';
-                if (isAvoided) {
-                    operationBtn = '<button class="btn btn-sm btn-success" onclick="cancelAvoidance(' + project.proId + ')">取消回避</button>';
+        });
+    }
+
+    // 原代码：读取当前有效淘汰记录（会被更新分组影响）
+    // function loadGroupEliminated(taskId, qcGroupName) {
+    //     var reqData = { taskId: taskId };
+    //     if (qcGroupName) {
+    //         reqData.qcGroupName = qcGroupName;
+    //     }
+    //     $.ajax({
+    //         type: "GET",
+    //         url: "/qcScore/getEliminatedProjects",
+    //         data: reqData,
+    //         success: function(data) {
+    //             if (data && data.code === 0 && data.list && data.list.length > 0) {
+    //                 groupEliminatedData = data.list;
+    //                 renderGroupEliminatedTable(data.list);
+    //             } else {
+    //                 groupEliminatedData = [];
+    //                 $("#eliminatedTableBody").html('<tr><td colspan="7" class="text-center">暂无淘汰项目</td></tr>');
+    //             }
+    //         },
+    //         error: function() {
+    //             layer.alert("加载淘汰项目失败");
+    //         }
+    //     });
+    // }
+    // 新代码：读取快照表数据，不受更新分组影响
+    function loadGroupEliminated(taskId, qcGroupName) {
+        var reqData = {taskId: taskId};
+        if (qcGroupName) {
+            reqData.qcGroupName = qcGroupName;
+        }
+        $.ajax({
+            type: "GET",
+            url: "/qcScore/getConfirmedEliminatedProjects",
+            data: reqData,
+            success: function (data) {
+                if (data && data.code === 0 && data.list && data.list.length > 0) {
+                    groupEliminatedData = data.list;
+                    renderGroupEliminatedTable(data.list);
                 } else {
-                    operationBtn = '<button class="btn btn-sm btn-warning" onclick="setAvoidance(' + project.proId + ')">设为回避</button>';
+                    groupEliminatedData = [];
+                    $("#eliminatedTableBody").html('<tr><td colspan="7" class="text-center">暂无淘汰项目</td></tr>');
                 }
-                
-                var row = '<tr>' +
-                    '<td>' + (project.topicName || '-') + '</td>' +
-                    '<td>' + (project.applyId || '-') + '</td>' +
-                    '<td>' + (project.unitName || '-') + '</td>' +
-                    '<td>' + (project.groupDesc || '-') + '</td>' +
-                    '<td>' + statusText + '</td>' +
-                    '<td>' + avoidanceStatus + '</td>' +
-                    '<td>' + operationBtn + '</td>' +
-                    '</tr>';
-                tbody.append(row);
+            },
+            error: function () {
+                layer.alert("加载淘汰项目失败");
+            }
+        });
+    }
+
+    function renderGroupEliminatedTable(projects) {
+        var tbody = $("#eliminatedTableBody");
+        tbody.empty();
+        projects.forEach(function (item, index) {
+            var row = '<tr>' +
+                '<td>' + (index + 1) + '</td>' +
+                '<td>' + (item.proCode || '-') + '</td>' +
+                '<td>' + (item.topicName || '-') + '</td>' +
+                '<td>' + (item.groupName || '-') + '</td>' +
+                '<td>' + (item.companyName || '-') + '</td>' +
+                '<td>' + (item.expertName || '-') + '</td>' +
+                '<td>' + (item.reason || '-') + '</td>' +
+                '</tr>';
+            tbody.append(row);
+        });
+    }
+
+    function exportGroupEliminatedExcel() {
+        if (!groupEliminatedData || groupEliminatedData.length === 0) {
+            layer.msg('暂无数据可导出', {icon: 2});
+            return;
+        }
+
+        function doExport() {
+            var header = ['序号', '申报账号', '课题名称', '小组名称', '申报单位', '专家名称', '淘汰意见'];
+            var sheetData = [header];
+            groupEliminatedData.forEach(function (item, index) {
+                sheetData.push([
+                    index + 1,
+                    item.proCode || '',
+                    item.topicName || '',
+                    item.groupName || '',
+                    item.companyName || '',
+                    item.expertName || '',
+                    item.reason || ''
+                ]);
             });
-        }
-
-        /**
-         * 获取项目状态文本
-         */
-        function getProStatText(proStat) {
-            var statMap = {
-                '': '未提交',
-                'check': '审核中',
-                'partake_award': '参评',
-                'no_award': '不评',
-                'delayed_award': '缓评',
-                'reject': '已驳回',
-                'improve_partake': '完善后参评',
-                'eliminated': '已淘汰',
-                'to_validate': '审核中',
-                'to_assign_experts': '分派专家',
-                'experts_score': '专家打分',
-                'score': '专家打分'
-            };
-            return statMap[proStat] || proStat || '-';
-        }
-
-        /**
-         * 应用筛选条件
-         */
-        function applyAvoidanceFilters() {
-            var filterTopicName = $("#avoidance_filter_topicName").val().toLowerCase();
-            var filterProCode = $("#avoidance_filter_proCode").val().toLowerCase();
-            var filterUnitName = $("#avoidance_filter_unitName").val().toLowerCase();
-            var filterGroupDesc = $("#avoidance_filter_groupDesc").val().toLowerCase();
-            var filterStatus = $("#avoidance_filter_status").val();
-            
-            var filteredProjects = allAvoidanceProjects.filter(function(project) {
-                // 项目名称筛选
-                if (filterTopicName && (!project.topicName || project.topicName.toLowerCase().indexOf(filterTopicName) === -1)) {
-                    return false;
-                }
-                
-                // 申报账号筛选
-                if (filterProCode && (!project.applyId || project.applyId.toLowerCase().indexOf(filterProCode) === -1)) {
-                    return false;
-                }
-                
-                // 申报单位筛选
-                if (filterUnitName && (!project.unitName || project.unitName.toLowerCase().indexOf(filterUnitName) === -1)) {
-                    return false;
-                }
-                
-                // 完成单位筛选
-                if (filterGroupDesc && (!project.groupDesc || project.groupDesc.toLowerCase().indexOf(filterGroupDesc) === -1)) {
-                    return false;
-                }
-                
-                // 回避状态筛选
-                if (filterStatus !== "") {
-                    var isAvoided = project.isAvoided || false;
-                    if (filterStatus === "1" && !isAvoided) {
-                        return false;
-                    }
-                    if (filterStatus === "0" && isAvoided) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            });
-            
-            renderAvoidanceTable(filteredProjects);
-        }
-
-        /**
-         * 清空筛选条件
-         */
-        function clearAvoidanceFilters() {
-            $("#avoidance_filter_topicName").val('');
-            $("#avoidance_filter_proCode").val('');
-            $("#avoidance_filter_unitName").val('');
-            $("#avoidance_filter_groupDesc").val('');
-            $("#avoidance_filter_status").val('');
-            renderAvoidanceTable(allAvoidanceProjects);
-        }
-
-        /**
-         * 设为回避
-         */
-        function setAvoidance(proId) {
-            var taskId = $("#taskId").val();
-            
-            layer.confirm('确认将此项目设为回避？', {
-                btn: ['确认', '取消']
-            }, function(index) {
-                $.ajax({
-                    type: "POST",
-                    url: "/cpe/qcAvoidance/manualAvoid",
-                    data: {
-                        taskId: taskId,
-                        proId: proId,
-                        expertUserId: currentExpertUserId,
-                        reason: "手动回避"
-                    },
-                    success: function(data) {
-                        if (data.code === 0) {
-                            layer.msg("设置成功");
-                            loadExpertProjects(taskId, currentExpertUserId);
-                        } else {
-                            layer.alert(data.msg || "设置失败");
-                        }
-                    },
-                    error: function() {
-                        layer.alert("设置回避失败");
-                    }
-                });
-                layer.close(index);
-            });
-        }
-
-        /**
-         * 取消回避
-         */
-        function cancelAvoidance(proId) {
-            var taskId = $("#taskId").val();
-            
-            layer.confirm('确认取消此项目的回避状态？', {
-                btn: ['确认', '取消']
-            }, function(index) {
-                $.ajax({
-                    type: "POST",
-                    url: "/cpe/qcAvoidance/cancelAvoid",
-                    data: {
-                        taskId: taskId,
-                        proId: proId,
-                        expertUserId: currentExpertUserId
-                    },
-                    success: function(data) {
-                        if (data.code === 0) {
-                            layer.msg("取消成功");
-                            loadExpertProjects(taskId, currentExpertUserId);
-                        } else {
-                            layer.alert(data.msg || "取消失败");
-                        }
-                    },
-                    error: function() {
-                        layer.alert("取消回避失败");
-                    }
-                });
-                layer.close(index);
-            });
-        }
-        /**
-         * 更新分组（重置淘汰）：撤销所有专家的淘汰记录 + 重置淘汰提交状态
-         */
-        // ==================== 驳回打分功能 ====================
-        function rejectScore(userId, expertName) {
-            var taskId = $("#taskId").val();
-            layer.confirm('确认驳回「' + expertName + '」的打分提交？驳回后该专家可重新修改并再次提交。', {
-                btn: ['确认驳回', '取消']
-            }, function() {
-                layer.closeAll();
-                $.ajax({
-                    type: 'POST',
-                    url: '/qcScore/rejectScore',
-                    data: { expertUid: userId, taskId: taskId },
-                    success: function(data) {
-                        if (data.code == 0) {
-                            layer.msg('驳回成功，该专家可重新修改并提交打分', {icon: 1});
-                        } else {
-                            layer.msg(data.msg || '驳回失败', {icon: 2});
-                        }
-                    },
-                    error: function() { layer.msg('操作失败，请稍后重试', {icon: 2}); }
-                });
-            });
-        }
-
-        function rejectPresentScore(userId, expertName) {
-            var taskId = $("#taskId").val();
-            layer.confirm('确认驳回「' + expertName + '」的发布分提交？驳回后该专家可重新修改并再次提交。', {
-                btn: ['确认驳回', '取消']
-            }, function() {
-                layer.closeAll();
-                $.ajax({
-                    type: 'POST',
-                    url: '/qcScore/rejectPresentScore',
-                    data: { expertUid: userId, taskId: taskId },
-                    success: function(data) {
-                        if (data.code == 0) {
-                            layer.msg('驳回成功，该专家可重新修改并提交发布分', {icon: 1});
-                        } else {
-                            layer.msg(data.msg || '驳回失败', {icon: 2});
-                        }
-                    },
-                    error: function() { layer.msg('操作失败，请稍后重试', {icon: 2}); }
-                });
-            });
-        }
-
-        // ==================== 导出淘汰功能 ====================
-        var groupEliminatedData = [];
-        function showGroupEliminated() {
-            var taskId = $("#taskId").val();
-            var groupTitle = currentGroupName ? ('分组：' + currentGroupName) : '全部分组';
-            $("#eliminatedGroupTitle").text(groupTitle + ' - 淘汰项目列表');
-            layer.open({
-                type: 1,
-                title: '淘汰项目列表',
-                area: ['1000px', '600px'],
-                content: $('#eliminatedModal'),
-                success: function() {
-                    loadGroupEliminated(taskId, currentGroupName);
-                }
-            });
-        }
-
-        // 原代码：读取当前有效淘汰记录（会被更新分组影响）
-        // function loadGroupEliminated(taskId, qcGroupName) {
-        //     var reqData = { taskId: taskId };
-        //     if (qcGroupName) {
-        //         reqData.qcGroupName = qcGroupName;
-        //     }
-        //     $.ajax({
-        //         type: "GET",
-        //         url: "/qcScore/getEliminatedProjects",
-        //         data: reqData,
-        //         success: function(data) {
-        //             if (data && data.code === 0 && data.list && data.list.length > 0) {
-        //                 groupEliminatedData = data.list;
-        //                 renderGroupEliminatedTable(data.list);
-        //             } else {
-        //                 groupEliminatedData = [];
-        //                 $("#eliminatedTableBody").html('<tr><td colspan="7" class="text-center">暂无淘汰项目</td></tr>');
-        //             }
-        //         },
-        //         error: function() {
-        //             layer.alert("加载淘汰项目失败");
-        //         }
-        //     });
-        // }
-        // 新代码：读取快照表数据，不受更新分组影响
-        function loadGroupEliminated(taskId, qcGroupName) {
-            var reqData = { taskId: taskId };
-            if (qcGroupName) {
-                reqData.qcGroupName = qcGroupName;
-            }
-            $.ajax({
-                type: "GET",
-                url: "/qcScore/getConfirmedEliminatedProjects",
-                data: reqData,
-                success: function(data) {
-                    if (data && data.code === 0 && data.list && data.list.length > 0) {
-                        groupEliminatedData = data.list;
-                        renderGroupEliminatedTable(data.list);
-                    } else {
-                        groupEliminatedData = [];
-                        $("#eliminatedTableBody").html('<tr><td colspan="7" class="text-center">暂无淘汰项目</td></tr>');
-                    }
-                },
-                error: function() {
-                    layer.alert("加载淘汰项目失败");
-                }
-            });
-        }
-
-        function renderGroupEliminatedTable(projects) {
-            var tbody = $("#eliminatedTableBody");
-            tbody.empty();
-            projects.forEach(function(item, index) {
-                var row = '<tr>' +
-                    '<td>' + (index + 1) + '</td>' +
-                    '<td>' + (item.proCode || '-') + '</td>' +
-                    '<td>' + (item.topicName || '-') + '</td>' +
-                    '<td>' + (item.groupName || '-') + '</td>' +
-                    '<td>' + (item.companyName || '-') + '</td>' +
-                    '<td>' + (item.expertName || '-') + '</td>' +
-                    '<td>' + (item.reason || '-') + '</td>' +
-                    '</tr>';
-                tbody.append(row);
-            });
-        }
-
-        function exportGroupEliminatedExcel() {
-            if (!groupEliminatedData || groupEliminatedData.length === 0) {
-                layer.msg('暂无数据可导出', { icon: 2 });
-                return;
-            }
-            function doExport() {
-                var header = ['序号', '申报账号', '课题名称', '小组名称', '申报单位', '专家名称', '淘汰意见'];
-                var sheetData = [header];
-                groupEliminatedData.forEach(function(item, index) {
-                    sheetData.push([
-                        index + 1,
-                        item.proCode || '',
-                        item.topicName || '',
-                        item.groupName || '',
-                        item.companyName || '',
-                        item.expertName || '',
-                        item.reason || ''
-                    ]);
-                });
-                var ws = XLSX.utils.aoa_to_sheet(sheetData);
-                ws['!cols'] = [
-                    { wch: 6 }, { wch: 18 }, { wch: 30 }, { wch: 20 },
-                    { wch: 25 }, { wch: 12 }, { wch: 40 }
-                ];
-                var wb = XLSX.utils.book_new();
-                var sheetName = currentGroupName ? (currentGroupName + '_淘汰名单') : '淘汰名单';
-                XLSX.utils.book_append_sheet(wb, ws, sheetName);
-                XLSX.writeFile(wb, sheetName + '.xlsx');
-            }
-            if (typeof XLSX !== 'undefined') {
-                doExport();
-            } else {
-                var s = document.createElement('script');
-                s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-                s.onload = function() { doExport(); };
-                s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', { icon: 2 }); };
-                document.head.appendChild(s);
-            }
-        }
-
-        function resetAllEliminate() {
-            var taskId = $("#taskId").val();
-            if (!taskId) {
-                layer.msg('任务ID为空', {icon: 2});
-                return;
-            }
-            layer.confirm('确定要撤销该任务下所有专家的淘汰记录吗？此操作不可恢复。', {
-                btn: ['确定', '取消']
-            }, function () {
-                $.ajax({
-                    type: "POST",
-                    url: "/qcProcess/resetAllEliminate",
-                    data: { taskId: taskId },
-                    success: function (data) {
-                        if (data.code == 0) {
-                            layer.msg(data.msg, {icon: 1});
-                        } else {
-                            layer.alert(data.msg);
-                        }
-                    },
-                    error: function () {
-                        layer.msg('操作失败，请稍后重试', {icon: 2});
-                    }
-                });
-            });
-        }
-        // 导出单个专家的淘汰Word文档（初审不合格成果表）
-        function exportExpertEliminateWord(expertUid, expertName) {
-            var taskId = $("#taskId").val();
-            if (!taskId) {
-                layer.msg('任务ID为空', {icon: 2});
-                return;
-            }
-            if (!expertUid) {
-                layer.msg('专家ID为空', {icon: 2});
-                return;
-            }
-            var url = "/qcProcess/exportEliminateWord?taskId=" + encodeURIComponent(taskId)
-                    + "&expertUid=" + encodeURIComponent(expertUid)
-                    + "&expertName=" + encodeURIComponent(expertName || '')
-                    + "&year=2026";
-            window.open(url, '_blank');
-        }
-
-        // ==================== 发布分查询（专家维度） ====================
-
-        function viewExpertPresentScores(expertUid, expertName, groupName) {
-            var taskId = $("#taskId").val();
-            if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }
-            if (!expertUid) { layer.msg('专家ID为空', {icon: 2}); return; }
-            var loadIdx = layer.load(1, {shade: [0.3, '#fff']});
-            $.ajax({
-                type: "GET",
-                url: "/qcScore/getExpertPresentScores",
-                data: { taskId: taskId, expertUid: expertUid },
-                success: function(data) {
-                    layer.close(loadIdx);
-                    if (data.code == 0) {
-                        showExpertPresentScoresModal(data.data, expertName, groupName || '');
-                    } else {
-                        layer.msg(data.msg || '查询失败', {icon: 2});
-                    }
-                },
-                error: function() { layer.close(loadIdx); layer.msg('查询失败，请稍后重试', {icon: 2}); }
-            });
-        }
-
-        function showExpertPresentScoresModal(scores, expertName, groupName) {
-            if (!scores || scores.length == 0) { layer.msg('该专家暂无发布分打分记录', {icon: 0}); return; }
-            var html = '<div style="padding:10px;">';
-            html += '<h4 style="margin-bottom:12px;">专家：' + escapeHtml(expertName) + ' 的发布分打分情况</h4>';
-            html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
-            html += '<thead><tr>';
-            html += '<th style="width:50px;">序号</th>';
-            html += '<th style="width:110px;">申报账号</th>';
-            html += '<th>课题名称</th>';
-            html += '<th style="width:130px;">小组名称</th>';
-            html += '<th style="width:80px;">课题类型</th>';
-            html += '<th style="width:80px;">发布分</th>';
-            html += '<th style="width:100px;">提交状态</th>';
-            html += '<th style="width:140px;">打分时间</th>';
-            html += '</tr></thead><tbody>';
-            for (var i = 0; i < scores.length; i++) {
-                var item = scores[i];
-                var scoreHtml = item.isAvoided
-                    ? '<span style="color:#d9534f;font-weight:bold;">回避</span>'
-                    : (item.appraiseSum != null
-                        ? '<span style="color:#5cb85c;font-weight:bold;">' + item.appraiseSum + '</span>'
-                        : '<span style="color:#999;">未打分</span>');
-                var submitHtml = item.scoreOver == 1
-                    ? '<span class="label label-success">已提交</span>'
-                    : '<span class="label label-default">未提交</span>';
-                html += '<tr>';
-                html += '<td>' + (i + 1) + '</td>';
-                html += '<td>' + escapeHtml(item.proCode || '-') + '</td>';
-                html += '<td>' + escapeHtml(item.topicName || '-') + '</td>';
-                html += '<td>' + escapeHtml(item.groupName || '-') + '</td>';
-                html += '<td>' + escapeHtml(item.topicType || '-') + '</td>';
-                html += '<td>' + scoreHtml + '</td>';
-                html += '<td>' + submitHtml + '</td>';
-                html += '<td>' + (item.scoreTime || '-') + '</td>';
-                html += '</tr>';
-            }
-            html += '</tbody></table></div>';
-            layer.open({
-                type: 1,
-                title: '发布分查询 - ' + escapeHtml(expertName),
-                area: ['900px', '550px'],
-                content: html,
-                btn: ['关闭']
-            });
-        }
-        // ==================== 资料分查询（专家维度） ====================
-
-        /**
-         * 查看专家打分情况（以专家为维度）
-         * @param expertUid 专家用户ID
-         * @param expertName 专家姓名
-         */
-        // 资料分查询
-        function viewExpertScores(expertUid, expertName, groupName) {
-            var taskId = $("#taskId").val();
-            if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }
-            if (!expertUid) { layer.msg('专家ID为空', {icon: 2}); return; }
-            $.ajax({
-                type: "GET",
-                url: "/qcScore/getExpertScores",
-                data: { taskId: taskId, expertUid: expertUid },
-                success: function(data) {
-                    if (data.code == 0) {
-                        window._expertSignUrl = data.expertSignUrl || '';
-                        window._expertCurrentUid = expertUid;
-                        showExpertScoresModal(data.data, expertName, groupName || '');
-                    } else {
-                        layer.msg(data.msg || '查询失败', {icon: 2});
-                    }
-                },
-                error: function() { layer.msg('查询失败，请稍后重试', {icon: 2}); }
-            });
-        }
-
-        /**
-         * 显示专家打分情况弹窗
-         */
-        function showExpertScoresModal(scores, expertName, groupName) {
-            if (!scores || scores.length == 0) {
-                layer.msg('该专家暂无分配项目', {icon: 0});
-                return;
-            }
-            window._expertScoresCache = scores;
-            window._expertCurrentName = expertName;
-            window._expertCurrentGroup = groupName || '';
-
-            var html = '<div style="padding:10px;">';
-            html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">';
-            html += '<h4 style="margin:0;">专家：' + escapeHtml(expertName) + ' 的打分情况</h4>';
-            html += '<button class="btn btn-primary btn-sm" onclick="downloadExpertScoresExcel(window._expertCurrentUid, window._expertCurrentName, window._expertCurrentGroup)">导出Excel</button>';
-            html += '</div>';
-            html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
-            html += '<thead><tr>';
-            html += '<th style="width:50px;">序号</th>';
-            html += '<th>申报账号</th>';
-            html += '<th>课题名称</th>';
-            html += '<th style="width:120px;">小组名称</th>';
-            html += '<th style="width:90px;">课题类型</th>';
-            html += '<th style="width:80px;">总分</th>';
-            html += '<th style="width:70px;">推荐等级</th>';
-            html += '<th style="width:140px;">打分时间</th>';
-            html += '<th style="width:80px;">是否回避</th>';
-            html += '<th style="width:70px;">操作</th>';
-            html += '</tr></thead><tbody>';
-
-            for (var i = 0; i < scores.length; i++) {
-                var item = scores[i];
-                var rowStyle = item.isAvoided ? 'background-color:#fff5f5;' : '';
-                var avoidedBadge = item.isAvoided
-                    ? ' <span style="background:#d9534f;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;">已回避</span>'
-                    : '';
-                var totalScoreHtml = item.isAvoided
-                    ? '<span style="color:#d9534f;">-</span>'
-                    : (item.totalScore != null ? '<span style="font-weight:bold;color:#5cb85c;">' + item.totalScore + '</span>' : '<span style="color:#999;">未打分</span>');
-                var detailBtn = (!item.isAvoided && item.scoreDetails != null)
-                    ? '<button class="btn btn-info btn-xs" onclick="showExpertScoreDetail(' + i + ')">详情</button>'
-                    : '<span style="color:#ccc;">-</span>';
-                html += '<tr style="' + rowStyle + '">';
-                html += '<td>' + (i + 1) + '</td>';
-                html += '<td>' + escapeHtml(item.proCode || '-') + '</td>';
-                html += '<td>' + escapeHtml(item.topicName || '-') + avoidedBadge + '</td>';
-                html += '<td>' + escapeHtml(item.groupName || '-') + '</td>';
-                html += '<td>' + escapeHtml(item.topicType || '-') + '</td>';
-                html += '<td>' + totalScoreHtml + '</td>';
-                html += '<td style="color:#337ab7;">' + (item.recommendLevel || '-') + '</td>';
-                html += '<td style="color:#999;">' + (item.scoreTime || '-') + '</td>';
-                html += '<td>' + (item.isAvoided ? '<span style="color:#d9534f;font-weight:bold;">是</span>' : '否') + '</td>';
-                html += '<td>' + detailBtn + '</td>';
-                html += '</tr>';
-            }
-
-            html += '</tbody></table>';
-            html += '</div>';
-
-            layer.open({
-                type: 1,
-                title: '专家打分情况 - ' + escapeHtml(expertName),
-                area: ['1050px', '620px'],
-                content: html,
-                btn: ['关闭']
-            });
-        }
-
-        /**
-         * 展示某行的详细评分项弹窗
-         */
-        function showExpertScoreDetail(idx) {
-            var item = window._expertScoresCache && window._expertScoresCache[idx];
-            if (!item || !item.scoreDetails) { layer.msg('无详细评分数据', {icon: 0}); return; }
-            var html = '<div style="padding:15px;">';
-            html += '<h5 style="margin-bottom:10px;">' + escapeHtml(item.topicName || '') + ' — 各评分项明细</h5>';
-            html += '<table class="table table-bordered" style="margin-bottom:0;">';
-            html += '<thead><tr><th>评分项</th><th style="width:100px;">得分</th></tr></thead><tbody>';
-            for (var j = 0; j < item.scoreDetails.length; j++) {
-                var d = item.scoreDetails[j];
-                html += '<tr>';
-                html += '<td>' + escapeHtml(d.label || '') + '</td>';
-                html += '<td style="font-weight:bold;color:#5cb85c;">' + (d.score != null ? d.score : '-') + '</td>';
-                html += '</tr>';
-            }
-            html += '</tbody></table>';
-            html += '<div style="margin-top:10px;text-align:right;color:#888;">总分：<strong style="color:#5cb85c;">' + (item.totalScore || '-') + '</strong>&nbsp;&nbsp;推荐等级：<strong style="color:#337ab7;">' + (item.recommendLevel || '-') + '</strong></div>';
-            html += '</div>';
-            layer.open({ type: 1, title: '评分项详情', area: ['480px', '500px'], content: html });
-        }
-
-        /**
-         * 为专家维度 sheet 批量施加边框 + 表头颜色
-         * solveColEnd: 成果过程评分末列(含)  valueCol: 成果实际价值评价列
-         */
-        function _applyExpertSheetStyles(ws, solveColStart, solveColEnd, valueCol) {
-            if (!ws['!ref']) return;
-            var range = XLSX.utils.decode_range(ws['!ref']);
-            var thin = { style: 'thin', color: { rgb: '000000' } };
-            var border = { top: thin, bottom: thin, left: thin, right: thin };
-            var fixFill    = { patternType: 'solid', fgColor: { rgb: 'D9E1F2' } }; // 蓝灰：序号/申报号等固定列
-            var solveFill  = { patternType: 'solid', fgColor: { rgb: 'FCE4D6' } }; // 浅橙：成果过程评分
-            var valueFill  = { patternType: 'solid', fgColor: { rgb: 'FFF2CC' } }; // 浅黄：成果实际价值
-            var tailFill   = { patternType: 'solid', fgColor: { rgb: 'E2EFDA' } }; // 浅绿：资料分/完成单位等
-            var titleFont  = { bold: true, sz: 11 };
-            var headerFont = { bold: true, sz: 9 };
-            var center = { horizontal: 'center', vertical: 'center', wrapText: true };
-            for (var R = range.s.r; R <= range.e.r; R++) {
-                for (var C = range.s.c; C <= range.e.c; C++) {
-                    var addr = XLSX.utils.encode_cell({ r: R, c: C });
-                    if (!ws[addr]) ws[addr] = { v: '', t: 's' };
-                    var s = {};
-                    s.border = border;
-                    s.alignment = center;
-                    if (R === 0) {
-                        s.font = titleFont;
-                    } else if (R === 1 || R === 2) {
-                        s.font = headerFont;
-                        if (C < solveColStart)                      s.fill = fixFill;
-                        else if (C <= solveColEnd)                   s.fill = solveFill;
-                        else if (valueCol != null && C === valueCol) s.fill = valueFill;
-                        else                                         s.fill = tailFill;
-                    }
-                    ws[addr].s = s;
-                }
-            }
-        }
-
-        /**
-         * 后端下载：含签章图片的 Excel
-         */
-        function downloadExpertScoresExcel(expertUid, expertName, groupName) {
-            var taskId = $('#taskId').val();
-            if (!taskId || !expertUid) { layer.msg('参数缺失', {icon: 2}); return; }
-            var url = '/qcScore/exportExpertScoresExcel'
-                + '?taskId=' + encodeURIComponent(taskId)
-                + '&expertUid=' + encodeURIComponent(expertUid)
-                + '&expertName=' + encodeURIComponent(expertName || '')
-                + '&groupName=' + encodeURIComponent(groupName || '');
-            window.location.href = url;
-        }
-
-        /**
-         * 导出专家打分情况为Excel（问题解决型和创新型分两个sheet）
-         */
-        function exportExpertScoresToExcel(scores, expertName, groupName, signUrl) {
-            var doExport = function() {
-                var now = new Date();
-                var year = now.getFullYear();
-                var timeStr = year + '年' + (now.getMonth()+1) + '月' + now.getDate() + '日 '
-                    + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-                var solveItems = (scores || []).filter(function(s) { return s.topicType === '问题解决型'; });
-                var innovateItems = (scores || []).filter(function(s) { return s.topicType === '创新型'; });
-                var wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, _buildSolveSheet(solveItems, groupName, year, timeStr, signUrl), '问题解决型');
-                XLSX.utils.book_append_sheet(wb, _buildInnovateSheet(innovateItems, groupName, year, timeStr, signUrl), '创新型');
-                var safeFileName = (expertName || '专家').replace(/[\/\\:*?"<>|]/g, '_');
-                XLSX.writeFile(wb, safeFileName + '_打分情况.xlsx');
-            };
-            if (typeof XLSX !== 'undefined') {
-                doExport();
-            } else {
-                var s = document.createElement('script');
-                s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-                s.onload = function() { doExport(); };
-                s.onerror = function() { layer.msg('Excel库加载失败，请检查网络', {icon: 2}); };
-                document.head.appendChild(s);
-            }
-        }
-
-        /**
-         * 构建问题解决型 sheet
-         * 列：序号(0)、申报号(1)、课题名称(2)、小组名称(3)、分类(4)、
-         *      选题(5)、原因分析(6)、对策与实施(7)、效果(8)、成果报告(9)、特点(10)、持证情况(11)、
-         *      成果实际价值评价(12)、资料分(13)、完成单位(14)、申报单位(15)、小组成员(16)
-         */
-        function _buildSolveSheet(items, groupName, year, timeStr, signUrl) {
-            var nTotal = 17;
-            var aoa = [];
-
-            var r0 = new Array(nTotal).fill('');
-            r0[0] = year + '年石油工程建设优秀质量管理小组活动成果资料评分表——问题解决型  ' + (groupName || '');
-            aoa.push(r0);
-
-            var r1 = new Array(nTotal).fill('');
-            r1[0] = '序号'; r1[1] = '申报号'; r1[2] = '课题名称'; r1[3] = '小组名称'; r1[4] = '分类';
-            r1[5] = '成果实战过程评分（100分）';
-            r1[12] = '成果实际价值评价（20分）';
-            r1[13] = '资料分\n（小数点后两位）'; r1[14] = '完成单位'; r1[15] = '申报单位'; r1[16] = '小组成员';
-            aoa.push(r1);
-
-            var r2 = new Array(nTotal).fill('');
-            r2[5]  = '选题\n（10）'; r2[6]  = '原因分析\n（30）'; r2[7]  = '对策与实施\n（20）';
-            r2[8]  = '效果\n（20）'; r2[9]  = '成果报告\n（5）'; r2[10] = '特点\n（8.5）'; r2[11] = '持证情况\n（3.5）';
-            aoa.push(r2);
-
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                var row = new Array(nTotal).fill('');
-                row[0] = i + 1; row[1] = item.proCode || ''; row[2] = item.topicName || '';
-                row[3] = item.groupName || ''; row[4] = item.topicType || '';
-                if (item.isAvoided) {
-                    row[5] = '回避';
-                } else if (item.scoreDetails && item.scoreDetails.length > 0) {
-                    var d = item.scoreDetails;
-                    row[5]  = d[0] ? (d[0].score != null ? d[0].score : '') : '';
-                    row[6]  = d[1] ? (d[1].score != null ? d[1].score : '') : '';
-                    row[7]  = d[2] ? (d[2].score != null ? d[2].score : '') : '';
-                    row[8]  = d[3] ? (d[3].score != null ? d[3].score : '') : '';
-                    row[9]  = d[4] ? (d[4].score != null ? d[4].score : '') : '';
-                    row[10] = d[5] ? (d[5].score != null ? d[5].score : '') : '';
-                    row[11] = d[6] ? (d[6].score != null ? d[6].score : '') : '';
-                    row[12] = d[7] ? (d[7].score != null ? d[7].score : '') : '';
-                }
-                row[13] = item.totalScore != null ? item.totalScore : '';
-                row[14] = item.completeUnit || '';
-                row[15] = item.companyName || '';
-                row[16] = item.groupMember || '';
-                aoa.push(row);
-            }
-
-            var sigRow1 = new Array(nTotal).fill('');
-            sigRow1[0] = signUrl ? '评委：电子签（点击查看）' : '评委：电子签';
-            var sigRow2 = new Array(nTotal).fill('');
-            sigRow2[0] = '时间：' + (timeStr || year);
-            aoa.push(sigRow1);
-            aoa.push(sigRow2);
-
-            var ws = XLSX.utils.aoa_to_sheet(aoa);
-            var sigR = 3 + items.length;
-            if (signUrl) {
-                var sigAddr = XLSX.utils.encode_cell({r: sigR, c: 0});
-                if (!ws[sigAddr]) ws[sigAddr] = { v: '评委：电子签（点击查看）', t: 's' };
-                ws[sigAddr].l = { Target: signUrl, Tooltip: '点击查看电子签章' };
-            }
-            ws['!merges'] = [
-                {s:{r:0,c:0}, e:{r:0,c:nTotal-1}},
-                {s:{r:1,c:0}, e:{r:2,c:0}}, {s:{r:1,c:1}, e:{r:2,c:1}},
-                {s:{r:1,c:2}, e:{r:2,c:2}}, {s:{r:1,c:3}, e:{r:2,c:3}},
-                {s:{r:1,c:4}, e:{r:2,c:4}},
-                {s:{r:1,c:5}, e:{r:1,c:11}},
-                {s:{r:1,c:12}, e:{r:2,c:12}}, {s:{r:1,c:13}, e:{r:2,c:13}},
-                {s:{r:1,c:14}, e:{r:2,c:14}}, {s:{r:1,c:15}, e:{r:2,c:15}},
-                {s:{r:1,c:16}, e:{r:2,c:16}},
-                {s:{r:sigR,c:0}, e:{r:sigR,c:nTotal-1}},
-                {s:{r:sigR+1,c:0}, e:{r:sigR+1,c:nTotal-1}}
-            ];
+            var ws = XLSX.utils.aoa_to_sheet(sheetData);
             ws['!cols'] = [
-                {wch:6},{wch:14},{wch:26},{wch:14},{wch:8},
-                {wch:7},{wch:10},{wch:10},{wch:7},{wch:9},{wch:7},{wch:9},
-                {wch:12},{wch:10},{wch:14},{wch:14},{wch:18}
+                {wch: 6}, {wch: 18}, {wch: 30}, {wch: 20},
+                {wch: 25}, {wch: 12}, {wch: 40}
             ];
-            ws['!rows'] = [{hpt:24},{hpt:40},{hpt:40}];
-            _applyExpertSheetStyles(ws, 5, 11, 12);
-            return ws;
+            var wb = XLSX.utils.book_new();
+            var sheetName = currentGroupName ? (currentGroupName + '_淘汰名单') : '淘汰名单';
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            XLSX.writeFile(wb, sheetName + '.xlsx');
         }
 
-        /**
-         * 构建创新型 sheet
-         * 列：序号(0)、申报号(1)、课题名称(2)、小组名称(3)、分类(4)、
-         *      选题(5)、提出方案(6)、原因分析(7)、对策与实施(8)、效果(9)、成果报告(10)、特点(11)、持证情况(12)、
-         *      成果实际价值评价(13)、资料分(14)、完成单位(15)、申报单位(16)、小组成员(17)
-         */
-        function _buildInnovateSheet(items, groupName, year, timeStr, signUrl) {
-            var nTotal = 18;
-            var aoa = [];
-
-            var r0 = new Array(nTotal).fill('');
-            r0[0] = year + '年石油工程建设优秀质量管理小组活动成果资料评分表——（创新型）  ' + (groupName || '');
-            aoa.push(r0);
-
-            var r1 = new Array(nTotal).fill('');
-            r1[0] = '序号'; r1[1] = '申报号'; r1[2] = '课题名称'; r1[3] = '小组名称'; r1[4] = '分类';
-            r1[5] = '成果实战过程评分（100分）';
-            r1[13] = '成果实际价值评价（20分）';
-            r1[14] = '资料分\n（小数点后两位）'; r1[15] = '完成单位'; r1[16] = '申报单位'; r1[17] = '小组成员';
-            aoa.push(r1);
-
-            var r2 = new Array(nTotal).fill('');
-            r2[5]  = '选题\n（10）'; r2[6]  = '提出方案并确定最佳方案(30)';
-            r2[7]  = '原因分析\n（30）'; r2[8]  = '对策与实施\n（20）';
-            r2[9]  = '效果\n（20）'; r2[10] = '成果报告\n（5）'; r2[11] = '特点\n（8.5）'; r2[12] = '持证情况\n（3.5）';
-            aoa.push(r2);
-
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                var row = new Array(nTotal).fill('');
-                row[0] = i + 1; row[1] = item.proCode || ''; row[2] = item.topicName || '';
-                row[3] = item.groupName || ''; row[4] = item.topicType || '';
-                if (item.isAvoided) {
-                    row[5] = '回避';
-                } else if (item.scoreDetails && item.scoreDetails.length > 0) {
-                    var d = item.scoreDetails;
-                    row[5]  = d[0] ? (d[0].score != null ? d[0].score : '') : '';
-                    row[6]  = d[1] ? (d[1].score != null ? d[1].score : '') : '';
-                    row[7]  = d[2] ? (d[2].score != null ? d[2].score : '') : '';
-                    row[8]  = d[3] ? (d[3].score != null ? d[3].score : '') : '';
-                    row[9]  = d[4] ? (d[4].score != null ? d[4].score : '') : '';
-                    row[10] = d[5] ? (d[5].score != null ? d[5].score : '') : '';
-                    row[11] = d[6] ? (d[6].score != null ? d[6].score : '') : '';
-                    row[12] = d[7] ? (d[7].score != null ? d[7].score : '') : '';
-                    row[13] = d[8] ? (d[8].score != null ? d[8].score : '') : '';
-                }
-                row[14] = item.totalScore != null ? item.totalScore : '';
-                row[15] = item.completeUnit || '';
-                row[16] = item.companyName || '';
-                row[17] = item.groupMember || '';
-                aoa.push(row);
-            }
-
-            var sigRow1 = new Array(nTotal).fill('');
-            sigRow1[0] = signUrl ? '评委：电子签（点击查看）' : '评委：电子签';
-            var sigRow2 = new Array(nTotal).fill('');
-            sigRow2[0] = '时间：' + (timeStr || year);
-            aoa.push(sigRow1);
-            aoa.push(sigRow2);
-
-            var ws = XLSX.utils.aoa_to_sheet(aoa);
-            var sigR = 3 + items.length;
-            if (signUrl) {
-                var sigAddr = XLSX.utils.encode_cell({r: sigR, c: 0});
-                if (!ws[sigAddr]) ws[sigAddr] = { v: '评委：电子签（点击查看）', t: 's' };
-                ws[sigAddr].l = { Target: signUrl, Tooltip: '点击查看电子签章' };
-            }
-            ws['!merges'] = [
-                {s:{r:0,c:0}, e:{r:0,c:nTotal-1}},
-                {s:{r:1,c:0}, e:{r:2,c:0}}, {s:{r:1,c:1}, e:{r:2,c:1}},
-                {s:{r:1,c:2}, e:{r:2,c:2}}, {s:{r:1,c:3}, e:{r:2,c:3}},
-                {s:{r:1,c:4}, e:{r:2,c:4}},
-                {s:{r:1,c:5}, e:{r:1,c:12}},
-                {s:{r:1,c:13}, e:{r:2,c:13}}, {s:{r:1,c:14}, e:{r:2,c:14}},
-                {s:{r:1,c:15}, e:{r:2,c:15}}, {s:{r:1,c:16}, e:{r:2,c:16}},
-                {s:{r:1,c:17}, e:{r:2,c:17}},
-                {s:{r:sigR,c:0}, e:{r:sigR,c:nTotal-1}},
-                {s:{r:sigR+1,c:0}, e:{r:sigR+1,c:nTotal-1}}
-            ];
-            ws['!cols'] = [
-                {wch:6},{wch:14},{wch:26},{wch:14},{wch:8},
-                {wch:7},{wch:16},{wch:10},{wch:10},{wch:7},{wch:9},{wch:7},{wch:9},
-                {wch:12},{wch:10},{wch:14},{wch:14},{wch:18}
-            ];
-            ws['!rows'] = [{hpt:24},{hpt:40},{hpt:40}];
-            _applyExpertSheetStyles(ws, 5, 12, 13);
-            return ws;
+        if (typeof XLSX !== 'undefined') {
+            doExport();
+        } else {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+            s.onload = function () {
+                doExport();
+            };
+            s.onerror = function () {
+                layer.msg('Excel库加载失败，请检查网络', {icon: 2});
+            };
+            document.head.appendChild(s);
         }
+    }
 
-        /**
-         * HTML转义工具函数
-         */
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    function resetAllEliminate() {
+        var taskId = $("#taskId").val();
+        if (!taskId) {
+            layer.msg('任务ID为空', {icon: 2});
+            return;
         }
-
-        // ==================== 形审专家绑定（新增） ====================
-
-        // 从左侧导航读取当前任务的专业组名称列表
-        function _getQcGroupNames() {
-            var names = [];
-            $('.folder-list li').each(function() {
-                var span = $(this).find('span');
-                if (span.length && span.text().trim()) {
-                    names.push(span.text().trim());
-                }
-            });
-            return names;
-        }
-
-        function openExpertBindingModal() {
-            var taskId = $('#taskId').val();
-            if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }
-            var loadIdx = layer.load(1);
+        layer.confirm('确定要撤销该任务下所有专家的淘汰记录吗？此操作不可恢复。', {
+            btn: ['确定', '取消']
+        }, function () {
             $.ajax({
-                type: 'GET', url: '/qcProcess/getExpertGroupBindings', data: { taskId: taskId },
-                success: function(data) {
-                    layer.close(loadIdx);
-                    if (data.code == 0) { _renderExpertBindingModal(data.data, taskId); }
-                    else { layer.msg(data.msg || '加载失败', {icon: 2}); }
-                },
-                error: function() { layer.close(loadIdx); layer.msg('加载失败，请稍后重试', {icon: 2}); }
-            });
-        }
-
-        function _renderExpertBindingModal(experts, taskId) {
-            var groups = _getQcGroupNames();
-            var html = '<div style="padding:10px;min-width:600px;">';
-            html += '<p style="color:#888;margin-bottom:12px;">为每位形审专家选择可查看的专业组（不选则不限制）</p>';
-            if (!experts || experts.length == 0) {
-                html += '<p style="color:#999;">暂无形审专家账号（角色72）</p>';
-            } else {
-                html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
-                html += '<thead><tr><th style="width:80px;">姓名</th><th style="width:120px;">账号</th><th>绑定专业组（多选）</th><th style="width:70px;">操作</th></tr></thead><tbody>';
-                for (var i = 0; i < experts.length; i++) {
-                    var e = experts[i];
-                    var rowId = 'expert_' + e.userId;
-                    html += '<tr>';
-                    html += '<td>' + escapeHtml(e.name || '-') + '</td>';
-                    html += '<td>' + escapeHtml(e.username || '-') + '</td>';
-                    html += '<td style="padding:6px 8px;">';
-                    for (var j = 0; j < groups.length; j++) {
-                        var g = groups[j];
-                        var chkId = 'chk_' + e.userId + '_' + j;
-                        var checked = (e.boundGroups && e.boundGroups.indexOf(g) >= 0) ? 'checked' : '';
-                        html += '<label style="margin-right:12px;font-weight:normal;">';
-                        html += '<input type="checkbox" id="' + chkId + '" class="expert-grp-chk" data-uid="' + e.userId + '" value="' + escapeHtml(g) + '" ' + checked + '> ' + escapeHtml(g);
-                        html += '</label>';
+                type: "POST",
+                url: "/qcProcess/resetAllEliminate",
+                data: {taskId: taskId},
+                success: function (data) {
+                    if (data.code == 0) {
+                        layer.msg(data.msg, {icon: 1});
+                    } else {
+                        layer.alert(data.msg);
                     }
-                    if (groups.length == 0) { html += '<span style="color:#999;">（无专业组，请先添加专家）</span>'; }
-                    html += '</td>';
-                    html += '<td><button class="btn btn-primary btn-xs" onclick="_saveExpertBinding(\'' + e.userId + '\', \'' + taskId + '\')">保存</button></td>';
-                    html += '</tr>';
+                },
+                error: function () {
+                    layer.msg('操作失败，请稍后重试', {icon: 2});
                 }
-                html += '</tbody></table>';
-            }
-            html += '</div>';
-            layer.open({
-                type: 1,
-                title: '形审专家分组绑定',
-                area: ['800px', '500px'],
-                content: html,
-                btn: ['关闭']
             });
+        });
+    }
+
+    // 导出单个专家的淘汰Word文档（初审不合格成果表）
+    function exportExpertEliminateWord(expertUid, expertName) {
+        var taskId = $("#taskId").val();
+        if (!taskId) {
+            layer.msg('任务ID为空', {icon: 2});
+            return;
+        }
+        if (!expertUid) {
+            layer.msg('专家ID为空', {icon: 2});
+            return;
+        }
+        var url = "/qcProcess/exportEliminateWord?taskId=" + encodeURIComponent(taskId)
+            + "&expertUid=" + encodeURIComponent(expertUid)
+            + "&expertName=" + encodeURIComponent(expertName || '')
+            + "&year=2026";
+        window.open(url, '_blank');
+    }
+
+    // ==================== 发布分查询（专家维度） ====================
+
+    function viewExpertPresentScores(expertUid, expertName, groupName) {
+        var taskId = $("#taskId").val();
+        if (!taskId) {
+            layer.msg('任务ID为空', {icon: 2});
+            return;
+        }
+        if (!expertUid) {
+            layer.msg('专家ID为空', {icon: 2});
+            return;
+        }
+        window._expertCurrentUid = expertUid;
+        var loadIdx = layer.load(1, {shade: [0.3, '#fff']});
+        $.ajax({
+            type: "GET",
+            url: "/qcScore/getExpertPresentScores",
+            data: {taskId: taskId, expertUid: expertUid},
+            success: function (data) {
+                layer.close(loadIdx);
+                if (data.code == 0) {
+                    showExpertPresentScoresModal(data.data, expertName, groupName || '');
+                } else {
+                    layer.msg(data.msg || '查询失败', {icon: 2});
+                }
+            },
+            error: function () {
+                layer.close(loadIdx);
+                layer.msg('查询失败，请稍后重试', {icon: 2});
+            }
+        });
+    }
+
+    function showExpertPresentScoresModal(scores, expertName, groupName) {
+        if (!scores || scores.length == 0) {
+            layer.msg('该专家暂无发布分打分记录', {icon: 0});
+            return;
+        }
+        window._presentScoresCache = scores;
+        window._presentCurrentName = expertName;
+        window._presentCurrentGroup = groupName || '';
+        window._presentCurrentUid = window._expertCurrentUid || '';
+
+        var html = '<div style="padding:10px;">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">';
+        html += '<h4 style="margin:0;">专家：' + escapeHtml(expertName) + ' 的发布分打分情况</h4>';
+        html += '<button class="btn btn-primary btn-sm" onclick="downloadExpertPresentScoresExcel(window._presentCurrentUid, window._presentCurrentName, window._presentCurrentGroup)">导出Excel</button>';
+        html += '</div>';
+        html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+        html += '<thead><tr>';
+        html += '<th style="width:50px;">序号</th>';
+        html += '<th style="width:110px;">申报账号</th>';
+        html += '<th>课题名称</th>';
+        html += '<th style="width:130px;">小组名称</th>';
+        html += '<th style="width:80px;">课题类型</th>';
+        html += '<th style="width:80px;">发布分</th>';
+        html += '<th style="width:100px;">提交状态</th>';
+        html += '<th style="width:140px;">打分时间</th>';
+        html += '</tr></thead><tbody>';
+        for (var i = 0; i < scores.length; i++) {
+            var item = scores[i];
+            var scoreHtml = item.isAvoided
+                ? '<span style="color:#d9534f;font-weight:bold;">回避</span>'
+                : (item.appraiseSum != null
+                    ? '<span style="color:#5cb85c;font-weight:bold;">' + item.appraiseSum + '</span>'
+                    : '<span style="color:#999;">未打分</span>');
+            var submitHtml = item.qscoreOver == 1
+                ? '<span class="label label-success">已提交</span>'
+                : '<span class="label label-default">未提交</span>';
+            html += '<tr>';
+            html += '<td>' + (i + 1) + '</td>';
+            html += '<td>' + escapeHtml(item.proCode || '-') + '</td>';
+            html += '<td>' + escapeHtml(item.topicName || '-') + '</td>';
+            html += '<td>' + escapeHtml(item.groupName || '-') + '</td>';
+            html += '<td>' + escapeHtml(item.topicType || '-') + '</td>';
+            html += '<td>' + scoreHtml + '</td>';
+            html += '<td>' + submitHtml + '</td>';
+            html += '<td>' + (item.scoreTime || '-') + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table></div>';
+        layer.open({
+            type: 1,
+            title: '发布分查询 - ' + escapeHtml(expertName),
+            area: ['900px', '550px'],
+            content: html,
+            btn: ['关闭']
+        });
+    }
+
+    /**
+     * 导出发布分打分情况为Excel
+     */
+    function downloadExpertPresentScoresExcel(expertUid, expertName, groupName) {
+        var taskId = $('#taskId').val();
+        if (!taskId || !expertUid) {
+            layer.msg('参数缺失', {icon: 2});
+            return;
+        }
+        var url = '/qcScore/exportExpertPresentScoresExcel'
+            + '?taskId=' + encodeURIComponent(taskId)
+            + '&expertUid=' + encodeURIComponent(expertUid)
+            + '&expertName=' + encodeURIComponent(expertName || '')
+            + '&groupName=' + encodeURIComponent(groupName || '');
+        window.location.href = url;
+    }
+
+    /**
+     * 导出该专家所在专业组的终版意见表Excel
+     */
+    function exportExpertFinalOpinion(expertUid, expertName, groupName) {
+        var taskId = $('#taskId').val();
+        if (!taskId) {
+            layer.msg('任务ID为空', {icon: 2});
+            return;
+        }
+        if (!groupName) {
+            layer.msg('专业组名称为空', {icon: 2});
+            return;
+        }
+        var url = '/qcScore/exportFinalOpinionExcel'
+            + '?taskId=' + encodeURIComponent(taskId)
+            + '&groupName=' + encodeURIComponent(groupName);
+        window.location.href = url;
+    }
+
+    // ==================== 资料分查询（专家维度） ====================
+
+    /**
+     * 查看专家打分情况（以专家为维度）
+     * @param expertUid 专家用户ID
+     * @param expertName 专家姓名
+     */
+    // 资料分查询
+    function viewExpertScores(expertUid, expertName, groupName) {
+        var taskId = $("#taskId").val();
+        if (!taskId) {
+            layer.msg('任务ID为空', {icon: 2});
+            return;
+        }
+        if (!expertUid) {
+            layer.msg('专家ID为空', {icon: 2});
+            return;
+        }
+        $.ajax({
+            type: "GET",
+            url: "/qcScore/getExpertScores",
+            data: {taskId: taskId, expertUid: expertUid},
+            success: function (data) {
+                if (data.code == 0) {
+                    window._expertSignUrl = data.expertSignUrl || '';
+                    window._expertCurrentUid = expertUid;
+                    showExpertScoresModal(data.data, expertName, groupName || '');
+                } else {
+                    layer.msg(data.msg || '查询失败', {icon: 2});
+                }
+            },
+            error: function () {
+                layer.msg('查询失败，请稍后重试', {icon: 2});
+            }
+        });
+    }
+
+    /**
+     * 显示专家打分情况弹窗
+     */
+    function showExpertScoresModal(scores, expertName, groupName) {
+        if (!scores || scores.length == 0) {
+            layer.msg('该专家暂无分配项目', {icon: 0});
+            return;
+        }
+        window._expertScoresCache = scores;
+        window._expertCurrentName = expertName;
+        window._expertCurrentGroup = groupName || '';
+
+        var html = '<div style="padding:10px;">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;">';
+        html += '<h4 style="margin:0;">专家：' + escapeHtml(expertName) + ' 的打分情况</h4>';
+        html += '<button class="btn btn-primary btn-sm" onclick="downloadExpertScoresExcel(window._expertCurrentUid, window._expertCurrentName, window._expertCurrentGroup)">导出Excel</button>';
+        html += '</div>';
+        html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+        html += '<thead><tr>';
+        html += '<th style="width:50px;">序号</th>';
+        html += '<th>申报账号</th>';
+        html += '<th>课题名称</th>';
+        html += '<th style="width:120px;">小组名称</th>';
+        html += '<th style="width:90px;">课题类型</th>';
+        html += '<th style="width:80px;">总分</th>';
+        html += '<th style="width:70px;">推荐等级</th>';
+        html += '<th style="width:140px;">打分时间</th>';
+        html += '<th style="width:80px;">是否回避</th>';
+        html += '<th style="width:70px;">操作</th>';
+        html += '</tr></thead><tbody>';
+
+        for (var i = 0; i < scores.length; i++) {
+            var item = scores[i];
+            var rowStyle = item.isAvoided ? 'background-color:#fff5f5;' : '';
+            var avoidedBadge = item.isAvoided
+                ? ' <span style="background:#d9534f;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;">已回避</span>'
+                : '';
+            var totalScoreHtml = item.isAvoided
+                ? '<span style="color:#d9534f;">-</span>'
+                : (item.totalScore != null ? '<span style="font-weight:bold;color:#5cb85c;">' + item.totalScore + '</span>' : '<span style="color:#999;">未打分</span>');
+            var detailBtn = (!item.isAvoided && item.scoreDetails != null)
+                ? '<button class="btn btn-info btn-xs" onclick="showExpertScoreDetail(' + i + ')">详情</button>'
+                : '<span style="color:#ccc;">-</span>';
+            html += '<tr style="' + rowStyle + '">';
+            html += '<td>' + (i + 1) + '</td>';
+            html += '<td>' + escapeHtml(item.proCode || '-') + '</td>';
+            html += '<td>' + escapeHtml(item.topicName || '-') + avoidedBadge + '</td>';
+            html += '<td>' + escapeHtml(item.groupName || '-') + '</td>';
+            html += '<td>' + escapeHtml(item.topicType || '-') + '</td>';
+            html += '<td>' + totalScoreHtml + '</td>';
+            html += '<td style="color:#337ab7;">' + (item.recommendLevel || '-') + '</td>';
+            html += '<td style="color:#999;">' + (item.scoreTime || '-') + '</td>';
+            html += '<td>' + (item.isAvoided ? '<span style="color:#d9534f;font-weight:bold;">是</span>' : '否') + '</td>';
+            html += '<td>' + detailBtn + '</td>';
+            html += '</tr>';
         }
 
-        function _saveExpertBinding(expertUserId, taskId) {
-            var checked = [];
-            $('input.expert-grp-chk[data-uid="' + expertUserId + '"]:checked').each(function() {
-                checked.push($(this).val());
-            });
-            var groupNames = checked.join(',');
-            $.ajax({
-                type: 'POST', url: '/qcProcess/saveExpertGroupBinding',
-                data: { taskId: taskId, expertUserId: expertUserId, groupNames: groupNames },
-                success: function(data) {
-                    if (data.code == 0) { layer.msg('绑定保存成功', {icon: 1}); }
-                    else { layer.msg(data.msg || '保存失败', {icon: 2}); }
-                },
-                error: function() { layer.msg('保存失败，请稍后重试', {icon: 2}); }
-            });
+        html += '</tbody></table>';
+        html += '</div>';
+
+        layer.open({
+            type: 1,
+            title: '专家打分情况 - ' + escapeHtml(expertName),
+            area: ['1050px', '620px'],
+            content: html,
+            btn: ['关闭']
+        });
+    }
+
+    /**
+     * 展示某行的详细评分项弹窗
+     */
+    function showExpertScoreDetail(idx) {
+        var item = window._expertScoresCache && window._expertScoresCache[idx];
+        if (!item || !item.scoreDetails) {
+            layer.msg('无详细评分数据', {icon: 0});
+            return;
         }
-    </script>
+        var html = '<div style="padding:15px;">';
+        html += '<h5 style="margin-bottom:10px;">' + escapeHtml(item.topicName || '') + ' — 各评分项明细</h5>';
+        html += '<table class="table table-bordered" style="margin-bottom:0;">';
+        html += '<thead><tr><th>评分项</th><th style="width:100px;">得分</th></tr></thead><tbody>';
+        for (var j = 0; j < item.scoreDetails.length; j++) {
+            var d = item.scoreDetails[j];
+            html += '<tr>';
+            html += '<td>' + escapeHtml(d.label || '') + '</td>';
+            html += '<td style="font-weight:bold;color:#5cb85c;">' + (d.score != null ? d.score : '-') + '</td>';
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        html += '<div style="margin-top:10px;text-align:right;color:#888;">总分：<strong style="color:#5cb85c;">' + (item.totalScore || '-') + '</strong>&nbsp;&nbsp;推荐等级：<strong style="color:#337ab7;">' + (item.recommendLevel || '-') + '</strong></div>';
+        html += '</div>';
+        layer.open({type: 1, title: '评分项详情', area: ['480px', '500px'], content: html});
+    }
+
+    /**
+     * 为专家维度 sheet 批量施加边框 + 表头颜色
+     * solveColEnd: 成果过程评分末列(含)  valueCol: 成果实际价值评价列
+     */
+    function _applyExpertSheetStyles(ws, solveColStart, solveColEnd, valueCol) {
+        if (!ws['!ref']) return;
+        var range = XLSX.utils.decode_range(ws['!ref']);
+        var thin = {style: 'thin', color: {rgb: '000000'}};
+        var border = {top: thin, bottom: thin, left: thin, right: thin};
+        var fixFill = {patternType: 'solid', fgColor: {rgb: 'D9E1F2'}}; // 蓝灰：序号/申报号等固定列
+        var solveFill = {patternType: 'solid', fgColor: {rgb: 'FCE4D6'}}; // 浅橙：成果过程评分
+        var valueFill = {patternType: 'solid', fgColor: {rgb: 'FFF2CC'}}; // 浅黄：成果实际价值
+        var tailFill = {patternType: 'solid', fgColor: {rgb: 'E2EFDA'}}; // 浅绿：资料分/完成单位等
+        var titleFont = {bold: true, sz: 11};
+        var headerFont = {bold: true, sz: 9};
+        var center = {horizontal: 'center', vertical: 'center', wrapText: true};
+        for (var R = range.s.r; R <= range.e.r; R++) {
+            for (var C = range.s.c; C <= range.e.c; C++) {
+                var addr = XLSX.utils.encode_cell({r: R, c: C});
+                if (!ws[addr]) ws[addr] = {v: '', t: 's'};
+                var s = {};
+                s.border = border;
+                s.alignment = center;
+                if (R === 0) {
+                    s.font = titleFont;
+                } else if (R === 1 || R === 2) {
+                    s.font = headerFont;
+                    if (C < solveColStart) s.fill = fixFill;
+                    else if (C <= solveColEnd) s.fill = solveFill;
+                    else if (valueCol != null && C === valueCol) s.fill = valueFill;
+                    else s.fill = tailFill;
+                }
+                ws[addr].s = s;
+            }
+        }
+    }
+
+    /**
+     * 后端下载：含签章图片的 Excel
+     */
+    function downloadExpertScoresExcel(expertUid, expertName, groupName) {
+        var taskId = $('#taskId').val();
+        if (!taskId || !expertUid) {
+            layer.msg('参数缺失', {icon: 2});
+            return;
+        }
+        var url = '/qcScore/exportExpertScoresExcel'
+            + '?taskId=' + encodeURIComponent(taskId)
+            + '&expertUid=' + encodeURIComponent(expertUid)
+            + '&expertName=' + encodeURIComponent(expertName || '')
+            + '&groupName=' + encodeURIComponent(groupName || '');
+        window.location.href = url;
+    }
+
+    /**
+     * 导出专家打分情况为Excel（问题解决型和创新型分两个sheet）
+     */
+    function exportExpertScoresToExcel(scores, expertName, groupName, signUrl) {
+        var doExport = function () {
+            var now = new Date();
+            var year = now.getFullYear();
+            var timeStr = year + '年' + (now.getMonth() + 1) + '月' + now.getDate() + '日 '
+                + String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+            var solveItems = (scores || []).filter(function (s) {
+                return s.topicType === '问题解决型';
+            });
+            var innovateItems = (scores || []).filter(function (s) {
+                return s.topicType === '创新型';
+            });
+            var wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, _buildSolveSheet(solveItems, groupName, year, timeStr, signUrl), '问题解决型');
+            XLSX.utils.book_append_sheet(wb, _buildInnovateSheet(innovateItems, groupName, year, timeStr, signUrl), '创新型');
+            var safeFileName = (expertName || '专家').replace(/[\/\\:*?"<>|]/g, '_');
+            XLSX.writeFile(wb, safeFileName + '_打分情况.xlsx');
+        };
+        if (typeof XLSX !== 'undefined') {
+            doExport();
+        } else {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+            s.onload = function () {
+                doExport();
+            };
+            s.onerror = function () {
+                layer.msg('Excel库加载失败，请检查网络', {icon: 2});
+            };
+            document.head.appendChild(s);
+        }
+    }
+
+    /**
+     * 构建问题解决型 sheet
+     * 列：序号(0)、申报号(1)、课题名称(2)、小组名称(3)、分类(4)、
+     *      选题(5)、原因分析(6)、对策与实施(7)、效果(8)、成果报告(9)、特点(10)、持证情况(11)、
+     *      成果实际价值评价(12)、资料分(13)、完成单位(14)、申报单位(15)、小组成员(16)
+     */
+    function _buildSolveSheet(items, groupName, year, timeStr, signUrl) {
+        var nTotal = 17;
+        var aoa = [];
+
+        var r0 = new Array(nTotal).fill('');
+        r0[0] = year + '年石油工程建设优秀质量管理小组活动成果资料评分表——问题解决型  ' + (groupName || '');
+        aoa.push(r0);
+
+        var r1 = new Array(nTotal).fill('');
+        r1[0] = '序号';
+        r1[1] = '申报号';
+        r1[2] = '课题名称';
+        r1[3] = '小组名称';
+        r1[4] = '分类';
+        r1[5] = '成果实战过程评分（100分）';
+        r1[12] = '成果实际价值评价（20分）';
+        r1[13] = '资料分\n（小数点后两位）';
+        r1[14] = '完成单位';
+        r1[15] = '申报单位';
+        r1[16] = '小组成员';
+        aoa.push(r1);
+
+        var r2 = new Array(nTotal).fill('');
+        r2[5] = '选题\n（10）';
+        r2[6] = '原因分析\n（30）';
+        r2[7] = '对策与实施\n（20）';
+        r2[8] = '效果\n（20）';
+        r2[9] = '成果报告\n（5）';
+        r2[10] = '特点\n（8.5）';
+        r2[11] = '持证情况\n（3.5）';
+        aoa.push(r2);
+
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var row = new Array(nTotal).fill('');
+            row[0] = i + 1;
+            row[1] = item.proCode || '';
+            row[2] = item.topicName || '';
+            row[3] = item.groupName || '';
+            row[4] = item.topicType || '';
+            if (item.isAvoided) {
+                row[5] = '回避';
+            } else if (item.scoreDetails && item.scoreDetails.length > 0) {
+                var d = item.scoreDetails;
+                row[5] = d[0] ? (d[0].score != null ? d[0].score : '') : '';
+                row[6] = d[1] ? (d[1].score != null ? d[1].score : '') : '';
+                row[7] = d[2] ? (d[2].score != null ? d[2].score : '') : '';
+                row[8] = d[3] ? (d[3].score != null ? d[3].score : '') : '';
+                row[9] = d[4] ? (d[4].score != null ? d[4].score : '') : '';
+                row[10] = d[5] ? (d[5].score != null ? d[5].score : '') : '';
+                row[11] = d[6] ? (d[6].score != null ? d[6].score : '') : '';
+                row[12] = d[7] ? (d[7].score != null ? d[7].score : '') : '';
+            }
+            row[13] = item.totalScore != null ? item.totalScore : '';
+            row[14] = item.completeUnit || '';
+            row[15] = item.companyName || '';
+            row[16] = item.groupMember || '';
+            aoa.push(row);
+        }
+
+        var sigRow1 = new Array(nTotal).fill('');
+        sigRow1[0] = signUrl ? '评委：电子签（点击查看）' : '评委：电子签';
+        var sigRow2 = new Array(nTotal).fill('');
+        sigRow2[0] = '时间：' + (timeStr || year);
+        aoa.push(sigRow1);
+        aoa.push(sigRow2);
+
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        var sigR = 3 + items.length;
+        if (signUrl) {
+            var sigAddr = XLSX.utils.encode_cell({r: sigR, c: 0});
+            if (!ws[sigAddr]) ws[sigAddr] = {v: '评委：电子签（点击查看）', t: 's'};
+            ws[sigAddr].l = {Target: signUrl, Tooltip: '点击查看电子签章'};
+        }
+        ws['!merges'] = [
+            {s: {r: 0, c: 0}, e: {r: 0, c: nTotal - 1}},
+            {s: {r: 1, c: 0}, e: {r: 2, c: 0}}, {s: {r: 1, c: 1}, e: {r: 2, c: 1}},
+            {s: {r: 1, c: 2}, e: {r: 2, c: 2}}, {s: {r: 1, c: 3}, e: {r: 2, c: 3}},
+            {s: {r: 1, c: 4}, e: {r: 2, c: 4}},
+            {s: {r: 1, c: 5}, e: {r: 1, c: 11}},
+            {s: {r: 1, c: 12}, e: {r: 2, c: 12}}, {s: {r: 1, c: 13}, e: {r: 2, c: 13}},
+            {s: {r: 1, c: 14}, e: {r: 2, c: 14}}, {s: {r: 1, c: 15}, e: {r: 2, c: 15}},
+            {s: {r: 1, c: 16}, e: {r: 2, c: 16}},
+            {s: {r: sigR, c: 0}, e: {r: sigR, c: nTotal - 1}},
+            {s: {r: sigR + 1, c: 0}, e: {r: sigR + 1, c: nTotal - 1}}
+        ];
+        ws['!cols'] = [
+            {wch: 6}, {wch: 14}, {wch: 26}, {wch: 14}, {wch: 8},
+            {wch: 7}, {wch: 10}, {wch: 10}, {wch: 7}, {wch: 9}, {wch: 7}, {wch: 9},
+            {wch: 12}, {wch: 10}, {wch: 14}, {wch: 14}, {wch: 18}
+        ];
+        ws['!rows'] = [{hpt: 24}, {hpt: 40}, {hpt: 40}];
+        _applyExpertSheetStyles(ws, 5, 11, 12);
+        return ws;
+    }
+
+    /**
+     * 构建创新型 sheet
+     * 列：序号(0)、申报号(1)、课题名称(2)、小组名称(3)、分类(4)、
+     *      选题(5)、提出方案(6)、原因分析(7)、对策与实施(8)、效果(9)、成果报告(10)、特点(11)、持证情况(12)、
+     *      成果实际价值评价(13)、资料分(14)、完成单位(15)、申报单位(16)、小组成员(17)
+     */
+    function _buildInnovateSheet(items, groupName, year, timeStr, signUrl) {
+        var nTotal = 18;
+        var aoa = [];
+
+        var r0 = new Array(nTotal).fill('');
+        r0[0] = year + '年石油工程建设优秀质量管理小组活动成果资料评分表——（创新型）  ' + (groupName || '');
+        aoa.push(r0);
+
+        var r1 = new Array(nTotal).fill('');
+        r1[0] = '序号';
+        r1[1] = '申报号';
+        r1[2] = '课题名称';
+        r1[3] = '小组名称';
+        r1[4] = '分类';
+        r1[5] = '成果实战过程评分（100分）';
+        r1[13] = '成果实际价值评价（20分）';
+        r1[14] = '资料分\n（小数点后两位）';
+        r1[15] = '完成单位';
+        r1[16] = '申报单位';
+        r1[17] = '小组成员';
+        aoa.push(r1);
+
+        var r2 = new Array(nTotal).fill('');
+        r2[5] = '选题\n（10）';
+        r2[6] = '提出方案并确定最佳方案(30)';
+        r2[7] = '原因分析\n（30）';
+        r2[8] = '对策与实施\n（20）';
+        r2[9] = '效果\n（20）';
+        r2[10] = '成果报告\n（5）';
+        r2[11] = '特点\n（8.5）';
+        r2[12] = '持证情况\n（3.5）';
+        aoa.push(r2);
+
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var row = new Array(nTotal).fill('');
+            row[0] = i + 1;
+            row[1] = item.proCode || '';
+            row[2] = item.topicName || '';
+            row[3] = item.groupName || '';
+            row[4] = item.topicType || '';
+            if (item.isAvoided) {
+                row[5] = '回避';
+            } else if (item.scoreDetails && item.scoreDetails.length > 0) {
+                var d = item.scoreDetails;
+                row[5] = d[0] ? (d[0].score != null ? d[0].score : '') : '';
+                row[6] = d[1] ? (d[1].score != null ? d[1].score : '') : '';
+                row[7] = d[2] ? (d[2].score != null ? d[2].score : '') : '';
+                row[8] = d[3] ? (d[3].score != null ? d[3].score : '') : '';
+                row[9] = d[4] ? (d[4].score != null ? d[4].score : '') : '';
+                row[10] = d[5] ? (d[5].score != null ? d[5].score : '') : '';
+                row[11] = d[6] ? (d[6].score != null ? d[6].score : '') : '';
+                row[12] = d[7] ? (d[7].score != null ? d[7].score : '') : '';
+                row[13] = d[8] ? (d[8].score != null ? d[8].score : '') : '';
+            }
+            row[14] = item.totalScore != null ? item.totalScore : '';
+            row[15] = item.completeUnit || '';
+            row[16] = item.companyName || '';
+            row[17] = item.groupMember || '';
+            aoa.push(row);
+        }
+
+        var sigRow1 = new Array(nTotal).fill('');
+        sigRow1[0] = signUrl ? '评委：电子签（点击查看）' : '评委：电子签';
+        var sigRow2 = new Array(nTotal).fill('');
+        sigRow2[0] = '时间：' + (timeStr || year);
+        aoa.push(sigRow1);
+        aoa.push(sigRow2);
+
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        var sigR = 3 + items.length;
+        if (signUrl) {
+            var sigAddr = XLSX.utils.encode_cell({r: sigR, c: 0});
+            if (!ws[sigAddr]) ws[sigAddr] = {v: '评委：电子签（点击查看）', t: 's'};
+            ws[sigAddr].l = {Target: signUrl, Tooltip: '点击查看电子签章'};
+        }
+        ws['!merges'] = [
+            {s: {r: 0, c: 0}, e: {r: 0, c: nTotal - 1}},
+            {s: {r: 1, c: 0}, e: {r: 2, c: 0}}, {s: {r: 1, c: 1}, e: {r: 2, c: 1}},
+            {s: {r: 1, c: 2}, e: {r: 2, c: 2}}, {s: {r: 1, c: 3}, e: {r: 2, c: 3}},
+            {s: {r: 1, c: 4}, e: {r: 2, c: 4}},
+            {s: {r: 1, c: 5}, e: {r: 1, c: 12}},
+            {s: {r: 1, c: 13}, e: {r: 2, c: 13}}, {s: {r: 1, c: 14}, e: {r: 2, c: 14}},
+            {s: {r: 1, c: 15}, e: {r: 2, c: 15}}, {s: {r: 1, c: 16}, e: {r: 2, c: 16}},
+            {s: {r: 1, c: 17}, e: {r: 2, c: 17}},
+            {s: {r: sigR, c: 0}, e: {r: sigR, c: nTotal - 1}},
+            {s: {r: sigR + 1, c: 0}, e: {r: sigR + 1, c: nTotal - 1}}
+        ];
+        ws['!cols'] = [
+            {wch: 6}, {wch: 14}, {wch: 26}, {wch: 14}, {wch: 8},
+            {wch: 7}, {wch: 16}, {wch: 10}, {wch: 10}, {wch: 7}, {wch: 9}, {wch: 7}, {wch: 9},
+            {wch: 12}, {wch: 10}, {wch: 14}, {wch: 14}, {wch: 18}
+        ];
+        ws['!rows'] = [{hpt: 24}, {hpt: 40}, {hpt: 40}];
+        _applyExpertSheetStyles(ws, 5, 12, 13);
+        return ws;
+    }
+
+    /**
+     * HTML转义工具函数
+     */
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    // ==================== 形审专家绑定（新增） ====================
+
+    // 从左侧导航读取当前任务的专业组名称列表
+    function _getQcGroupNames() {
+        var names = [];
+        $('.folder-list li').each(function () {
+            var span = $(this).find('span');
+            if (span.length && span.text().trim()) {
+                names.push(span.text().trim());
+            }
+        });
+        return names;
+    }
+
+    function openExpertBindingModal() {
+        var taskId = $('#taskId').val();
+        if (!taskId) {
+            layer.msg('任务ID为空', {icon: 2});
+            return;
+        }
+        var loadIdx = layer.load(1);
+        $.ajax({
+            type: 'GET', url: '/qcProcess/getExpertGroupBindings', data: {taskId: taskId},
+            success: function (data) {
+                layer.close(loadIdx);
+                if (data.code == 0) {
+                    _renderExpertBindingModal(data.data, taskId);
+                } else {
+                    layer.msg(data.msg || '加载失败', {icon: 2});
+                }
+            },
+            error: function () {
+                layer.close(loadIdx);
+                layer.msg('加载失败，请稍后重试', {icon: 2});
+            }
+        });
+    }
+
+    function _renderExpertBindingModal(experts, taskId) {
+        var groups = _getQcGroupNames();
+        var html = '<div style="padding:10px;min-width:600px;">';
+        html += '<p style="color:#888;margin-bottom:12px;">为每位形审专家选择可查看的专业组（不选则不限制）</p>';
+        if (!experts || experts.length == 0) {
+            html += '<p style="color:#999;">暂无形审专家账号（角色72）</p>';
+        } else {
+            html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+            html += '<thead><tr><th style="width:80px;">姓名</th><th style="width:120px;">账号</th><th>绑定专业组（多选）</th><th style="width:70px;">操作</th></tr></thead><tbody>';
+            for (var i = 0; i < experts.length; i++) {
+                var e = experts[i];
+                var rowId = 'expert_' + e.userId;
+                html += '<tr>';
+                html += '<td>' + escapeHtml(e.name || '-') + '</td>';
+                html += '<td>' + escapeHtml(e.username || '-') + '</td>';
+                html += '<td style="padding:6px 8px;">';
+                for (var j = 0; j < groups.length; j++) {
+                    var g = groups[j];
+                    var chkId = 'chk_' + e.userId + '_' + j;
+                    var checked = (e.boundGroups && e.boundGroups.indexOf(g) >= 0) ? 'checked' : '';
+                    html += '<label style="margin-right:12px;font-weight:normal;">';
+                    html += '<input type="checkbox" id="' + chkId + '" class="expert-grp-chk" data-uid="' + e.userId + '" value="' + escapeHtml(g) + '" ' + checked + '> ' + escapeHtml(g);
+                    html += '</label>';
+                }
+                if (groups.length == 0) {
+                    html += '<span style="color:#999;">（无专业组，请先添加专家）</span>';
+                }
+                html += '</td>';
+                html += '<td><button class="btn btn-primary btn-xs" onclick="_saveExpertBinding(\'' + e.userId + '\', \'' + taskId + '\')">保存</button></td>';
+                html += '</tr>';
+            }
+            html += '</tbody></table>';
+        }
+        html += '</div>';
+        layer.open({
+            type: 1,
+            title: '形审专家分组绑定',
+            area: ['800px', '500px'],
+            content: html,
+            btn: ['关闭']
+        });
+    }
+
+    function _saveExpertBinding(expertUserId, taskId) {
+        var checked = [];
+        $('input.expert-grp-chk[data-uid="' + expertUserId + '"]:checked').each(function () {
+            checked.push($(this).val());
+        });
+        var groupNames = checked.join(',');
+        $.ajax({
+            type: 'POST', url: '/qcProcess/saveExpertGroupBinding',
+            data: {taskId: taskId, expertUserId: expertUserId, groupNames: groupNames},
+            success: function (data) {
+                if (data.code == 0) {
+                    layer.msg('绑定保存成功', {icon: 1});
+                } else {
+                    layer.msg(data.msg || '保存失败', {icon: 2});
+                }
+            },
+            error: function () {
+                layer.msg('保存失败，请稍后重试', {icon: 2});
+            }
+        });
+    }
+</script>
 
 </body>
 </html>

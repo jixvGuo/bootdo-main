@@ -679,9 +679,9 @@ function load() {
 								// 专业组管理（移除时间限制，只要有权限就始终显示）
 								// 管理员都可见的专业组管理按钮、无权限的专业组管理按钮
 								var isQcAssociationContactRole70 = $("#isQcAssociationContactRole70").val();
-								 var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden')
-								// var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden'
-								// 		&& String(isQcAssociationContactRole70) !== 'true')
+								// var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden')
+								var qcExpertGroupBtn = (typeof s_management_h !== 'undefined' && s_management_h !== 'hidden'
+										&& String(isQcAssociationContactRole70) !== 'true')
 									? '<a class="btn btn-primary btn-sm" href="javascript:page(\'/qcProcess/toAddSpecialist?taskId='
 									+ row.id
 									+ '\',\'专业组管理\')" title="专业组管理" mce_href="#">专业组管理</a> '

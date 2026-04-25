@@ -27,6 +27,7 @@ import com.bootdo.cpe.service.QcResultInnovateScoreService;
 import com.bootdo.cpe.service.QcResultSolveScoreService;
 import com.bootdo.cpe.service.QcReviewResultRecordService;
 import com.bootdo.cpe.domain.QcScoreSubmitDO;
+import com.bootdo.cpe.domain.QcScoreCalcResultDO;
 import com.bootdo.cpe.service.QcScoreCalcDetailService;
 import com.bootdo.cpe.service.QcScoreCalcResultService;
 import com.bootdo.cpe.service.QcScoreCalculationService;
@@ -34,6 +35,8 @@ import com.bootdo.cpe.service.QcScoreSubmitService;
 import com.bootdo.common.service.DictService;
 import com.bootdo.common.domain.DictDO;
 import com.bootdo.system.domain.UserDO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.*;
@@ -53,6 +56,7 @@ import java.nio.file.Files;
 import java.util.*;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import com.bootdo.system.service.UserService;
 
@@ -68,6 +72,7 @@ import static com.bootdo.common.config.Constant.*;
 @RequestMapping("/qcScore")
 @Controller
 public class QcSpecialistScoreController extends BaseQcProController {
+    private static final Logger logger = LoggerFactory.getLogger(QcSpecialistScoreController.class);
     private String prefix = "cpe/qc";
 
     @Autowired
@@ -2042,7 +2047,8 @@ public class QcSpecialistScoreController extends BaseQcProController {
                     List<QcResultSolveScoreDO> sl = qcResultSolveScoreService.list(sq);
                     if (!sl.isEmpty()) {
                         QcResultSolveScoreDO s = sl.get(0);
-                        totalScore = s.getAppraiseSum(); recommendLevel = s.getRecommendLevel();
+                        totalScore = s.getAppraiseSum();
+                        recommendLevel = s.getRecommendLevel();
                         details.add(buildScoreDetail("选题得分", s.getSelSocre()));
                         details.add(buildScoreDetail("原因分析得分", s.getReasonScore()));
                         details.add(buildScoreDetail("对策与实施得分", s.getStrategyExecuteScore()));
@@ -2056,7 +2062,8 @@ public class QcSpecialistScoreController extends BaseQcProController {
                     List<QcResultInnovateScoreDO> il = qcResultInnovateScoreService.list(sq);
                     if (!il.isEmpty()) {
                         QcResultInnovateScoreDO s = il.get(0);
-                        totalScore = s.getAppraiseSum(); recommendLevel = s.getRecommendLevel();
+                        totalScore = s.getAppraiseSum();
+                        recommendLevel = s.getRecommendLevel();
                         details.add(buildScoreDetail("选题得分", s.getSelSocre()));
                         details.add(buildScoreDetail("提出方案并确定最佳方案", s.getBestPlanScore()));
                         details.add(buildScoreDetail("对策与实施得分", s.getStrategyExecuteScore()));
@@ -2934,7 +2941,9 @@ public class QcSpecialistScoreController extends BaseQcProController {
     private void buildMatrixSheet(XSSFWorkbook wb, List<Map<String, Object>> rows,
                                   List<ExpertGroupDO> experts, int year, String typeLabel) {
         String sheetName = typeLabel.contains("创新") ? "创新型" : "问题解决型";
+        // 表格尾部：资料分、完成单位、申报单位、小组成员
         int nFixed = 6, nExperts = experts.size(), nTail = 4, nTotal = nFixed + nExperts + nTail;
+        // XSSFWorkbook:代表整个 Excel工作簿 XSSFSheet:代表工作簿中的一个工作表（Sheet）
         XSSFSheet sheet = wb.createSheet(sheetName);
 
         // ---- 颜色 ----
@@ -2947,7 +2956,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
         XSSFColor evenColor   = new XSSFColor(new byte[]{(byte)245,(byte)247,(byte)250}, null);
 
         // ---- 样式工厂 ----
-        java.util.function.Supplier<XSSFCellStyle> newStyle = () -> {
+        Supplier<XSSFCellStyle> newStyle = () -> {
             XSSFCellStyle cs = wb.createCellStyle();
             cs.setBorderTop(BorderStyle.THIN); cs.setBorderBottom(BorderStyle.THIN);
             cs.setBorderLeft(BorderStyle.THIN); cs.setBorderRight(BorderStyle.THIN);
@@ -3037,20 +3046,34 @@ public class QcSpecialistScoreController extends BaseQcProController {
             //     String sc = (es != null && acc != null) ? es.getOrDefault(acc, "") : "";
             //     setCell(row, nFixed + k, sc, "回避".equals(sc) ? avoidStyle : cs);
             // }
-            // Object avg = pro.get("avgScore");
-            // setCell(row, avgCol, avg != null ? avg.toString() : "", avgStyle);
-            // 新代码：各专家分 * 0.6，资料分 = avgScore * 0.6
+            // 先×0.6再求平均，确保Excel中显示值可手动验算
+            List<BigDecimal> scaledScores = new ArrayList<>();
             for (int k = 0; k < experts.size(); k++) {
                 String acc = experts.get(k).getLoginAccount();
                 String sc = (es != null && acc != null) ? es.getOrDefault(acc, "") : "";
                 if ("回避".equals(sc)) {
                     setCell(row, nFixed + k, sc, avoidStyle);
                 } else {
-                    setCell(row, nFixed + k, scaleScore(sc, 0.6), cs);
+                    String scaled = scaleScore(sc, 0.6);
+                    setCell(row, nFixed + k, scaled, cs);
+                    if (!scaled.isEmpty()) {
+                        try { scaledScores.add(new BigDecimal(scaled)); } catch (NumberFormatException ignored) {}
+                    }
                 }
             }
-            Object avg = pro.get("avgScore");
-            setCell(row, avgCol, avg != null ? scaleScore(avg.toString(), 0.6) : "", avgStyle);
+            String avgDisplay = "";
+            if (!scaledScores.isEmpty()) {
+                List<BigDecimal> toAvg = new ArrayList<>(scaledScores);
+                if (toAvg.size() >= 3) {
+                    toAvg.sort(BigDecimal::compareTo);
+                    toAvg.remove(0);
+                    toAvg.remove(toAvg.size() - 1);
+                }
+                BigDecimal sum = BigDecimal.ZERO;
+                for (BigDecimal s : toAvg) sum = sum.add(s);
+                avgDisplay = sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP).toString();
+            }
+            setCell(row, avgCol, avgDisplay, avgStyle);
             setCell(row, avgCol+1, str(pro.get("completeUnit")), cs);
             setCell(row, avgCol+2, str(pro.get("companyName")), cs);
             setCell(row, avgCol+3, str(pro.get("groupMember")), cs);
@@ -3081,13 +3104,13 @@ public class QcSpecialistScoreController extends BaseQcProController {
         XSSFSheet sheet = wb.createSheet(sheetName);
 
         // ---- 按 qcGroupName 分组项目行（rows 已按 qcGroupName+proCode 排序） ----
-        java.util.LinkedHashMap<String, List<Map<String, Object>>> groupRowsMap = new java.util.LinkedHashMap<>();
+        LinkedHashMap<String, List<Map<String, Object>>> groupRowsMap = new LinkedHashMap<>();
         for (Map<String, Object> r : rows) {
             String gName = r.get("qcGroupName") != null ? r.get("qcGroupName").toString() : "";
             groupRowsMap.computeIfAbsent(gName, k -> new ArrayList<>()).add(r);
         }
         // ---- 按 groupName 分组专家 ----
-        java.util.LinkedHashMap<String, List<ExpertGroupDO>> groupExpertsMap = new java.util.LinkedHashMap<>();
+        LinkedHashMap<String, List<ExpertGroupDO>> groupExpertsMap = new LinkedHashMap<>();
         for (ExpertGroupDO e : experts) {
             String gName = e.getGroupName() != null ? e.getGroupName().trim() : "";
             groupExpertsMap.computeIfAbsent(gName, k -> new ArrayList<>()).add(e);
@@ -3145,7 +3168,7 @@ public class QcSpecialistScoreController extends BaseQcProController {
             List<ExpertGroupDO> groupExperts = groupExpertsMap.getOrDefault(groupName, java.util.Collections.emptyList());
 
             int nFixed = 6; // 序号、分派专业组、申报号、课题名称、小组名称、分类
-            int nGrpExperts = groupExperts.size();
+            int nGrpExperts = groupExperts.size(); // 该组专家数量
             int nTail = 4;  // 资料分、完成单位、申报单位、小组成员
             int nTotal = nFixed + nGrpExperts + nTail;
 
@@ -3206,16 +3229,34 @@ public class QcSpecialistScoreController extends BaseQcProController {
                 setCell(row, 4, str(pro.get("groupName")), lcs);
                 setCell(row, 5, str(pro.get("topicType")), cs);
 
-                // 该组各专家的打分
+                // 先×0.6再求平均，确保Excel中显示值可手动验算
+                List<BigDecimal> scaledScores = new ArrayList<>();
                 for (int k = 0; k < nGrpExperts; k++) {
                     String acc = groupExperts.get(k).getLoginAccount();
                     String sc = (es != null && acc != null) ? es.getOrDefault(acc, "") : "";
-                    if ("回避".equals(sc)) setCell(row, nFixed + k, sc, avoidStyle);
-                    else                    setCell(row, nFixed + k, scaleScore(sc, 0.6), cs);
+                    if ("回避".equals(sc)) {
+                        setCell(row, nFixed + k, sc, avoidStyle);
+                    } else {
+                        String scaled = scaleScore(sc, 0.6);
+                        setCell(row, nFixed + k, scaled, cs);
+                        if (!scaled.isEmpty()) {
+                            try { scaledScores.add(new BigDecimal(scaled)); } catch (NumberFormatException ignored) {}
+                        }
+                    }
                 }
-
-                Object avg = pro.get("avgScore");
-                setCell(row, avgCol,   avg != null ? scaleScore(avg.toString(), 0.6) : "", avgStyle);
+                String avgDisplay = "";
+                if (!scaledScores.isEmpty()) {
+                    List<BigDecimal> toAvg = new ArrayList<>(scaledScores);
+                    if (toAvg.size() >= 3) {
+                        toAvg.sort(BigDecimal::compareTo);
+                        toAvg.remove(0);
+                        toAvg.remove(toAvg.size() - 1);
+                    }
+                    BigDecimal sum = BigDecimal.ZERO;
+                    for (BigDecimal s : toAvg) sum = sum.add(s);
+                    avgDisplay = sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP).toString();
+                }
+                setCell(row, avgCol, avgDisplay, avgStyle);
                 setCell(row, avgCol+1, str(pro.get("completeUnit")), cs);
                 setCell(row, avgCol+2, str(pro.get("companyName")), cs);
                 setCell(row, avgCol+3, str(pro.get("groupMember")), cs);
@@ -3252,6 +3293,36 @@ public class QcSpecialistScoreController extends BaseQcProController {
         Long uid = getUserId();
         String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         if (StringUtils.isBlank(taskId)) return R.error("任务ID不能为空");
+
+        // ===== 前置校验：所有非回避项目必须已评发布分 =====
+        Map<String, Object> proQueryParams = new HashMap<>();
+        proQueryParams.put("scoreSpecialistUid", String.valueOf(uid));
+        proQueryParams.put("taskId", taskId);
+        List<QcProDataDto> allProjects = qcAwardService.listProInfo(proQueryParams);
+        if (allProjects != null && !allProjects.isEmpty()) {
+            // 检查每个非回避项目是否已评发布分
+            List<String> unscoredProjects = new ArrayList<>();
+            for (QcProDataDto pro : allProjects) {
+                if (pro.getProId() == null) continue;
+                // 检查是否回避
+                boolean isAvoided = avoidanceService.checkAvoidance(taskId, pro.getProId(), uid.intValue());
+                if (isAvoided) continue;
+                // 检查是否已评发布分
+                Map<String, Object> checkScore = new HashMap<>();
+                checkScore.put("optUid", uid);
+                checkScore.put("proId", pro.getProId());
+                checkScore.put("taskId", taskId);
+                List<QcPresentScoreDO> presentCheck = qcPresentScoreService.list(checkScore);
+                if (presentCheck == null || presentCheck.isEmpty()) {
+                    String name = StringUtils.isNotBlank(pro.getTopicName()) ? pro.getTopicName() : ("项目ID:" + pro.getProId());
+                    unscoredProjects.add(name);
+                }
+            }
+            if (!unscoredProjects.isEmpty()) {
+                return R.error("以下项目尚未评发布分，请完成所有项目发布分评分后再提交：" + String.join("、", unscoredProjects));
+            }
+        }
+        // ===== 前置校验结束 =====
 
         Map<String, Object> queryParams = new HashMap<>();
         queryParams.put("optUid", uid);
@@ -3344,7 +3415,8 @@ public class QcSpecialistScoreController extends BaseQcProController {
     }
 
     /**
-     * 按任务维度查询发布分矩阵（供 qc_pro_list.html 任务发布分查询弹窗使用）
+     * 按任务维度查询发布分（供 qc_pro_list.html 任务发布分查询弹窗使用）
+     * 返回 flat list（与 getTaskScores 结构一致），含 qcGroupName / professionalScope，按分派专业组+申报账号排序
      */
     @GetMapping("/getTaskPresentScores")
     @ResponseBody
@@ -3353,92 +3425,99 @@ public class QcSpecialistScoreController extends BaseQcProController {
             String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
             if (taskId.isEmpty()) return R.error("参数不完整");
 
-            Map<String, Object> expertQuery = new HashMap<>();
-            expertQuery.put("taskId", taskId);
-            expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
-            List<ExpertGroupDO> experts = expertGroupService.list(expertQuery);
+            // 外聘人员（角色72）只能看到绑定组的数据
+            boolean isExternalExpert = false;
+            Set<String> allowedQcGroups = new HashSet<>();
+            UserDO currentUser = getUser();
+            if (currentUser.getRoleIds().contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)) {
+                isExternalExpert = true;
+                Map<String, Object> bindingQuery = new HashMap<>();
+                bindingQuery.put("taskId", taskId);
+                bindingQuery.put("userId", String.valueOf(getUserId()));
+                bindingQuery.put("proType", "qc_view_scope");
+                List<ExpertGroupDO> bindings = expertGroupService.list(bindingQuery);
+                for (ExpertGroupDO b : bindings) {
+                    if (b.getGroupName() != null) allowedQcGroups.add(b.getGroupName().trim());
+                }
+            }
+            if (isExternalExpert && allowedQcGroups.isEmpty()) {
+                return R.ok().put("data", new ArrayList<>());
+            }
 
             Map<String, Object> proQuery = new HashMap<>();
             proQuery.put("taskId", taskId);
             List<QcProDataDto> projects = qcAwardService.listProInfo(proQuery);
 
+            // 外聘人员过滤：只保留绑定组的项目
+            if (isExternalExpert) {
+                final Set<String> finalAllowed = allowedQcGroups;
+                projects = projects.stream()
+                        .filter(p -> p.getQcGroupName() != null && finalAllowed.contains(p.getQcGroupName().trim()))
+                        .collect(Collectors.toList());
+            }
+
+            // 查询所有发布分
             Map<String, Object> psQuery = new HashMap<>();
             psQuery.put("taskId", taskId);
             List<QcPresentScoreDO> allScores = qcPresentScoreService.list(psQuery);
-            // key: proId_optUid -> score
-            Map<String, String> scoreMap = new HashMap<>();
+
+            // 按 proId 聚合有效分
+            Map<Integer, List<BigDecimal>> proValidScores = new HashMap<>();
             for (QcPresentScoreDO s : allScores) {
-                if (s.getProId() != null && s.getOptUid() != null)
-                    scoreMap.put(s.getProId() + "_" + s.getOptUid(), s.getAppraiseSum() != null ? s.getAppraiseSum() : "");
+                if (s.getProId() == null || s.getOptUid() == null) continue;
+                // 查该专家是否回避
+                List<Integer> avoidedProIds = avoidanceService.getAvoidedProIds(taskId, s.getOptUid());
+                if (avoidedProIds != null && avoidedProIds.contains(s.getProId())) continue;
+                if (s.getAppraiseSum() != null && !s.getAppraiseSum().isEmpty()) {
+                    try {
+                        proValidScores.computeIfAbsent(s.getProId(), k -> new ArrayList<>()).add(new BigDecimal(s.getAppraiseSum()));
+                    } catch (NumberFormatException ignore) {}
+                }
             }
 
-            Map<Integer, Set<Integer>> avoidMap = new HashMap<>();
-            for (ExpertGroupDO e : experts) {
-                if (e.getUserId() == null) continue;
-                try {
-                    Integer uid2 = Integer.parseInt(e.getUserId());
-                    List<Integer> ap = avoidanceService.getAvoidedProIds(taskId, uid2);
-                    avoidMap.put(uid2, new HashSet<>(ap != null ? ap : Collections.emptyList()));
-                } catch (NumberFormatException ignored) {}
-            }
-
-            List<Map<String, Object>> projectRows = new ArrayList<>();
+            List<Map<String, Object>> result = new ArrayList<>();
             for (QcProDataDto pro : projects) {
                 if (pro.getProId() == null) continue;
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("proCode", pro.getApplyId());
-                row.put("topicName", pro.getTopicName());
-                row.put("groupName", pro.getGroupName());
-                row.put("topicType", pro.getTopicType());
-                row.put("completeUnit", pro.getCompleteUnit());
-                row.put("companyName", pro.getCompanyName());
-                row.put("groupMember", pro.getGroupMember());
+                Map<String, Object> item = new HashMap<>();
+                item.put("proId", pro.getProId());
+                item.put("proCode", pro.getApplyId());
+                item.put("topicName", pro.getTopicName());
+                item.put("groupName", pro.getGroupName());
+                item.put("qcGroupName", pro.getQcGroupName());
+                item.put("topicType", pro.getTopicType());
+                item.put("professionalScope", pro.getProfessionalScope());
 
-                Map<String, Object> expertScores = new LinkedHashMap<>();
-                List<BigDecimal> validScores = new ArrayList<>();
-                for (ExpertGroupDO e : experts) {
-                    if (e.getUserId() == null || e.getLoginAccount() == null) continue;
-                    try {
-                        Integer uid2 = Integer.parseInt(e.getUserId());
-                        Set<Integer> avoided = avoidMap.getOrDefault(uid2, Collections.emptySet());
-                        if (avoided.contains(pro.getProId())) {
-                            expertScores.put(e.getLoginAccount(), "回避");
-                        } else {
-                            String sc = scoreMap.get(pro.getProId() + "_" + uid2);
-                            expertScores.put(e.getLoginAccount(), sc != null ? sc : "");
-                            if (sc != null && !sc.isEmpty()) {
-                                try { validScores.add(new BigDecimal(sc)); } catch (NumberFormatException ignore) {}
-                            }
-                        }
-                    } catch (NumberFormatException ignored) { expertScores.put(e.getLoginAccount(), ""); }
-                }
-                row.put("expertScores", expertScores);
+                List<BigDecimal> validScores = proValidScores.getOrDefault(pro.getProId(), Collections.emptyList());
+                int validCount = validScores.size();
+                item.put("scorerCount", validCount);
 
                 BigDecimal avgScore = null;
-                int vc = validScores.size();
-                if (vc > 0) {
+                if (validCount > 0) {
                     List<BigDecimal> toAvg = new ArrayList<>(validScores);
-                    if (vc >= 3) { toAvg.sort(BigDecimal::compareTo); toAvg.remove(0); toAvg.remove(toAvg.size() - 1); }
+                    if (validCount >= 3) {
+                        toAvg.sort(BigDecimal::compareTo);
+                        toAvg.remove(0);
+                        toAvg.remove(toAvg.size() - 1);
+                    }
                     BigDecimal sum = BigDecimal.ZERO;
                     for (BigDecimal v : toAvg) sum = sum.add(v);
                     avgScore = sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP);
                 }
-                row.put("avgScore", avgScore);
-                projectRows.add(row);
+                item.put("avgScore", avgScore);
+                result.add(item);
             }
 
-            List<Map<String, Object>> expertInfoList = new ArrayList<>();
-            for (ExpertGroupDO e : experts) {
-                Map<String, Object> ei = new HashMap<>();
-                ei.put("uid", e.getUserId());
-                ei.put("loginAccount", e.getLoginAccount());
-                ei.put("expertName", e.getExpertName());
-                expertInfoList.add(ei);
-            }
+            // 排序：先按分派专业组，再按申报账号
+            result.sort((a, b) -> {
+                String g1 = a.get("qcGroupName") != null ? a.get("qcGroupName").toString() : "";
+                String g2 = b.get("qcGroupName") != null ? b.get("qcGroupName").toString() : "";
+                int gc = g1.compareTo(g2);
+                if (gc != 0) return gc;
+                String c1 = a.get("proCode") != null ? a.get("proCode").toString() : "";
+                String c2 = b.get("proCode") != null ? b.get("proCode").toString() : "";
+                return c1.compareTo(c2);
+            });
 
-            Map<String, Object> result = new HashMap<>();
-            result.put("experts", expertInfoList);
-            result.put("projects", projectRows);
             return R.ok().put("data", result);
         } catch (Exception e) {
             e.printStackTrace();
@@ -3539,5 +3618,991 @@ public class QcSpecialistScoreController extends BaseQcProController {
             return R.ok("保存成功");
         }
         return R.error("保存失败");
+    }
+
+    /**
+     * 导出专家发布分打分情况为 Excel（含签章图片，问题解决型和创新型分sheet）
+     */
+    @GetMapping("/exportExpertPresentScoresExcel")
+    public void exportExpertPresentScoresExcel(@RequestParam Map<String, Object> params,
+                                                HttpServletResponse response) throws Exception {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String expertUidStr = params.get("expertUid") != null ? params.get("expertUid").toString() : "";
+        String expertName = params.get("expertName") != null ? params.get("expertName").toString() : "专家";
+        String groupName = params.get("groupName") != null ? params.get("groupName").toString() : "";
+        if (taskId.isEmpty() || expertUidStr.isEmpty()) {
+            response.sendError(400, "参数不完整");
+            return;
+        }
+        Integer expertUid = Integer.parseInt(expertUidStr);
+
+        // ---- 查数据 ----
+        Map<String, Object> proQuery = new HashMap<>();
+        proQuery.put("taskId", taskId);
+        proQuery.put("scoreSpecialistUid", expertUid);
+        List<QcProDataDto> assignedProjects = qcAwardService.listProInfo(proQuery);
+        List<Integer> avoidedProIdList = avoidanceService.getAvoidedProIds(taskId, expertUid);
+        Set<Integer> avoidedProIds = new HashSet<>(avoidedProIdList != null ? avoidedProIdList : Collections.emptyList());
+
+        List<Map<String, Object>> allItems = new ArrayList<>();
+        for (QcProDataDto pro : assignedProjects) {
+            if (pro.getProId() == null) continue;
+            Map<String, Object> item = new HashMap<>();
+            item.put("proCode", pro.getApplyId());
+            item.put("topicName", pro.getTopicName());
+            item.put("groupName", pro.getGroupName());
+            item.put("topicType", pro.getTopicType());
+            item.put("professionalScope", pro.getProfessionalScope());
+            item.put("completeUnit", pro.getCompleteUnit());
+            item.put("companyName", pro.getCompanyName());
+            item.put("groupMember", pro.getGroupMember());
+            boolean isAvoided = avoidedProIds.contains(pro.getProId());
+            item.put("isAvoided", isAvoided);
+            List<Map<String, Object>> details = new ArrayList<>();
+            String totalScore = null;
+            if (!isAvoided) {
+                Map<String, Object> sq = new HashMap<>();
+                sq.put("taskId", taskId); sq.put("proId", pro.getProId()); sq.put("optUid", expertUid);
+                List<QcPresentScoreDO> ps = qcPresentScoreService.list(sq);
+                if (!ps.isEmpty()) {
+                    QcPresentScoreDO s = ps.get(0);
+                    totalScore = s.getAppraiseSum();
+                    details.add(buildScoreDetail("逻辑性", s.getLogicScore()));
+                    details.add(buildScoreDetail("专业性", s.getProfessionalScore()));
+                    details.add(buildScoreDetail("发布形式", s.getPresentFormatScore()));
+                    details.add(buildScoreDetail("表达", s.getExpressionScore()));
+                    details.add(buildScoreDetail("回答问题", s.getAnswerScore()));
+                    details.add(buildScoreDetail("成员/时间", s.getMemberTimeScore()));
+                }
+            }
+            item.put("scoreDetails", details);
+            item.put("totalScore", totalScore);
+            allItems.add(item);
+        }
+
+        // ---- 查签章路径 ----
+        String signFilePath = null;
+        try {
+            Map<String, Object> eq = new HashMap<>();
+            eq.put("userId", expertUidStr); eq.put("taskId", taskId);
+            eq.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            List<ExpertGroupDO> el = expertGroupService.list(eq);
+            if (!el.isEmpty() && el.get(0).getExpertSignUrl() != null) {
+                String signUrl = el.get(0).getExpertSignUrl();
+                String uploadRoot = bootdoConfig.getUploadPath();
+                if (uploadRoot.endsWith("/**")) uploadRoot = uploadRoot.substring(0, uploadRoot.length() - 3);
+                signFilePath = uploadRoot + signUrl.replace("/files/", "/");
+            }
+        } catch (Exception ignore) {}
+
+        // ---- 生成 Excel（单sheet，所有课题类型合并）----
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            byte[] signImgBytes = null;
+            int signPicType = XSSFWorkbook.PICTURE_TYPE_PNG;
+            if (signFilePath != null) {
+                File sf = new File(signFilePath);
+                if (sf.exists()) {
+                    signImgBytes = Files.readAllBytes(sf.toPath());
+                    String ext = signFilePath.substring(signFilePath.lastIndexOf('.') + 1).toLowerCase();
+                    if ("jpg".equals(ext) || "jpeg".equals(ext)) signPicType = XSSFWorkbook.PICTURE_TYPE_JPEG;
+                    else if ("gif".equals(ext)) signPicType = XSSFWorkbook.PICTURE_TYPE_GIF;
+                }
+            }
+            int pictureIdx = signImgBytes != null ? wb.addPicture(signImgBytes, signPicType) : -1;
+
+            buildPresentScoreSheet(wb, allItems, groupName, year, pictureIdx);
+
+            String fileName = URLEncoder.encode(expertName + "_发布分打分情况.xlsx", "UTF-8").replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName);
+            wb.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    /**
+     * 构建发布分评分sheet（单sheet，所有课题类型合并，按模板样式）
+     */
+    private void buildPresentScoreSheet(XSSFWorkbook wb, List<Map<String, Object>> items,
+                                         String groupName, int year, int pictureIdx) {
+        int nFixed = 6;      // 序号,申报账号,课题名称,小组名称,课题类型,分类
+        int nScore = 6;      // 逻辑性,专业性,发布形式,表达,回答问题,成员/时间
+        int scoreStart = nFixed;
+        int totalCol = nFixed + nScore;   // col 12 = 发布分
+        int refStart = totalCol + 1;      // col 13
+        int nTotal = refStart + 3;        // 16 columns (0-15)
+
+        XSSFSheet sheet = wb.createSheet("发布分");
+
+        // ---- 样式（与资料分 buildExpertScoreSheet 一致）----
+        XSSFCellStyle titleStyle = wb.createCellStyle();
+        XSSFFont titleFont = wb.createFont();
+        titleFont.setBold(true); titleFont.setFontHeightInPoints((short) 11);
+        titleStyle.setFont(titleFont);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        titleStyle.setWrapText(true);
+        setBorder(titleStyle);
+
+        XSSFCellStyle headerStyle = wb.createCellStyle();
+        XSSFFont headerFont = wb.createFont();
+        headerFont.setBold(true); headerFont.setFontHeightInPoints((short) 9);
+        headerStyle.setFont(headerFont);
+        headerStyle.setAlignment(HorizontalAlignment.CENTER);
+        headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        headerStyle.setWrapText(true);
+        headerStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte)217,(byte)225,(byte)242}, null));
+        headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(headerStyle);
+
+        XSSFCellStyle refNoteStyle = wb.createCellStyle();
+        XSSFFont refNoteFont = wb.createFont();
+        refNoteFont.setBold(true); refNoteFont.setFontHeightInPoints((short) 9);
+        refNoteStyle.setFont(refNoteFont);
+        refNoteStyle.setAlignment(HorizontalAlignment.CENTER);
+        refNoteStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        refNoteStyle.setWrapText(true);
+        setBorder(refNoteStyle);
+
+        XSSFCellStyle dataStyle = wb.createCellStyle();
+        XSSFFont dataFont = wb.createFont();
+        dataFont.setFontHeightInPoints((short) 9);
+        dataStyle.setFont(dataFont);
+        dataStyle.setAlignment(HorizontalAlignment.CENTER);
+        dataStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        dataStyle.setWrapText(true);
+        setBorder(dataStyle);
+
+        XSSFCellStyle avoidStyle = wb.createCellStyle();
+        XSSFFont avoidFont0 = wb.createFont();
+        avoidFont0.setFontHeightInPoints((short) 9); avoidFont0.setBold(true);
+        avoidFont0.setColor(new XSSFColor(new byte[]{(byte)204,0,0}, null));
+        avoidStyle.setFont(avoidFont0);
+        avoidStyle.setAlignment(HorizontalAlignment.CENTER);
+        avoidStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        avoidStyle.setWrapText(true);
+        avoidStyle.setFillForegroundColor(new XSSFColor(new byte[]{(byte)255,(byte)255,0}, null));
+        avoidStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        setBorder(avoidStyle);
+
+        XSSFCellStyle sigStyle = wb.createCellStyle();
+        sigStyle.setAlignment(HorizontalAlignment.LEFT);
+        sigStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+        setBorder(sigStyle);
+
+        // ---- Row 0: 标题 + "(以下列不打印，供参考)" ----
+        Row r0 = sheet.createRow(0); r0.setHeightInPoints(24);
+        Cell c0 = r0.createCell(0);
+        c0.setCellValue(year + "年石油工程建设优秀质量管理小组活动成果现场发布评分表  " + (groupName != null ? groupName : ""));
+        c0.setCellStyle(titleStyle);
+        for (int c = 1; c <= totalCol; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(titleStyle); }
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, totalCol));
+
+        Cell refNote = r0.createCell(refStart);
+        refNote.setCellValue("(以下列不打印，供参考)");
+        refNote.setCellStyle(refNoteStyle);
+        for (int c = refStart + 1; c < nTotal; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(refNoteStyle); }
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, refStart, nTotal - 1));
+
+        // ---- Row 1: 主表头 ----
+        Row r1 = sheet.createRow(1); r1.setHeightInPoints(28);
+        String[] fixH = {"序号", "申报账号", "课题名称", "小组名称", "课题类型", "分类"};
+        for (int i = 0; i < fixH.length; i++) {
+            Cell c = r1.createCell(i); c.setCellValue(fixH[i]); c.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, i, i));
+        }
+        Cell scoreH = r1.createCell(scoreStart);
+        scoreH.setCellValue("评审项目"); scoreH.setCellStyle(headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, scoreStart, scoreStart + nScore - 1));
+
+        Cell totalH = r1.createCell(totalCol);
+        totalH.setCellValue("发布分\n(满分28)"); totalH.setCellStyle(headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 2, totalCol, totalCol));
+
+        String[] refH = {"完成单位", "申报单位", "小组成员"};
+        for (int i = 0; i < refH.length; i++) {
+            Cell c = r1.createCell(refStart + i); c.setCellValue(refH[i]); c.setCellStyle(refNoteStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, refStart + i, refStart + i));
+        }
+        for (int c = 0; c < nTotal; c++) {
+            if (r1.getCell(c) == null) { Cell cc = r1.createCell(c); cc.setCellStyle(headerStyle); }
+        }
+
+        // ---- Row 2: 评审项目子表头 ----
+        Row r2 = sheet.createRow(2); r2.setHeightInPoints(32);
+        String[] scoreSubH = {"逻辑性\n(6)", "专业性\n(6)", "发布形式\n(4)", "表达\n(4)", "回答问题\n(4)", "成员/时间\n(4)"};
+        for (int i = 0; i < scoreSubH.length; i++) {
+            Cell c = r2.createCell(scoreStart + i); c.setCellValue(scoreSubH[i]); c.setCellStyle(headerStyle);
+        }
+        for (int c = 0; c < nTotal; c++) {
+            if (r2.getCell(c) == null) { Cell cc = r2.createCell(c); cc.setCellStyle(headerStyle); }
+        }
+
+        // ---- 数据行 ----
+        int seq = 1;
+        for (int i = 0; i < items.size(); i++) {
+            Map<String, Object> item = items.get(i);
+            Row row = sheet.createRow(3 + i); row.setHeightInPoints(24);
+            boolean isAvoided = Boolean.TRUE.equals(item.get("isAvoided"));
+
+            setCell(row, 0, String.valueOf(seq++), dataStyle);
+            setCell(row, 1, str(item.get("proCode")), dataStyle);
+            setCell(row, 2, str(item.get("topicName")), dataStyle);
+            setCell(row, 3, str(item.get("groupName")), dataStyle);
+            setCell(row, 4, str(item.get("topicType")), dataStyle);
+            setCell(row, 5, str(item.get("professionalScope")), dataStyle);
+
+            if (isAvoided) {
+                for (int c = scoreStart; c < scoreStart + nScore; c++) setCell(row, c, "", dataStyle);
+                setCell(row, totalCol, "回避", avoidStyle);
+            } else {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> details = (List<Map<String, Object>>) item.get("scoreDetails");
+                if (details != null && !details.isEmpty()) {
+                    for (int di = 0; di < nScore && di < details.size(); di++) {
+                        Object score = details.get(di).get("score");
+                        setCell(row, scoreStart + di, score != null ? score.toString() : "", dataStyle);
+                    }
+                } else {
+                    for (int c = scoreStart; c < scoreStart + nScore; c++) setCell(row, c, "", dataStyle);
+                }
+                setCell(row, totalCol, str(item.get("totalScore")), dataStyle);
+            }
+
+            setCell(row, refStart, str(item.get("completeUnit")), dataStyle);
+            setCell(row, refStart + 1, str(item.get("companyName")), dataStyle);
+            setCell(row, refStart + 2, str(item.get("groupMember")), dataStyle);
+        }
+
+        // ---- 空白行 + 签章行 ----
+        int blankRow = 3 + items.size();
+        Row rBlank = sheet.createRow(blankRow); rBlank.setHeightInPoints(20);
+        for (int c = 0; c < nTotal; c++) { Cell cell = rBlank.createCell(c); cell.setCellStyle(dataStyle); }
+
+        int sigRow = blankRow + 1;
+        Row rSig = sheet.createRow(sigRow); rSig.setHeightInPoints(25);
+        for (int c = 0; c < totalCol; c++) { Cell cell = rSig.createCell(c); cell.setCellStyle(dataStyle); }
+        Cell sigCell = rSig.createCell(totalCol);
+        sigCell.setCellValue("评委："); sigCell.setCellStyle(sigStyle);
+        for (int c = totalCol + 1; c < nTotal; c++) { Cell cell = rSig.createCell(c); cell.setCellStyle(dataStyle); }
+
+        Row rTime = sheet.createRow(sigRow + 1); rTime.setHeightInPoints(20);
+        String timeStr = new SimpleDateFormat("yyyy.M.d").format(new Date());
+        for (int c = 0; c < totalCol; c++) { Cell cell = rTime.createCell(c); cell.setCellStyle(dataStyle); }
+        Cell timeCell = rTime.createCell(totalCol);
+        timeCell.setCellValue("时间：" + timeStr); timeCell.setCellStyle(sigStyle);
+        for (int c = totalCol + 1; c < nTotal; c++) { Cell cell = rTime.createCell(c); cell.setCellStyle(dataStyle); }
+
+        // ---- 签章图片（紧跟"评委："右侧）----
+        if (pictureIdx >= 0) {
+            XSSFDrawing drawing = sheet.createDrawingPatriarch();
+            XSSFClientAnchor anchor = new XSSFClientAnchor(500000, 20000, 0, 0, totalCol, sigRow, totalCol + 1, sigRow + 1);
+            anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
+            drawing.createPicture(anchor, pictureIdx);
+        }
+
+        // ---- 列宽 ----
+        sheet.setColumnWidth(0, 1500);   // 序号
+        sheet.setColumnWidth(1, 2500);   // 申报账号
+        sheet.setColumnWidth(2, 7000);   // 课题名称
+        sheet.setColumnWidth(3, 4500);   // 小组名称
+        sheet.setColumnWidth(4, 3000);   // 课题类型
+        sheet.setColumnWidth(5, 2500);   // 分类
+        for (int c = scoreStart; c < scoreStart + nScore; c++) sheet.setColumnWidth(c, 2800);
+        sheet.setColumnWidth(totalCol, 4500);  // 发布分（加宽适应评委/时间行）
+        sheet.setColumnWidth(refStart, 5500);  // 完成单位
+        sheet.setColumnWidth(refStart + 1, 5500); // 申报单位
+        sheet.setColumnWidth(refStart + 2, 4500); // 小组成员
+    }
+
+    /**
+     * 查询单个课题的发布分详细打分情况
+     * @param params taskId, proId
+     */
+    @GetMapping("/getProjectPresentScoreDetail")
+    @ResponseBody
+    public R getProjectPresentScoreDetail(@RequestParam Map<String, Object> params) {
+        try {
+            String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+            String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+            if (taskId.isEmpty() || proIdStr.isEmpty()) return R.error("参数不完整");
+            Integer proId = Integer.parseInt(proIdStr);
+
+            // 获取该课题的 qcGroupName（分派专业组）
+            Map<String, Object> proDataParams = new HashMap<>();
+            proDataParams.put("proId", proId);
+            proDataParams.put("taskId", taskId);
+            List<QcProDataDto> proDataList = qcAwardService.listProInfo(proDataParams);
+            String qcGroupName = (proDataList != null && !proDataList.isEmpty())
+                    ? proDataList.get(0).getQcGroupName() : null;
+
+            // 仅查询该专业组的专家
+            Map<String, Object> expertQuery = new HashMap<>();
+            expertQuery.put("taskId", taskId);
+            expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+            if (qcGroupName != null && !qcGroupName.isEmpty()) {
+                expertQuery.put("groupName", qcGroupName);
+            }
+            List<ExpertGroupDO> experts = expertGroupService.list(expertQuery);
+
+            List<Integer> avoidedExpertIds = avoidanceService.getAvoidedExpertIds(taskId, proId);
+            Set<Integer> avoidedSet = new HashSet<>(avoidedExpertIds != null ? avoidedExpertIds : Collections.emptyList());
+
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (ExpertGroupDO expert : experts) {
+                if (expert.getUserId() == null) continue;
+                Integer expertUid;
+                try {
+                    expertUid = Integer.parseInt(expert.getUserId());
+                } catch (NumberFormatException e) {
+                    continue;
+                }
+
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("expertName", expert.getExpertName());
+                item.put("isAvoided", avoidedSet.contains(expertUid));
+
+                if (!avoidedSet.contains(expertUid)) {
+                    Map<String, Object> sq = new HashMap<>();
+                    sq.put("taskId", taskId);
+                    sq.put("proId", proId);
+                    sq.put("optUid", expertUid);
+                    List<QcPresentScoreDO> scores = qcPresentScoreService.list(sq);
+                    if (!scores.isEmpty()) {
+                        QcPresentScoreDO score = scores.get(0);
+                        item.put("score", score.getAppraiseSum());
+                        item.put("scoreTime", score.getUpdated() != null
+                                ? new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(score.getUpdated()) : "");
+                    } else {
+                        item.put("score", null);
+                        item.put("scoreTime", "");
+                    }
+                } else {
+                    item.put("score", null);
+                    item.put("scoreTime", "");
+                }
+                result.add(item);
+            }
+            return R.ok().put("data", result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 导出任务发布分评分矩阵 Excel（单sheet，按分派专业组堆叠）
+     */
+    @GetMapping("/exportTaskPresentScoreMatrixExcel")
+    public void exportTaskPresentScoreMatrixExcel(@RequestParam Map<String, Object> params,
+                                                   HttpServletResponse response) throws Exception {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (taskId.isEmpty()) { response.sendError(400, "参数不完整"); return; }
+
+        // 查询专家列表
+        Map<String, Object> expertQuery = new HashMap<>();
+        expertQuery.put("taskId", taskId);
+        expertQuery.put("proType", EnumProjectType.QC_PRO_GROUP.getProType());
+        List<ExpertGroupDO> experts = expertGroupService.list(expertQuery);
+
+        // 查询项目列表
+        Map<String, Object> proQuery = new HashMap<>();
+        proQuery.put("taskId", taskId);
+        List<QcProDataDto> projects = qcAwardService.listProInfo(proQuery);
+
+        // 查询所有发布分
+        Map<String, Object> psQuery = new HashMap<>();
+        psQuery.put("taskId", taskId);
+        List<QcPresentScoreDO> allScores = qcPresentScoreService.list(psQuery);
+        Map<String, String> scoreMap = new HashMap<>();
+        for (QcPresentScoreDO s : allScores) {
+            if (s.getProId() != null && s.getOptUid() != null)
+                scoreMap.put(s.getProId() + "_" + s.getOptUid(), s.getAppraiseSum() != null ? s.getAppraiseSum() : "");
+        }
+
+        // 查询回避 + 分配信息
+        Map<Integer, Set<Integer>> avoidMap  = new HashMap<>();
+        Map<Integer, Set<Integer>> assignMap = new HashMap<>();
+        for (ExpertGroupDO e : experts) {
+            if (e.getUserId() == null) continue;
+            try {
+                Integer uid = Integer.parseInt(e.getUserId());
+                List<Integer> ap = avoidanceService.getAvoidedProIds(taskId, uid);
+                avoidMap.put(uid, new HashSet<>(ap != null ? ap : Collections.emptyList()));
+                Map<String, Object> aq = new HashMap<>();
+                aq.put("taskId", taskId); aq.put("scoreSpecialistUid", uid);
+                List<QcProDataDto> al = qcAwardService.listProInfo(aq);
+                Set<Integer> aids = new HashSet<>();
+                if (al != null) for (QcProDataDto p : al) if (p.getProId() != null) aids.add(p.getProId());
+                assignMap.put(uid, aids);
+            } catch (NumberFormatException ignored) {}
+        }
+
+        // 构建行数据（所有课题类型合并，含 expertScores map）
+        List<Map<String, Object>> allRows = new ArrayList<>();
+        for (QcProDataDto pro : projects) {
+            if (pro.getProId() == null) continue;
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("proCode", pro.getApplyId()); row.put("topicName", pro.getTopicName());
+            row.put("groupName", pro.getGroupName()); row.put("topicType", pro.getTopicType());
+            row.put("qcGroupName", pro.getQcGroupName());
+            row.put("professionalScope", pro.getProfessionalScope());
+            row.put("completeUnit", pro.getCompleteUnit()); row.put("companyName", pro.getCompanyName());
+            row.put("groupMember", pro.getGroupMember());
+            Map<String, String> expertScores = new LinkedHashMap<>();
+            for (ExpertGroupDO e : experts) {
+                if (e.getUserId() == null || e.getLoginAccount() == null) continue;
+                try {
+                    Integer uid = Integer.parseInt(e.getUserId());
+                    String key = pro.getProId() + "_" + uid;
+                    Set<Integer> avoided  = avoidMap.getOrDefault(uid, Collections.emptySet());
+                    Set<Integer> assigned = assignMap.getOrDefault(uid, Collections.emptySet());
+                    if (!assigned.contains(pro.getProId())) {
+                        expertScores.put(e.getLoginAccount(), "");
+                    } else if (avoided.contains(pro.getProId())) {
+                        expertScores.put(e.getLoginAccount(), "回避");
+                    } else {
+                        String sc = scoreMap.get(key);
+                        expertScores.put(e.getLoginAccount(), sc != null ? sc : "");
+                    }
+                } catch (NumberFormatException ignored) { expertScores.put(e.getLoginAccount(), ""); }
+            }
+            row.put("expertScores", expertScores);
+            allRows.add(row);
+        }
+
+        // 排序：先按分派专业组，再按申报账号
+        allRows.sort((a, b) -> {
+            String g1 = a.get("qcGroupName") != null ? a.get("qcGroupName").toString() : "";
+            String g2 = b.get("qcGroupName") != null ? b.get("qcGroupName").toString() : "";
+            int gc = g1.compareTo(g2);
+            if (gc != 0) return gc;
+            String c1 = a.get("proCode") != null ? a.get("proCode").toString() : "";
+            String c2 = b.get("proCode") != null ? b.get("proCode").toString() : "";
+            return c1.compareTo(c2);
+        });
+
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            buildTaskPresentScoreSheetByGroup(wb, allRows, experts, year);
+            String fileName = URLEncoder.encode(year + "年_任务发布分计算.xlsx", "UTF-8").replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName);
+            wb.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    /**
+     * 构建任务发布分评分sheet（单sheet，按分派专业组堆叠，样式与模板一致）
+     */
+    private void buildTaskPresentScoreSheetByGroup(XSSFWorkbook wb, List<Map<String, Object>> rows,
+                                                    List<ExpertGroupDO> experts, int year) {
+        XSSFSheet sheet = wb.createSheet("发布分");
+
+        // ---- 按 qcGroupName 分组项目行（rows 已按 qcGroupName+proCode 排序） ----
+        java.util.LinkedHashMap<String, List<Map<String, Object>>> groupRowsMap = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> r : rows) {
+            String gName = r.get("qcGroupName") != null ? r.get("qcGroupName").toString() : "";
+            groupRowsMap.computeIfAbsent(gName, k -> new ArrayList<>()).add(r);
+        }
+        // 按 groupName 分组专家
+        java.util.LinkedHashMap<String, List<ExpertGroupDO>> groupExpertsMap = new java.util.LinkedHashMap<>();
+        for (ExpertGroupDO e : experts) {
+            String gName = e.getGroupName() != null ? e.getGroupName().trim() : "";
+            groupExpertsMap.computeIfAbsent(gName, k -> new ArrayList<>()).add(e);
+        }
+
+        // ---- 颜色 ----
+        XSSFColor titleColor  = new XSSFColor(new byte[]{(byte)189,(byte)215,(byte)238}, null);
+        XSSFColor fixColor    = new XSSFColor(new byte[]{(byte)217,(byte)225,(byte)242}, null);
+        XSSFColor expColor    = new XSSFColor(new byte[]{(byte)252,(byte)228,(byte)214}, null);
+        XSSFColor tailColor   = new XSSFColor(new byte[]{(byte)226,(byte)239,(byte)218}, null);
+        XSSFColor avoidColor  = new XSSFColor(new byte[]{(byte)255,(byte)255,0}, null);
+        XSSFColor avgColor    = new XSSFColor(new byte[]{(byte)217,(byte)240,(byte)217}, null);
+        XSSFColor evenColor   = new XSSFColor(new byte[]{(byte)245,(byte)247,(byte)250}, null);
+
+        // ---- 样式 ----
+        java.util.function.Supplier<XSSFCellStyle> newStyle = () -> {
+            XSSFCellStyle cs = wb.createCellStyle();
+            cs.setBorderTop(BorderStyle.THIN); cs.setBorderBottom(BorderStyle.THIN);
+            cs.setBorderLeft(BorderStyle.THIN); cs.setBorderRight(BorderStyle.THIN);
+            cs.setVerticalAlignment(VerticalAlignment.CENTER);
+            cs.setWrapText(true);
+            return cs;
+        };
+        java.util.function.BiConsumer<XSSFCellStyle, XSSFColor> setFill = (cs, color) -> {
+            cs.setFillForegroundColor(color); cs.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        };
+
+        XSSFFont titleFont = wb.createFont(); titleFont.setBold(true); titleFont.setFontHeightInPoints((short)12);
+        XSSFFont hdrFont   = wb.createFont(); hdrFont.setBold(true);   hdrFont.setFontHeightInPoints((short)10);
+        XSSFFont dataFont  = wb.createFont(); dataFont.setFontHeightInPoints((short)9);
+        XSSFFont avoidFont = wb.createFont(); avoidFont.setFontHeightInPoints((short)9); avoidFont.setBold(true);
+        avoidFont.setColor(new XSSFColor(new byte[]{(byte)180,0,0}, null));
+        XSSFFont avgFont   = wb.createFont(); avgFont.setFontHeightInPoints((short)9); avgFont.setBold(true);
+        avgFont.setColor(new XSSFColor(new byte[]{(byte)31,(byte)107,(byte)32}, null));
+        XSSFFont refNoteFont = wb.createFont(); refNoteFont.setBold(true); refNoteFont.setFontHeightInPoints((short)9);
+
+        XSSFCellStyle titleStyle  = newStyle.get(); titleStyle.setFont(titleFont);   setFill.accept(titleStyle, titleColor); titleStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle fixStyle    = newStyle.get(); fixStyle.setFont(hdrFont);       setFill.accept(fixStyle,   fixColor);   fixStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle expStyle    = newStyle.get(); expStyle.setFont(hdrFont);       setFill.accept(expStyle,   expColor);   expStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle tailStyle   = newStyle.get(); tailStyle.setFont(hdrFont);      setFill.accept(tailStyle,  tailColor);  tailStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataCenter  = newStyle.get(); dataCenter.setFont(dataFont);    dataCenter.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataLeft    = newStyle.get(); dataLeft.setFont(dataFont);      dataLeft.setAlignment(HorizontalAlignment.LEFT);
+        XSSFCellStyle dataEvenC   = newStyle.get(); dataEvenC.setFont(dataFont);     setFill.accept(dataEvenC, evenColor); dataEvenC.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataEvenL   = newStyle.get(); dataEvenL.setFont(dataFont);     setFill.accept(dataEvenL, evenColor); dataEvenL.setAlignment(HorizontalAlignment.LEFT);
+        XSSFCellStyle avoidStyle  = newStyle.get(); avoidStyle.setFont(avoidFont);   setFill.accept(avoidStyle, avoidColor); avoidStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle avgStyle    = newStyle.get(); avgStyle.setFont(avgFont);       setFill.accept(avgStyle,   avgColor);   avgStyle.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle refNoteStyle = newStyle.get(); refNoteStyle.setFont(refNoteFont); refNoteStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        int cur = 0;
+        boolean frozen = false;
+
+        // ---- 遍历每个专业组，逐组生成区块 ----
+        for (Map.Entry<String, List<Map<String, Object>>> entry : groupRowsMap.entrySet()) {
+            String groupName = entry.getKey();
+            List<Map<String, Object>> groupRows = entry.getValue();
+            List<ExpertGroupDO> groupExperts = groupExpertsMap.getOrDefault(groupName, java.util.Collections.emptyList());
+
+            int nFixed = 7; // 发布序号, 分派专业组, 申报账号, 课题名称, 小组名称, 课题类型, 分类
+            int nGrpExperts = groupExperts.size();
+            int nTail = 3;  // 完成单位, 申报单位, 小组成员
+            int avgCol = nFixed + nGrpExperts;  // 发布分列
+            int refStart = avgCol + 1;
+            int nTotal = refStart + nTail;
+
+            // ---- Row 0: 标题 + "(以下列不打印，供参考)" ----
+            Row r0 = sheet.createRow(cur); r0.setHeightInPoints(26);
+            Cell c0 = r0.createCell(0);
+            c0.setCellValue(year + "年石油工程建设优秀质量管理小组活动成果现场发布评分表  " + groupName);
+            c0.setCellStyle(titleStyle);
+            for (int c = 1; c <= avgCol; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(titleStyle); }
+            sheet.addMergedRegion(new CellRangeAddress(cur, cur, 0, avgCol));
+
+            Cell refNote = r0.createCell(refStart);
+            refNote.setCellValue("(以下列不打印，供参考)"); refNote.setCellStyle(refNoteStyle);
+            for (int c = refStart + 1; c < nTotal; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(refNoteStyle); }
+            if (nTail > 1) sheet.addMergedRegion(new CellRangeAddress(cur, cur, refStart, nTotal - 1));
+
+            // ---- Row 1: 主表头 ----
+            Row r1 = sheet.createRow(cur + 1); r1.setHeightInPoints(42);
+            String[] fixH = {"发布\n序号", "分派\n专业组", "申报账号", "课题名称", "小组名称", "课题类型", "分类"};
+            for (int i = 0; i < fixH.length; i++) {
+                Cell c = r1.createCell(i); c.setCellValue(fixH[i]); c.setCellStyle(fixStyle);
+                sheet.addMergedRegion(new CellRangeAddress(cur + 1, cur + 2, i, i));
+            }
+            if (nGrpExperts > 0) {
+                Cell ec = r1.createCell(nFixed); ec.setCellValue("专家打分"); ec.setCellStyle(expStyle);
+                if (nGrpExperts > 1) sheet.addMergedRegion(new CellRangeAddress(cur + 1, cur + 1, nFixed, nFixed + nGrpExperts - 1));
+                else                 sheet.addMergedRegion(new CellRangeAddress(cur + 1, cur + 2, nFixed, nFixed));
+            }
+            Cell avgH = r1.createCell(avgCol); avgH.setCellValue("发布分"); avgH.setCellStyle(avgStyle);
+            sheet.addMergedRegion(new CellRangeAddress(cur + 1, cur + 2, avgCol, avgCol));
+
+            String[] refH = {"完成单位", "申报单位", "小组成员"};
+            for (int i = 0; i < refH.length; i++) {
+                Cell c = r1.createCell(refStart + i); c.setCellValue(refH[i]); c.setCellStyle(tailStyle);
+                sheet.addMergedRegion(new CellRangeAddress(cur + 1, cur + 2, refStart + i, refStart + i));
+            }
+            for (int c = 0; c < nTotal; c++) if (r1.getCell(c) == null) {
+                Cell cc = r1.createCell(c); cc.setCellStyle(c < nFixed ? fixStyle : (c < nFixed + nGrpExperts ? expStyle : tailStyle));
+            }
+
+            // ---- Row 2: 专家姓名子表头 ----
+            Row r2 = sheet.createRow(cur + 2); r2.setHeightInPoints(32);
+            for (int k = 0; k < nGrpExperts; k++) {
+                String eName = groupExperts.get(k).getExpertName() != null ? groupExperts.get(k).getExpertName() : "";
+                Cell c = r2.createCell(nFixed + k); c.setCellValue(eName); c.setCellStyle(expStyle);
+            }
+            for (int c = 0; c < nTotal; c++) if (r2.getCell(c) == null) {
+                Cell cc = r2.createCell(c); cc.setCellStyle(c < nFixed ? fixStyle : tailStyle);
+            }
+
+            // ---- 数据行 ----
+            int startData = cur + 3;
+            for (int i = 0; i < groupRows.size(); i++) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> pro = groupRows.get(i);
+                Row row = sheet.createRow(startData + i); row.setHeightInPoints(18);
+                boolean isEven = (i % 2 == 1);
+                XSSFCellStyle cs  = isEven ? dataEvenC : dataCenter;
+                XSSFCellStyle lcs = isEven ? dataEvenL : dataLeft;
+
+                setCell(row, 0, String.valueOf(i + 1), cs);
+                setCell(row, 1, str(pro.get("qcGroupName")), cs);
+                setCell(row, 2, str(pro.get("proCode")), cs);
+                setCell(row, 3, str(pro.get("topicName")), lcs);
+                setCell(row, 4, str(pro.get("groupName")), lcs);
+                setCell(row, 5, str(pro.get("topicType")), cs);
+                setCell(row, 6, str(pro.get("professionalScope")), cs);
+
+                // 专家发布分（不×0.6），同时收集有效分用于计算平均
+                @SuppressWarnings("unchecked")
+                Map<String, String> es = (Map<String, String>) pro.get("expertScores");
+                List<BigDecimal> validScores = new ArrayList<>();
+                for (int k = 0; k < nGrpExperts; k++) {
+                    String acc = groupExperts.get(k).getLoginAccount();
+                    String sc = (es != null && acc != null) ? es.getOrDefault(acc, "") : "";
+                    if ("回避".equals(sc)) {
+                        setCell(row, nFixed + k, sc, avoidStyle);
+                    } else {
+                        setCell(row, nFixed + k, sc, cs);
+                        if (!sc.isEmpty()) {
+                            try { validScores.add(new BigDecimal(sc)); } catch (NumberFormatException ignored) {}
+                        }
+                    }
+                }
+
+                // 计算发布分（平均分）：≥3个有效分去最高最低
+                String avgDisplay = "";
+                if (!validScores.isEmpty()) {
+                    List<BigDecimal> toAvg = new ArrayList<>(validScores);
+                    if (toAvg.size() >= 3) {
+                        toAvg.sort(BigDecimal::compareTo);
+                        toAvg.remove(0);
+                        toAvg.remove(toAvg.size() - 1);
+                    }
+                    BigDecimal sum = BigDecimal.ZERO;
+                    for (BigDecimal s : toAvg) sum = sum.add(s);
+                    avgDisplay = sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP).toString();
+                }
+                setCell(row, avgCol, avgDisplay, avgStyle);
+                setCell(row, refStart,     str(pro.get("completeUnit")), cs);
+                setCell(row, refStart + 1, str(pro.get("companyName")), cs);
+                setCell(row, refStart + 2, str(pro.get("groupMember")), cs);
+            }
+
+            // ---- 列宽 ----
+            sheet.setColumnWidth(0, 1500);  // 发布序号
+            sheet.setColumnWidth(1, 4000);  // 分派专业组
+            sheet.setColumnWidth(2, 3500);  // 申报账号
+            sheet.setColumnWidth(3, 7000);  // 课题名称
+            sheet.setColumnWidth(4, 5000);  // 小组名称
+            sheet.setColumnWidth(5, 3000);  // 课题类型
+            sheet.setColumnWidth(6, 2500);  // 分类
+            for (int k = 0; k < nGrpExperts; k++) sheet.setColumnWidth(nFixed + k, 2400);
+            sheet.setColumnWidth(avgCol, 2800);      // 发布分
+            sheet.setColumnWidth(refStart, 5500);     // 完成单位
+            sheet.setColumnWidth(refStart + 1, 5500); // 申报单位
+            sheet.setColumnWidth(refStart + 2, 4500); // 小组成员
+
+            if (!frozen) { sheet.createFreezePane(nFixed, 3); frozen = true; }
+
+            // 区块间空一行
+            cur = startData + groupRows.size() + 1;
+        }
+    }
+
+    // ==================== 终版意见导出 ====================
+
+    /**
+     * 导出终版意见表 Excel（按分派专业组堆叠）
+     * 参数: taskId (必需), groupName (可选 —— 如果提供则只导出该组)
+     */
+    @GetMapping("/exportFinalOpinionExcel")
+    public void exportFinalOpinionExcel(@RequestParam Map<String, Object> params,
+                                        HttpServletResponse response) throws Exception {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String filterGroup = params.get("groupName") != null ? params.get("groupName").toString().trim() : "";
+        if (taskId.isEmpty()) { response.sendError(400, "参数不完整"); return; }
+
+        // 外聘人员（角色72）只能看到绑定组的数据
+        boolean isExternalExpert = false;
+        Set<String> allowedQcGroups = new HashSet<>();
+        UserDO currentUser = getUser();
+        if (currentUser.getRoleIds().contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)) {
+            isExternalExpert = true;
+            Map<String, Object> bindingQuery = new HashMap<>();
+            bindingQuery.put("taskId", taskId);
+            bindingQuery.put("userId", String.valueOf(getUserId()));
+            bindingQuery.put("proType", "qc_view_scope");
+            List<ExpertGroupDO> bindings = expertGroupService.list(bindingQuery);
+            for (ExpertGroupDO b : bindings) {
+                if (b.getGroupName() != null) allowedQcGroups.add(b.getGroupName().trim());
+            }
+        }
+        if (isExternalExpert && allowedQcGroups.isEmpty()) {
+            response.sendError(403, "无权限查看"); return;
+        }
+
+        // 查询项目列表（含 qcGroupName / professionalScope 等）
+        Map<String, Object> proQuery = new HashMap<>();
+        proQuery.put("taskId", taskId);
+        List<QcProDataDto> proDataList = qcAwardService.listProInfo(proQuery);
+
+        // 外聘人员过滤：只保留绑定组的项目
+        if (isExternalExpert) {
+            final Set<String> finalAllowed = allowedQcGroups;
+            proDataList = proDataList.stream()
+                    .filter(p -> p.getQcGroupName() != null && finalAllowed.contains(p.getQcGroupName().trim()))
+                    .collect(Collectors.toList());
+        }
+
+        // 查询项目基本信息（用于 topicType 判断问题解决型/创新型）
+        Map<String, Object> projQuery = new HashMap<>();
+        projQuery.put("taskId", taskId);
+        List<QcGroupApplyInfoDO> projList = qcGroupApplyInfoService.list(projQuery);
+        Map<Integer, QcGroupApplyInfoDO> projMap = new HashMap<>();
+        for (QcGroupApplyInfoDO p : projList) projMap.put(p.getProId(), p);
+
+        // 查询所有发布分
+        Map<String, Object> psQuery = new HashMap<>();
+        psQuery.put("taskId", taskId);
+        List<QcPresentScoreDO> allPresentScores = qcPresentScoreService.list(psQuery);
+
+        // 按 proId 聚合有效发布分（排除回避）
+        Map<Integer, List<BigDecimal>> presentMap = new HashMap<>();
+        for (QcPresentScoreDO s : allPresentScores) {
+            if (s.getProId() == null || s.getOptUid() == null) continue;
+            List<Integer> avoidedProIds = avoidanceService.getAvoidedProIds(taskId, s.getOptUid());
+            if (avoidedProIds != null && avoidedProIds.contains(s.getProId())) continue;
+            if (s.getAppraiseSum() != null && !s.getAppraiseSum().isEmpty()) {
+                try {
+                    presentMap.computeIfAbsent(s.getProId(), k -> new ArrayList<>()).add(new BigDecimal(s.getAppraiseSum()));
+                } catch (NumberFormatException ignore) {}
+            }
+        }
+
+        // 构建行数据
+        List<Map<String, Object>> allRows = new ArrayList<>();
+        for (QcProDataDto pro : proDataList) {
+            if (pro.getProId() == null) continue;
+            String qcGrp = pro.getQcGroupName() != null ? pro.getQcGroupName().trim() : "";
+            if (!filterGroup.isEmpty() && !filterGroup.equals(qcGrp)) continue;
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("proCode", pro.getApplyId());
+            row.put("topicName", pro.getTopicName());
+            row.put("groupName", pro.getGroupName());
+            row.put("qcGroupName", qcGrp);
+            row.put("completeUnit", pro.getCompleteUnit());
+            row.put("companyName", pro.getCompanyName());
+            row.put("topicType", pro.getTopicType());
+            row.put("professionalScope", pro.getProfessionalScope());
+
+            // ---- 计算资料分（去高低平均 × 0.6）----
+            String topicType = pro.getTopicType();
+            QcGroupApplyInfoDO proj = projMap.get(pro.getProId());
+            if (proj != null && proj.getTopicType() != null) topicType = proj.getTopicType();
+
+            List<BigDecimal> initValid = new ArrayList<>();
+            String recommendLevel = null;
+            Map<String, Object> sq = new HashMap<>();
+            sq.put("taskId", taskId); sq.put("proId", pro.getProId()); sq.put("deleted", 0);
+            List<Integer> avoidedExperts = avoidanceService.getAvoidedExpertIds(taskId, pro.getProId());
+            if ("问题解决型".equals(topicType)) {
+                List<QcResultSolveScoreDO> scores = qcResultSolveScoreService.list(sq);
+                if (scores != null) for (QcResultSolveScoreDO s : scores) {
+                    if (avoidedExperts != null && avoidedExperts.contains(s.getOptUid())) continue;
+                    if (s.getAppraiseSum() != null) {
+                        try { initValid.add(new BigDecimal(s.getAppraiseSum().toString())); } catch (NumberFormatException ignore) {}
+                    }
+                    if (recommendLevel == null && s.getRecommendLevel() != null && !s.getRecommendLevel().isEmpty()) {
+                        recommendLevel = s.getRecommendLevel();
+                    }
+                }
+            } else {
+                List<QcResultInnovateScoreDO> scores = qcResultInnovateScoreService.list(sq);
+                if (scores != null) for (QcResultInnovateScoreDO s : scores) {
+                    if (avoidedExperts != null && avoidedExperts.contains(s.getOptUid())) continue;
+                    if (s.getAppraiseSum() != null) {
+                        try { initValid.add(new BigDecimal(s.getAppraiseSum().toString())); } catch (NumberFormatException ignore) {}
+                    }
+                    if (recommendLevel == null && s.getRecommendLevel() != null && !s.getRecommendLevel().isEmpty()) {
+                        recommendLevel = s.getRecommendLevel();
+                    }
+                }
+            }
+            row.put("recommendLevel", recommendLevel);
+            BigDecimal initAvg = calcTrimmedAvg(initValid);
+            BigDecimal initScaled = initAvg != null ? initAvg.multiply(new BigDecimal("0.6")).setScale(2, BigDecimal.ROUND_HALF_UP) : null;
+            row.put("initialScore", initScaled);
+
+            // ---- 计算发布分（去高低平均，不缩放）----
+            List<BigDecimal> presValid = presentMap.getOrDefault(pro.getProId(), Collections.emptyList());
+            BigDecimal presAvg = calcTrimmedAvg(presValid);
+            row.put("presentScore", presAvg);
+
+            // ---- 总分 ----
+            BigDecimal total = null;
+            if (initScaled != null || presAvg != null) {
+                total = (initScaled != null ? initScaled : BigDecimal.ZERO)
+                        .add(presAvg != null ? presAvg : BigDecimal.ZERO)
+                        .setScale(2, BigDecimal.ROUND_HALF_UP);
+            }
+            row.put("totalScore", total);
+            allRows.add(row);
+        }
+
+        // 排序：先按分派专业组，再按申报账号
+        allRows.sort((a, b) -> {
+            String g1 = str(a.get("qcGroupName")), g2 = str(b.get("qcGroupName"));
+            int gc = g1.compareTo(g2);
+            if (gc != 0) return gc;
+            return str(a.get("proCode")).compareTo(str(b.get("proCode")));
+        });
+
+        // 按组计算排名（总分降序）
+        java.util.LinkedHashMap<String, List<Map<String, Object>>> grouped = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> r : allRows) {
+            grouped.computeIfAbsent(str(r.get("qcGroupName")), k -> new ArrayList<>()).add(r);
+        }
+        for (List<Map<String, Object>> gRows : grouped.values()) {
+            List<Map<String, Object>> ranked = new ArrayList<>(gRows);
+            ranked.sort((a, b) -> {
+                BigDecimal ta = a.get("totalScore") instanceof BigDecimal ? (BigDecimal) a.get("totalScore") : null;
+                BigDecimal tb = b.get("totalScore") instanceof BigDecimal ? (BigDecimal) b.get("totalScore") : null;
+                if (ta == null && tb == null) return 0;
+                if (ta == null) return 1;
+                if (tb == null) return -1;
+                return tb.compareTo(ta);
+            });
+            for (int i = 0; i < ranked.size(); i++) {
+                ranked.get(i).put("rank", ranked.get(i).get("totalScore") != null ? (i + 1) : null);
+            }
+        }
+
+        int year = Calendar.getInstance().get(Calendar.YEAR);
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            buildFinalOpinionSheet(wb, allRows, year);
+            String fileName = URLEncoder.encode(year + "年_终版意见表.xlsx", "UTF-8").replace("+", "%20");
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename*=UTF-8''" + fileName);
+            wb.write(response.getOutputStream());
+            response.flushBuffer();
+        }
+    }
+
+    /** 去高低后求平均（≥3个去高低，否则直接平均） */
+    private BigDecimal calcTrimmedAvg(List<BigDecimal> scores) {
+        if (scores == null || scores.isEmpty()) return null;
+        List<BigDecimal> toAvg = new ArrayList<>(scores);
+        if (toAvg.size() >= 3) {
+            toAvg.sort(BigDecimal::compareTo);
+            toAvg.remove(0);
+            toAvg.remove(toAvg.size() - 1);
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal s : toAvg) sum = sum.add(s);
+        return sum.divide(BigDecimal.valueOf(toAvg.size()), 2, BigDecimal.ROUND_HALF_UP);
+    }
+
+    /**
+     * 构建终版意见表 sheet（单sheet，按分派专业组堆叠）
+     * 列：发布序号 / 分派专业组 / 申报账号 / 课题名称 / 小组名称 / 完成单位名称 / 申报单位名称 / 成果类型 / 分类
+     *     / 资料分(满分72) / 发布分(满分28) / 总分 / 排名 / 建议等级
+     */
+    private void buildFinalOpinionSheet(XSSFWorkbook wb, List<Map<String, Object>> rows, int year) {
+        XSSFSheet sheet = wb.createSheet("专家签字打印 最终");
+
+        // 按 qcGroupName 分组（rows 已排序）
+        java.util.LinkedHashMap<String, List<Map<String, Object>>> groupMap = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> r : rows)
+            groupMap.computeIfAbsent(str(r.get("qcGroupName")), k -> new ArrayList<>()).add(r);
+
+        // ---- 颜色 ----
+        XSSFColor titleColor = new XSSFColor(new byte[]{(byte)189,(byte)215,(byte)238}, null);
+        XSSFColor hdrColor   = new XSSFColor(new byte[]{(byte)217,(byte)225,(byte)242}, null);
+        XSSFColor evenColor  = new XSSFColor(new byte[]{(byte)245,(byte)247,(byte)250}, null);
+
+        // ---- 样式 ----
+        java.util.function.Supplier<XSSFCellStyle> newStyle = () -> {
+            XSSFCellStyle cs = wb.createCellStyle();
+            cs.setBorderTop(BorderStyle.THIN); cs.setBorderBottom(BorderStyle.THIN);
+            cs.setBorderLeft(BorderStyle.THIN); cs.setBorderRight(BorderStyle.THIN);
+            cs.setVerticalAlignment(VerticalAlignment.CENTER);
+            cs.setWrapText(true);
+            return cs;
+        };
+
+        XSSFFont titleFont = wb.createFont(); titleFont.setBold(true); titleFont.setFontHeightInPoints((short)12);
+        XSSFFont hdrFont   = wb.createFont(); hdrFont.setBold(true);   hdrFont.setFontHeightInPoints((short)10);
+        XSSFFont dataFont  = wb.createFont(); dataFont.setFontHeightInPoints((short)9);
+
+        XSSFCellStyle titleStyle = newStyle.get(); titleStyle.setFont(titleFont);
+        titleStyle.setFillForegroundColor(titleColor); titleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        titleStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        XSSFCellStyle hdrStyle = newStyle.get(); hdrStyle.setFont(hdrFont);
+        hdrStyle.setFillForegroundColor(hdrColor); hdrStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        hdrStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        XSSFCellStyle dataC = newStyle.get(); dataC.setFont(dataFont); dataC.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle dataL = newStyle.get(); dataL.setFont(dataFont); dataL.setAlignment(HorizontalAlignment.LEFT);
+        XSSFCellStyle evenC = newStyle.get(); evenC.setFont(dataFont);
+        evenC.setFillForegroundColor(evenColor); evenC.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        evenC.setAlignment(HorizontalAlignment.CENTER);
+        XSSFCellStyle evenL = newStyle.get(); evenL.setFont(dataFont);
+        evenL.setFillForegroundColor(evenColor); evenL.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        evenL.setAlignment(HorizontalAlignment.LEFT);
+
+        int nCols = 14; // 14列
+        int cur = 0;
+
+        for (Map.Entry<String, List<Map<String, Object>>> entry : groupMap.entrySet()) {
+            String gName = entry.getKey();
+            List<Map<String, Object>> gRows = entry.getValue();
+
+            // ---- 标题行 ----
+            Row r0 = sheet.createRow(cur); r0.setHeightInPoints(28);
+            Cell c0 = r0.createCell(0);
+            c0.setCellValue(year + "年石油工程建设优秀质量管理小组活动成果评价  专家小组意见表  " + gName);
+            c0.setCellStyle(titleStyle);
+            for (int c = 1; c < nCols; c++) { Cell cc = r0.createCell(c); cc.setCellStyle(titleStyle); }
+            sheet.addMergedRegion(new CellRangeAddress(cur, cur, 0, nCols - 1));
+
+            // ---- 表头行 ----
+            Row r1 = sheet.createRow(cur + 1); r1.setHeightInPoints(36);
+            String[] headers = {"发布\n序号", "分派\n专业组", "申报账号", "课题名称", "小组名称",
+                    "完成单位名称", "申报单位名称", "成果类型", "分类",
+                    "资料分\n(满分72)", "发布分", "总分", "排名", "建议等级"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell c = r1.createCell(i); c.setCellValue(headers[i]); c.setCellStyle(hdrStyle);
+            }
+
+            // ---- 数据行 ----
+            for (int i = 0; i < gRows.size(); i++) {
+                Map<String, Object> pro = gRows.get(i);
+                Row row = sheet.createRow(cur + 2 + i); row.setHeightInPoints(18);
+                boolean isEven = (i % 2 == 1);
+                XSSFCellStyle cs  = isEven ? evenC : dataC;
+                XSSFCellStyle lcs = isEven ? evenL : dataL;
+
+                setCell(row, 0, String.valueOf(i + 1), cs);
+                setCell(row, 1, str(pro.get("qcGroupName")), cs);
+                setCell(row, 2, str(pro.get("proCode")), cs);
+                setCell(row, 3, str(pro.get("topicName")), lcs);
+                setCell(row, 4, str(pro.get("groupName")), lcs);
+                setCell(row, 5, str(pro.get("completeUnit")), lcs);
+                setCell(row, 6, str(pro.get("companyName")), lcs);
+                setCell(row, 7, str(pro.get("topicType")), cs);
+                setCell(row, 8, str(pro.get("professionalScope")), cs);
+                setCell(row, 9, pro.get("initialScore") != null ? pro.get("initialScore").toString() : "", cs);
+                setCell(row, 10, pro.get("presentScore") != null ? pro.get("presentScore").toString() : "", cs);
+                setCell(row, 11, pro.get("totalScore") != null ? pro.get("totalScore").toString() : "", cs);
+                setCell(row, 12, pro.get("rank") != null ? pro.get("rank").toString() : "", cs);
+                setCell(row, 13, str(pro.get("recommendLevel")), cs); // 建议等级
+            }
+
+            // ---- 列宽 ----
+            sheet.setColumnWidth(0, 1800);  // 发布序号
+            sheet.setColumnWidth(1, 4000);  // 分派专业组
+            sheet.setColumnWidth(2, 3500);  // 申报账号
+            sheet.setColumnWidth(3, 7000);  // 课题名称
+            sheet.setColumnWidth(4, 5000);  // 小组名称
+            sheet.setColumnWidth(5, 5500);  // 完成单位名称
+            sheet.setColumnWidth(6, 5500);  // 申报单位名称
+            sheet.setColumnWidth(7, 3000);  // 成果类型
+            sheet.setColumnWidth(8, 2500);  // 分类
+            sheet.setColumnWidth(9, 3200);  // 资料分
+            sheet.setColumnWidth(10, 3200); // 发布分
+            sheet.setColumnWidth(11, 2500); // 总分
+            sheet.setColumnWidth(12, 2000); // 排名
+            sheet.setColumnWidth(13, 2500); // 建议等级
+
+            cur = cur + 2 + gRows.size() + 1; // 区块间空一行
+        }
     }
 }

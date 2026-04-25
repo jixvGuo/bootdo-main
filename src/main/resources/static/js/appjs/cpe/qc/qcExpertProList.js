@@ -129,25 +129,45 @@ function load() {
                             }
 
                             // 发布分评分按钮（第二次打分入口，仅在第二阶段专家评审时间范围内显示）
-                            // var presentScore = '';
-                            // (function () {
-                            //     var now = new Date();
-                            //     var s2Start = window.expertStartTimeSecond
-                            //         ? new Date((window.expertStartTimeSecond + '').replace(/-/g, '/'))
-                            //         : null;
-                            //     var s2End = window.expertEndTimeSecond
-                            //         ? new Date((window.expertEndTimeSecond + '').replace(/-/g, '/'))
-                            //         : null;
-                            //     var inSecondPhase = s2Start && s2End
-                            //         && !isNaN(s2Start.getTime()) && !isNaN(s2End.getTime())
-                            //         && now >= s2Start && now <= s2End;
-                            //     if (inSecondPhase) {
-                            //         presentScore = '<a class="btn btn-primary btn-sm" href="#" title="发布分评分" onclick="openPresentScore(\''
-                            //             + row.proId + '\',\'' + row.taskId
-                            //             + '\',\'' + (row.topicType || '')
-                            //             + '\')">发布分评分</a>';
-                            //     }
-                            // }());
+                            var presentScore = '';
+                            (function () {
+                                var now = new Date();
+                                var s2Start = null;
+                                if (window.expertStartTimeSecond) {
+                                    var s2StartStr = (window.expertStartTimeSecond + '').trim();
+                                    if (/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(s2StartStr)) {
+                                        s2StartStr = s2StartStr + ' 00:00:00';
+                                    }
+                                    s2Start = new Date(s2StartStr.replace(/-/g, '/'));
+                                }
+                                var s2End = null;
+                                if (window.expertEndTimeSecond) {
+                                    var s2EndStr = (window.expertEndTimeSecond + '').trim();
+                                    var endIsDateOnly = /^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(s2EndStr);
+                                    if (endIsDateOnly) {
+                                        s2EndStr = s2EndStr + ' 23:59:59';
+                                    }
+                                    s2End = new Date(s2EndStr.replace(/-/g, '/'));
+                                    if (endIsDateOnly && !isNaN(s2End.getTime())) {
+                                        s2End.setMilliseconds(999);
+                                    }
+                                }
+                                var inSecondPhase = s2Start && s2End
+                                    && !isNaN(s2Start.getTime()) && !isNaN(s2End.getTime())
+                                    && now >= s2Start && now <= s2End;
+                                // if (inSecondPhase) {
+                                //     presentScore = '<a class="btn btn-primary btn-sm" href="#" title="发布分评分" onclick="openPresentScore(\''
+                                //         + row.proId + '\',\'' + row.taskId
+                                //         + '\',\'' + (row.topicType || '')
+                                //         + '\')">发布分评分</a>';
+                                // }
+                                if (inSecondPhase && !row.isAvoided) {
+                                    presentScore = '<a class="btn btn-primary btn-sm" href="#" title="发布分评分" onclick="openPresentScore(\''
+                                        + row.proId + '\',\'' + row.taskId
+                                        + '\',\'' + (row.topicType || '')
+                                        + '\')">发布分评分</a>';
+                                }
+                            }());
 
                             var recommend = '<a class="btn btn-info btn-sm" href="#" title="主评意见" onclick="openRecommend(\''
                                 + row.proId + '\',\'' + row.taskId + '\',\'' + (row.topicType || '')
@@ -157,7 +177,8 @@ function load() {
                                 + '\')">'+'主评意见</a> ';
 
                             // return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate + ' ' + presentScore;
-                            return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate ;
+                            // return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate ;
+                            return viewPro + viewCheck + score + '<br style="margin-bottom:4px;">' + recommend + eliminate + ' ' + presentScore;
                         }
                     }]
             });

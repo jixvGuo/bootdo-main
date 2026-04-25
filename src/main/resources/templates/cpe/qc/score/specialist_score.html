@@ -354,6 +354,12 @@
             refreshByTopicType();
             loadResultScore();
 
+            // 禁用Chrome/Edge浏览器中number输入框的滚轮改变数值行为
+            $('#resultScoreForm').on('wheel', "input[type='number']", function (e) {
+                e.preventDefault();
+                $(this).blur(); // 失去焦点，防止滚轮改变数值
+            });
+
             // 只读模式：提交后只能查看，不能修改
             if (getUrlParam('viewOnly') === '1') {
                 $('#resultScoreForm input[type="number"]').prop('readonly', true).css('background','#f5f5f5');

@@ -196,6 +196,12 @@
         $(function () {
             loadPresentScore();
 
+            // 禁用Chrome/Edge浏览器中number输入框的滚轮改变数值行为
+            $('#presentScoreForm').on('wheel', "input[type='number']", function (e) {
+                e.preventDefault();
+                $(this).blur(); // 失去焦点，防止滚轮改变数值
+            });
+
             if (getUrlParam('viewOnly') === '1') {
                 $('#presentScoreForm input[type="number"]').prop('readonly', true).css('background', '#f5f5f5');
                 $('#presentScoreForm .ui.blue.button').hide();

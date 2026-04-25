@@ -33,10 +33,13 @@
 					<button class="btn btn-primary" onclick="viewTaskScores()">
 						<i class="fa fa-list-alt"></i>&nbsp;任务分数查询
 					</button>
-					<!-- 任务发布分查询 -->
-<!--					<button class="btn btn-warning" onclick="viewTaskPresentScores()">-->
-<!--						<i class="fa fa-list-alt"></i>&nbsp;任务发布分查询-->
-<!--					</button>-->
+<!--					 任务发布分查询 -->
+					<button class="btn btn-warning" onclick="viewTaskPresentScores()">
+						<i class="fa fa-list-alt"></i>&nbsp;任务发布分查询
+					</button>
+					<button class="btn btn-success" onclick="exportFinalOpinion()">
+						<i class="fa fa-file-excel-o"></i>&nbsp;终版意见导出
+					</button>
 
 					<!-- 页面上下文数据：任务ID、用户角色标识、外聘专家组名称，供前端JS读取用于请求参数和权限控制 -->
 					<input type="hidden" id="taskId" name="taskId" th:value="${taskId}">
@@ -837,105 +840,83 @@
 		});
 	}
 
-	function _showTaskPresentScoresModal(matrixData, taskId) {
-		if (!matrixData) { layer.msg('暂无发布分数据', {icon: 0}); return; }
-		var experts  = matrixData.experts  || [];
-		var projects = matrixData.projects || [];
-		window._taskPresentMatrixData = matrixData;
+	function exportFinalOpinion() {
+		var taskId = $('#taskId').val();
+		if (!taskId) { layer.msg('任务ID为空', {icon: 2}); return; }
+		window.location.href = '/qcScore/exportFinalOpinionExcel?taskId=' + encodeURIComponent(taskId);
+	}
+
+	function _showTaskPresentScoresModal(projects, taskId) {
+		if (!projects || projects.length == 0) { layer.msg('该任务暂无发布分记录', {icon: 0}); return; }
+		window._taskPresentTaskId = taskId;
+		window._presentTaskId = taskId;
 		var html = '<div style="padding:10px;">';
 		html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">';
 		html += '<h4 style="margin:0;">任务发布分总览</h4>';
-		html += '<button class="btn btn-success btn-sm" onclick="_exportTaskPresentScoreMatrix(window._taskPresentMatrixData)"><i class="fa fa-file-excel-o"></i>&nbsp;导出Excel</button>';
+		html += '<button class="btn btn-success btn-sm" onclick="window.location.href=\'/qcScore/exportTaskPresentScoreMatrixExcel?taskId=\'+encodeURIComponent(window._taskPresentTaskId)" style="white-space:nowrap;"><i class="fa fa-file-excel-o"></i>&nbsp;导出Excel</button>';
 		html += '</div>';
-		html += '<div style="overflow-x:auto;"><table class="table table-bordered table-striped" style="margin-bottom:0;">';
-		html += '<thead><tr><th style="width:50px;">序号</th><th style="width:110px;">申报账号</th><th>课题名称</th><th style="width:130px;">小组名称</th><th style="width:80px;">课题类型</th>';
-		for (var e = 0; e < experts.length; e++) html += '<th style="width:70px;">' + _qcEscapeHtml(experts[e].expertName || experts[e].loginAccount || '') + '</th>';
-		html += '<th style="width:70px;">平均分</th></tr></thead><tbody>';
+		html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+		html += '<thead><tr><th style="width:50px;">序号</th><th style="width:130px;">分派专业组</th><th style="width:110px;">申报账号</th><th>课题名称</th><th style="width:130px;">小组名称</th><th style="width:80px;">课题类型</th><th style="width:70px;">打分人数</th><th style="width:70px;">发布分</th><th style="width:70px;">操作</th></tr></thead><tbody>';
 		for (var i = 0; i < projects.length; i++) {
-			var pro = projects[i];
-			html += '<tr><td>' + (i+1) + '</td><td>' + _qcEscapeHtml(pro.proCode||'-') + '</td><td>' + _qcEscapeHtml(pro.topicName||'-') + '</td><td>' + _qcEscapeHtml(pro.groupName||'-') + '</td><td>' + _qcEscapeHtml(pro.topicType||'-') + '</td>';
-			for (var k = 0; k < experts.length; k++) {
-				var acc = experts[k].loginAccount, sc = pro.expertScores && pro.expertScores[acc];
-				if (sc === '回避') html += '<td style="color:#d9534f;font-weight:bold;">回避</td>';
-				else if (sc != null && sc !== '') html += '<td style="color:#337ab7;font-weight:bold;">' + sc + '</td>';
-				else html += '<td style="color:#999;">-</td>';
-			}
-			html += '<td style="color:#5cb85c;font-weight:bold;">' + (pro.avgScore != null ? pro.avgScore : '-') + '</td></tr>';
+			var item = projects[i];
+			var escapedName = (item.topicName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+			var scoreCountHtml = item.scorerCount > 0
+				? '<span style="color:#337ab7;font-weight:bold;">' + item.scorerCount + '人</span>'
+				: '<span style="color:#999;">未打分</span>';
+			var avgScoreHtml = item.avgScore != null
+				? '<span style="color:#5cb85c;font-weight:bold;">' + item.avgScore + '</span>'
+				: '<span style="color:#999;">-</span>';
+			html += '<tr>';
+			html += '<td>' + (i + 1) + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.qcGroupName || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.proCode || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.topicName || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.groupName || '-') + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.topicType || '-') + '</td>';
+			html += '<td>' + scoreCountHtml + '</td>';
+			html += '<td>' + avgScoreHtml + '</td>';
+			html += '<td><button class="btn btn-primary btn-xs" onclick="_viewPresentScoreDetail(' + item.proId + ', \'' + escapedName + '\', \'' + taskId + '\')">详情</button></td>';
+			html += '</tr>';
 		}
-		html += '</tbody></table></div></div>';
-		layer.open({ type: 1, title: '任务发布分查询', area: ['1100px', '600px'], content: html, btn: ['关闭'] });
+		html += '</tbody></table></div>';
+		layer.open({ type: 1, title: '任务发布分查询', area: ['1120px', '650px'], content: html, btn: ['关闭'] });
 	}
 
-	function _exportTaskPresentScoreMatrix(matrixData) {
-		var doExport = function() {
-			var experts  = matrixData.experts  || [];
-			var projects = matrixData.projects || [];
-			var year = new Date().getFullYear();
-			var wb = XLSX.utils.book_new();
-			var solveItems    = projects.filter(function(p) { return p.topicType === '问题解决型'; });
-			var innovateItems = projects.filter(function(p) { return p.topicType !== '问题解决型'; });
-			XLSX.utils.book_append_sheet(wb, _buildPresentMatrixSheet(solveItems, experts, year, '问题解决型'), '问题解决型');
-			XLSX.utils.book_append_sheet(wb, _buildPresentMatrixSheet(innovateItems, experts, year, '（创新型）'), '创新型');
-			XLSX.writeFile(wb, year + '_任务发布分矩阵.xlsx');
-		};
-		if (typeof XLSX !== 'undefined') { doExport(); }
-		else {
-			var s = document.createElement('script');
-			s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-			s.onload = function() { doExport(); };
-			s.onerror = function() { layer.msg('Excel库加载失败', {icon:2}); };
-			document.head.appendChild(s);
-		}
+	function _viewPresentScoreDetail(proId, topicName, taskId) {
+		$.ajax({
+			type: 'GET', url: '/qcScore/getProjectPresentScoreDetail', data: { taskId: taskId, proId: proId },
+			success: function(data) {
+				if (data.code == 0) { _showPresentScoreDetailModal(data.data, topicName); }
+				else { layer.msg(data.msg || '查询失败', {icon: 2}); }
+			},
+			error: function() { layer.msg('查询失败，请稍后重试', {icon: 2}); }
+		});
 	}
 
-	function _buildPresentMatrixSheet(items, experts, year, typeLabel) {
-		var nFixed = 5, nExperts = experts.length, nTotal = nFixed + nExperts + 4;
-		var aoa = [];
-		var r0 = new Array(nTotal).fill('');
-		r0[0] = year + '年石油工程建设优秀质量管理小组活动成果发布分评分表——' + typeLabel;
-		aoa.push(r0);
-		var r1 = new Array(nTotal).fill('');
-		r1[0]='序号'; r1[1]='申报号'; r1[2]='课题名称'; r1[3]='小组名称'; r1[4]='分类';
-		r1[nFixed]='专家发布分';
-		r1[nFixed+nExperts]='发布分\n（小数点后两位）';
-		r1[nFixed+nExperts+1]='完成单位'; r1[nFixed+nExperts+2]='申报单位'; r1[nFixed+nExperts+3]='小组成员';
-		aoa.push(r1);
-		var r2 = new Array(nTotal).fill('');
-		for (var i = 0; i < experts.length; i++) r2[nFixed+i] = experts[i].loginAccount || '';
-		aoa.push(r2);
-		for (var j = 0; j < items.length; j++) {
-			var pro = items[j], row = new Array(nTotal).fill('');
-			row[0]=j+1; row[1]=pro.proCode||''; row[2]=pro.topicName||''; row[3]=pro.groupName||''; row[4]=pro.topicType||'';
-			for (var k = 0; k < experts.length; k++) {
-				var acc = experts[k].loginAccount;
-				var score = pro.expertScores && pro.expertScores[acc];
-				if (score === '回避') { row[nFixed+k] = '回避'; }
-				else { row[nFixed+k] = (score != null && score !== '') ? score : ''; }
-			}
-			var rawAvg = pro.avgScore;
-			row[nFixed+nExperts] = (rawAvg != null && rawAvg !== '') ? rawAvg : '';
-			row[nFixed+nExperts+1]=pro.completeUnit||''; row[nFixed+nExperts+2]=pro.companyName||''; row[nFixed+nExperts+3]=pro.groupMember||'';
-			aoa.push(row);
+	function _showPresentScoreDetailModal(scores, topicName) {
+		if (!scores || scores.length == 0) { layer.msg('该课题暂无发布分记录', {icon: 0}); return; }
+		var html = '<div style="padding:10px;">';
+		html += '<h4 style="margin-bottom:15px;">课题：' + _qcEscapeHtml(topicName) + ' 的发布分详情</h4>';
+		html += '<table class="table table-bordered table-striped" style="margin-bottom:0;">';
+		html += '<thead><tr><th style="width:60px;">序号</th><th>专家姓名</th><th style="width:100px;">评分</th><th style="width:150px;">打分时间</th><th style="width:100px;">是否回避</th></tr></thead><tbody>';
+		for (var i = 0; i < scores.length; i++) {
+			var item = scores[i];
+			var rowStyle = item.isAvoided ? 'background-color:#fff5f5;' : '';
+			var scoreHtml = item.isAvoided && item.score == null
+				? '<span style="color:#d9534f;">-</span>'
+				: (item.score != null ? '<span style="font-weight:bold;color:#5cb85c;">' + item.score + '</span>' : '<span style="color:#999;">-</span>');
+			var avoidedBadge = item.isAvoided ? '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;">已回避</span>' : '';
+			html += '<tr style="' + rowStyle + '">';
+			html += '<td>' + (i + 1) + '</td>';
+			html += '<td>' + _qcEscapeHtml(item.expertName || '-') + ' ' + avoidedBadge + '</td>';
+			html += '<td>' + scoreHtml + '</td>';
+			html += '<td style="color:#999;">' + (item.scoreTime || '-') + '</td>';
+			html += '<td>' + (item.isAvoided ? '<span style="color:#d9534f;">是</span>' : '否') + '</td>';
+			html += '</tr>';
 		}
-		var ws = XLSX.utils.aoa_to_sheet(aoa);
-		var merges = [
-			{s:{r:0,c:0},e:{r:0,c:nTotal-1}},
-			{s:{r:1,c:0},e:{r:2,c:0}},{s:{r:1,c:1},e:{r:2,c:1}},{s:{r:1,c:2},e:{r:2,c:2}},{s:{r:1,c:3},e:{r:2,c:3}},{s:{r:1,c:4},e:{r:2,c:4}},
-			{s:{r:1,c:nFixed+nExperts},e:{r:2,c:nFixed+nExperts}},{s:{r:1,c:nFixed+nExperts+1},e:{r:2,c:nFixed+nExperts+1}},
-			{s:{r:1,c:nFixed+nExperts+2},e:{r:2,c:nFixed+nExperts+2}},{s:{r:1,c:nFixed+nExperts+3},e:{r:2,c:nFixed+nExperts+3}}
-		];
-		if (nExperts > 1) merges.push({s:{r:1,c:nFixed},e:{r:1,c:nFixed+nExperts-1}});
-		else if (nExperts === 1) merges.push({s:{r:1,c:nFixed},e:{r:2,c:nFixed}});
-		ws['!merges'] = merges;
-		var cols = [{wch:6},{wch:14},{wch:26},{wch:14},{wch:8}];
-		for (var m = 0; m < nExperts; m++) cols.push({wch:9});
-		cols.push({wch:10},{wch:14},{wch:14},{wch:18});
-		ws['!cols'] = cols;
-		ws['!rows'] = [{hpt:26},{hpt:42},{hpt:32}];
-		for (var n = 0; n < items.length; n++) ws['!rows'].push({hpt:18});
-		return ws;
+		html += '</tbody></table></div>';
+		layer.open({ type: 1, title: '发布分打分详情', area: ['700px', '500px'], content: html });
 	}
-
 
 </script>
 
