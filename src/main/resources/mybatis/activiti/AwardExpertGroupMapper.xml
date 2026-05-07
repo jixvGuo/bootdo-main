@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 专家分组 Mapper（与 QcGroupMapper/分组管理 不是同一个功能点） -->
+<mapper namespace="com.bootdo.activiti.dao.AwardExpertGroupDao">
+
+    <resultMap type="com.bootdo.activiti.domain.AwardExpertGroupDO" id="awardExpertGroup">
+        <result column="taskid" property="taskid"/>
+        <result column="groupid" property="groupid"/>
+        <result column="name" property="name"/>
+    </resultMap>
+
+    <select id="get" resultMap="awardExpertGroup">
+        SELECT * FROM ass_award_expert_group WHERE taskid = #{taskId} AND groupid = #{groupid}
+    </select>
+
+    <select id="list" resultMap="awardExpertGroup">
+        SELECT * FROM ass_award_expert_group
+        <where>
+            <if test="taskid != null">AND taskid = #{taskid}</if>
+            <if test="name != null and name != ''">AND name LIKE CONCAT('%', #{name}, '%')</if>
+        </where>
+        ORDER BY groupid
+        <if test="offset != null and limit != null">
+            LIMIT #{offset}, #{limit}
+        </if>
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM ass_award_expert_group
+        <where>
+            <if test="taskid != null">AND taskid = #{taskid}</if>
+            <if test="name != null and name != ''">AND name LIKE CONCAT('%', #{name}, '%')</if>
+        </where>
+    </select>
+
+    <select id="getGroupsByTaskId" resultMap="awardExpertGroup">
+        SELECT * FROM ass_award_expert_group WHERE taskid = #{taskId} ORDER BY groupid
+    </select>
+
+    <select id="isGroupNameExist" resultType="int">
+        SELECT COUNT(*) FROM ass_award_expert_group WHERE taskid = #{taskId} AND name = #{groupName}
+    </select>
+
+    <select id="isGroupNameExistExcludeGroupId" resultMap="awardExpertGroup">
+        SELECT * FROM ass_award_expert_group
+        WHERE taskid = #{taskId}
+          AND name = #{groupName}
+          AND groupid != #{groupId}
+        LIMIT 1
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.activiti.domain.AwardExpertGroupDO">
+        INSERT INTO ass_award_expert_group (taskid, groupid, name)
+        VALUES (#{taskid}, #{groupid}, #{name})
+    </insert>
+
+    <update id="update" parameterType="com.bootdo.activiti.domain.AwardExpertGroupDO">
+        UPDATE ass_award_expert_group
+        SET name = #{name}
+        WHERE taskid = #{taskid} AND groupid = #{groupid}
+    </update>
+
+    <delete id="remove">
+        DELETE FROM ass_award_expert_group WHERE taskid = #{taskId} AND groupid = #{groupid}
+    </delete>
+
+    <delete id="batchRemove">
+        DELETE FROM ass_award_expert_group
+        WHERE taskid = #{taskId}
+          AND groupid IN
+        <foreach item="groupid" collection="groupids" open="(" separator="," close=")">
+            #{groupid}
+        </foreach>
+    </delete>
+
+    <!-- 课题与专家分组关联表：ass_award_pro_expert_group(taskid, proid, groupid) PRIMARY KEY(taskid, proid) -->
+    <insert id="upsertProGroup">
+        INSERT INTO ass_award_pro_expert_group (taskid, proid, groupid)
+        VALUES (#{taskId}, #{proId}, #{groupId})
+        ON DUPLICATE KEY UPDATE groupid = #{groupId}
+    </insert>
+
+    <delete id="removeProGroupByGroup">
+        DELETE FROM ass_award_pro_expert_group
+        WHERE taskid = #{taskId} AND groupid = #{groupId}
+    </delete>
+
+    <delete id="removeProGroupByGroups">
+        DELETE FROM ass_award_pro_expert_group
+        WHERE taskid = #{taskId}
+          AND groupid IN
+        <foreach item="gid" collection="groupIds" open="(" separator="," close=")">
+            #{gid}
+        </foreach>
+    </delete>
+
+    <select id="countProByGroupId" resultType="int">
+        SELECT COUNT(*) FROM ass_award_pro_expert_group
+        WHERE taskid = #{taskId} AND groupid = #{groupId}
+    </select>
+
+    <select id="getProGroupId" resultType="java.lang.Integer">
+        SELECT groupid FROM ass_award_pro_expert_group
+        WHERE taskid = #{taskId} AND proid = #{proId}
+        LIMIT 1
+    </select>
+
+    <!-- 一次性返回某任务下所有课题的专家分组归属及名称（连表） -->
+    <select id="listProAssignments" resultType="java.util.HashMap">
+        SELECT p.proid    AS proid,
+               p.groupid  AS groupid,
+               g.name     AS name
+        FROM ass_award_pro_expert_group p
+        LEFT JOIN ass_award_expert_group g
+               ON g.taskid = p.taskid AND g.groupid = p.groupid
+        WHERE p.taskid = #{taskId}
+    </select>
+
+</mapper>

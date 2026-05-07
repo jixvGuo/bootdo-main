@@ -53,6 +53,10 @@ public class SurverProController extends BaseSurverController {
     private SurverExcellentApplyTableInfoService surverExcellentApplyTableInfoService;
     @Autowired
     private SurverBaseApplyTableInfoService surverBaseApplyTableInfoService;
+    @Autowired
+    private ExpertGroupService expertGroupService;
+    @Autowired
+    private com.bootdo.activiti.service.AwardPublishTaskService awardPublishTaskService;
 
     @RequiresPermissions("surveraward:to:prolist")
     @RequestMapping("/toProListMain")
@@ -80,6 +84,9 @@ public class SurverProController extends BaseSurverController {
         boolean isAdmin = roleIdList != null && roleIdList.contains(ROLE_ADMIN_ID);
         map.put("isAssociationLeader", isAssociationLeader || isAdmin);
         map.put("isEnterpriseUser", isEnterpriseUser);
+        // 新增：勘察奖小组联络人(86) 标志，用于显示独有的"专家分组管理"入口按钮
+        boolean isSurverGroupContact = roleIdList != null && roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID);
+        map.put("isSurverGroupContact", isSurverGroupContact);
         return prefix + "/surver_pro_list";
     }
 
@@ -95,10 +102,11 @@ public class SurverProController extends BaseSurverController {
         UserDO user = getUser();
         Long uid = getUserId();
         List<Long> roleIdList = user.getRoleIds();
-        if (roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)
-                || roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)
+        if (roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)) {
+            // 勘察奖协会外聘人员(75)：查看全部项目，不按分派过滤
+        } else if (roleIdList.contains(ROLE_QC_EXTERNAL_EMPLOYMENT_ID)
                 || roleIdList.contains(ROLE_SCIENCE_EXTERNAL_EMPLOYMENT_ID)) {
-            // 外聘人员：只看分派给自己的项目
+            // 其他外聘人员：只看分派给自己的项目
             params.put("ass_assign_uid", uid);
         } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
             //todo 临时使用协会联系人的用户id
@@ -109,7 +117,10 @@ public class SurverProController extends BaseSurverController {
         } else if(roleIdList.contains(ROLE_SURVER_SPECALIST_ID)) {
             //评审专家
             params.put("scoreSpecialistUid", uid);
-        }else {
+        // 新增：勘察奖小组联络人(86) 仅看绑定分组下的项目
+        } else if (roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
+            params.put("contactUserId", uid);
+        } else {
             //分派给自己的项目
             params.put("ass_assign_uid", uid);
         }

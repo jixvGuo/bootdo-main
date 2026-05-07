@@ -9,11 +9,33 @@
         <div class="col-sm-12">
             <div class="ibox">
                 <div class="ibox-title">
-					<button class="btn btn-success" onclick="printExcelPro()">导出excel</button>
-					<button class="btn btn-primary" onclick="printDetailExcelPro()">导出详情</button>
-					<button class="btn btn-warning" onclick="importCheckResult()" th:if="${isAssociationLeader}">导入形式审查结果</button>
+					<button class="btn btn-success" onclick="printExcelPro()">
+						导出excel
+					</button>
+					<button class="btn btn-primary" onclick="printDetailExcelPro()">
+						导出详情
+					</button>
+					<button class="btn btn-warning" onclick="importCheckResult()" th:if="${isAssociationLeader}">
+						导入形式审查结果
+					</button>
 					<button class="btn btn-info" onclick="toGroupManage()" th:if="${isAssociationLeader}">
 						<i class="fa fa-th-large"></i>&nbsp;分组管理
+					</button>
+					<!-- 新增：专家分组管理按钮，对四个子tab的课题进行专家分组 -->
+					<button class="btn btn-danger" onclick="toExpertGroupManage()" th:if="${isAssociationLeader}">
+						<i class="fa fa-users"></i>&nbsp;专家分组管理
+					</button>
+					<!-- Phase B 新增：淘汰管理按钮（协会管理员） -->
+					<button class="btn btn-warning" onclick="openEliminateManage()" th:if="${isAssociationLeader}">
+						<i class="fa fa-ban"></i>&nbsp;淘汰管理
+					</button>
+					<!-- 新增：勘察奖小组联络人(86)返回任务列表 -->
+					<a class="btn btn-default" href="/cpe/suverProcess/toSurverContactTaskList" th:if="${isSurverGroupContact}">
+						<i class="fa fa-arrow-left"></i>&nbsp;返回任务列表
+					</a>
+					<!-- 新增：勘察奖小组联络人(86)独有的"专业组管理"入口按钮 -->
+					<button class="btn btn-info" onclick="toSurverMajorGroupAdminForContact()" th:if="${isSurverGroupContact}">
+						<i class="fa fa-users"></i>&nbsp;专业组管理
 					</button>
 					<input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
 					<input id="proSubType" name="proSubType" th:value="${proSubType}"  type="hidden">
@@ -92,6 +114,82 @@
 
                 <div class="ibox-content">
 					<input type="hidden" id="isViewProCode"  th:value="${isViewProCode}" />
+					<!-- ============================================================ -->
+					<!-- 新增：可折叠筛选块（项目名称/申报单位/专业/申报账号/分组/    -->
+					<!--                     专家分组/淘汰状态/状态）                 -->
+					<!--   - 默认折叠；点击 "高级筛选" 切换展开                       -->
+					<!--   - 服务端筛选：参数名以 filter 开头，传给后端 listProInfo   -->
+					<!-- ============================================================ -->
+					<div style="margin:8px 0;">
+						<a data-toggle="collapse" href="#surverProFilterPanel" aria-expanded="false"
+						   style="display:inline-block;color:#337ab7;cursor:pointer;font-size:13px;">
+							<i class="fa fa-filter"></i>&nbsp;高级筛选&nbsp;<i class="fa fa-chevron-down" style="font-size:10px;"></i>
+						</a>
+					</div>
+					<div id="surverProFilterPanel" class="collapse"
+						 style="margin:0 0 12px 0;padding:12px;background:#f9fafc;border:1px solid #e5e5e5;border-radius:4px;">
+						<div class="row" style="margin-bottom:8px;">
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">项目名称</label>
+								<input type="text" class="form-control input-sm" id="filterProName" placeholder="支持模糊匹配">
+							</div>
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">申报单位</label>
+								<input type="text" class="form-control input-sm" id="filterApplyCompany" placeholder="支持模糊匹配">
+							</div>
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">专业</label>
+								<input type="text" class="form-control input-sm" id="filterMajor" placeholder="支持模糊匹配">
+							</div>
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">申报账号</label>
+								<input type="text" class="form-control input-sm" id="filterDeclareAccount" placeholder="支持模糊匹配">
+							</div>
+						</div>
+						<div class="row" style="margin-bottom:8px;">
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">分组</label>
+								<input type="text" class="form-control input-sm" id="filterQcGroupName" placeholder="支持模糊匹配">
+							</div>
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">专家分组</label>
+								<input type="text" class="form-control input-sm" id="filterExpertGroupName" placeholder="支持模糊匹配">
+							</div>
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">淘汰状态</label>
+								<select class="form-control input-sm" id="filterEliminated">
+									<option value="">全部</option>
+									<option value="0">未淘汰</option>
+									<option value="1">已淘汰</option>
+								</select>
+							</div>
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">状态</label>
+								<select class="form-control input-sm" id="filterProStat">
+									<option value="">全部</option>
+									<option value="check">审核中</option>
+									<option value="to_validate">待审核</option>
+									<option value="to_assign_experts">分派专家</option>
+									<option value="experts_score">专家打分</option>
+									<option value="score">专家打分(科技)</option>
+									<option value="partake_award">参评</option>
+									<option value="no_award">不评</option>
+									<option value="delayed_award">缓评</option>
+									<option value="reject">已驳回</option>
+									<option value="improve_partake">完善后参评</option>
+									<option value="eliminated">已淘汰</option>
+								</select>
+							</div>
+						</div>
+						<div style="text-align:right;">
+							<button class="btn btn-primary btn-sm" onclick="applySurverProFilter()">
+								<i class="fa fa-search"></i>&nbsp;筛选
+							</button>
+							<button class="btn btn-default btn-sm" onclick="resetSurverProFilter()">
+								<i class="fa fa-undo"></i>&nbsp;重置
+							</button>
+						</div>
+					</div>
                     <table id="exampleTable" data-mobile-responsive="true"></table>
                 </div>
             </div>
@@ -169,8 +267,130 @@
 
 
 <div style="display: none" id="reloadId" onclick="reloadData()"></div>
+
+<!-- Phase B 新增：淘汰管理弹窗（隐藏占位，layer.open(type:1) 引用） -->
+<div id="surverEliminateModal" style="display:none; padding:16px;">
+	<!-- Tab 切换 -->
+	<ul class="nav nav-tabs" id="surverElimTabs" style="margin-bottom:12px;">
+		<li class="active">
+			<a data-toggle="tab" href="#surverElimTabCandidates">
+				候选淘汰池（专家评级汇总）
+			</a>
+		</li>
+		<li>
+			<a data-toggle="tab" href="#surverElimTabConfirmed">
+				已确认淘汰列表
+			</a>
+		</li>
+	</ul>
+	<div class="tab-content">
+		<!-- Tab 1: 候选淘汰池 -->
+		<div id="surverElimTabCandidates" class="tab-pane fade in active">
+			<div style="margin-bottom:10px;">
+				<!-- 淘汰管理按钮-项目类别筛选 -->
+				<select id="surverElimSubTypeFilter" class="form-control" style="display:inline-block;width:200px;margin-right: 5px">
+					<option value="">项目类别 - 全部</option>
+					<option value="contribution">优秀勘察奖</option>
+					<option value="design">优秀设计奖</option>
+					<option value="software">计算机软件奖</option>
+					<option value="standard">标准设计奖</option>
+				</select>
+				<!-- 淘汰管理-刷新按钮 -->
+				<button class="btn btn-primary btn-sm" style="margin-right: 5px" onclick="loadEliminateCandidates()">
+					<i class="fa fa-refresh"></i> 刷新
+				</button>
+<!--				&lt;!&ndash; 淘汰管理-导出候选汇总按钮 &ndash;&gt;-->
+<!--				<button class="btn btn-success btn-sm" style="margin-right: 5px" onclick="exportEliminateCandidatesExcel()">-->
+<!--					<i class="fa fa-file-excel-o"></i> 导出候选汇总-->
+<!--				</button>-->
+<!--				&lt;!&ndash; 淘汰管理-导入淘汰名单按钮 &ndash;&gt;-->
+<!--				<button class="btn btn-warning btn-sm"  onclick="triggerImportEliminateExcel()">-->
+<!--					<i class="fa fa-upload"></i> 导入淘汰名单-->
+<!--				</button>-->
+				<input type="file" id="surverElimImportFile" accept=".xlsx,.xls" style="display:none;" onchange="onImportEliminateExcel(event)">
+				<!-- 淘汰管理-导入导出按钮提示文字 -->
+<!--				<span style="color:#888;font-size:12px;margin-left:8px;">-->
+<!--					导入格式：第一列为申报编号(proCode)，将批量置为已淘汰-->
+<!--				</span>-->
+			</div>
+			<div style="max-height:480px;overflow:auto;">
+				<table class="table table-bordered table-hover table-condensed">
+					<thead style="background:#f5f5f5;">
+						<tr>
+							<th style="width:45px;">序号</th>
+							<th style="width:110px;">类别</th>
+							<th style="width:50px;">项目编号</th>
+							<th style="width:155px;">项目名称</th>
+							<th style="width:80px;">申报单位</th>
+							<th style="width:120px;">申报账号</th>
+							<th style="width:120px;">分组</th>
+							<th style="width:120px;">专家分组</th>
+<!--							<th style="width:46px;">A</th>-->
+<!--							<th style="width:46px;">B</th>-->
+<!--							<th style="width:46px;">C</th>-->
+<!--							<th style="width:46px;">D</th>-->
+							<th style="width:40px;">专家评级</th>
+							<th style="width:90px;">淘汰状态</th>
+							<th style="width:80px;">操作</th>
+						</tr>
+					</thead>
+					<tbody id="surverElimCandidatesBody">
+						<tr><td colspan="11" style="text-align:center;color:#999;">加载中...</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Tab 2: 已确认淘汰列表 -->
+		<div id="surverElimTabConfirmed" class="tab-pane fade">
+			<div style="margin-bottom:10px;">
+				<button class="btn btn-primary btn-sm" onclick="loadEliminateConfirmed()">
+					<i class="fa fa-refresh"></i> 刷新
+				</button>
+				<button class="btn btn-success btn-sm" onclick="exportEliminateConfirmedExcel()">
+					<i class="fa fa-file-excel-o"></i> 导出确认淘汰名单
+				</button>
+				<!-- 导入确认淘汰名单：复用候选池的导入逻辑（按 proCode 批量置已淘汰），
+				     共用同一个隐藏 input #surverElimImportFile -->
+				<button class="btn btn-warning btn-sm" style="margin-left:5px;" onclick="triggerImportEliminateExcel()">
+					<i class="fa fa-upload"></i> 导入确认淘汰名单
+				</button>
+<!--				勘察的淘汰导入提示文字-->
+<!--				<span style="color:#888;font-size:12px;margin-left:8px;">-->
+<!--					导入格式：第一列为申报编号(proCode)，将批量置为已淘汰-->
+<!--				</span>-->
+			</div>
+			<div style="max-height:480px;overflow:auto;">
+				<table class="table table-bordered table-hover table-condensed">
+					<thead style="background:#f5f5f5;">
+						<tr>
+							<th style="width:45px;">序号</th>
+							<th style="width:110px;">类别</th>
+							<th style="width:50px;">项目编号</th>
+							<th style="width:155px;">项目名称</th>
+							<th style="width:80px;">申报单位</th>
+							<th style="width:120px;">申报账号</th>
+							<th style="width:120px;">分组</th>
+							<th style="width:120px;">专家分组</th>
+							<th style="width:40px;">专家评级</th>
+							<th style="width:90px;">淘汰状态</th>
+							<th style="width:80px;">操作</th>
+						</tr>
+					</thead>
+					<tbody id="surverElimConfirmedBody">
+						<tr><td colspan="11" style="text-align:center;color:#999;">加载中...</td></tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>
+
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.4"></script>
+<!-- <script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.4"></script> -->
+<!-- 新增专家分组联动后，提升版本号触发浏览器刷新缓存 -->
+<!-- Phase B 升级：新增"淘汰状态"列 + 淘汰管理弹窗逻辑 → v=2.6 -->
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.9"></script>
 <script>
 
     function reloadData() {

@@ -112,6 +112,10 @@ public class AwardFlowController extends BaseScienceTechnologyController {
     public String toAdminPublishAwardTasks(ModelMap map) {
         UserDO user = getUser();
         List<Long> roleIdList = user.getRoleIds();
+        // 新增：勘察奖小组联络人(86) 跳转到任务选择列表页（展示绑定的任务列表）
+        if (roleIdList != null && roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
+            return "redirect:/cpe/suverProcess/toSurverContactTaskList";
+        }
         //是否协会联系人
         boolean isAssociationRole = RoleAwardParamData.isAssociationRole(roleIdList);
         map.put("isAssociationRole", isAssociationRole);
@@ -140,6 +144,8 @@ public class AwardFlowController extends BaseScienceTechnologyController {
 
         query.put("isOutWorker", paramData.getIsOutWorker());
         query.put("isSpecialist", paramData.getIsSpecialist());
+        // 新增：勘察奖小组联络人(86)标志，按 surver_view_scope 过滤任务
+        query.put("isSurverGroupContact", paramData.getIsSurverGroupContact());
         query.put("specialUid", user.getUserId());
 
         // ✅ 统一使用 paramData.getAwardId()
@@ -148,6 +154,14 @@ public class AwardFlowController extends BaseScienceTechnologyController {
         boolean isEnterpriseQc = roleIdList.contains(Constant.ROLE_ENTERPRISE_QC_ID);
         boolean isQcAward = paramData.getAwardId() == EnumAwardType.QC.getAwrdType();
         if (isEnterpriseQc && isQcAward) {
+            query.put("limit", 1);
+            query.put("offset", 0);
+        }
+        // 新增：勘察奖协会外聘人员(75)：只取最新一条任务，
+        // 同时关闭 isOutWorker 的 exists 条件（避免最新任务因未分派项目而被过滤），
+        // 仅靠 awardTypeId + ORDER BY publish_date DESC + LIMIT 1 来取最新任务
+        if (roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)) {
+            query.put("isOutWorker", false);
             query.put("limit", 1);
             query.put("offset", 0);
         }

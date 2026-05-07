@@ -198,9 +198,9 @@
         set  signature_id = #{signId} where task_id = #{taskId} and user_id = #{expertUid}
     </update>
 
-    <delete id="remove">
-		delete from add_special_info where id = #{value}
-	</delete>
+    <update id="remove">
+		update add_special_info set deleted = 1 where id = #{value}
+	</update>
     <delete id="removeByLoginAccount" >
         delete from add_special_info where login_account = #{loginAccount}
     </delete>
@@ -228,6 +228,20 @@
             and group_name != ''
         </where>
         ORDER BY group_name ASC
+    </select>
+
+    <!-- 新增：获取指定用户在指定proType下绑定的所有不重复task_id，按任务申报开始时间倒序 -->
+    <select id="getDistinctTaskIdsByUserAndProType" resultType="java.lang.String">
+        SELECT si.task_id
+        FROM add_special_info si
+        LEFT JOIN ass_award_publish_task pt ON pt.id = si.task_id
+        WHERE si.user_id = #{userId}
+          AND si.pro_type = #{proType}
+          AND si.deleted = 0
+          AND si.task_id IS NOT NULL
+          AND si.task_id != ''
+        GROUP BY si.task_id
+        ORDER BY MAX(pt.apply_start_date) DESC, si.task_id DESC
     </select>
 
 </mapper>

@@ -25,8 +25,80 @@
 
                     </div>
                 </div>
+                <div class="clearfix"></div>
 
                 <input type="hidden" id="isViewProCode"  th:value="${isViewProCode}" />
+                <!-- 新增：可折叠筛选块（参考 surver_pro_list.html） -->
+                <div style="margin:8px 0;clear:both;">
+                    <a data-toggle="collapse" href="#scoreProFilterPanel" aria-expanded="false"
+                       style="display:inline-block;color:#337ab7;cursor:pointer;font-size:13px;">
+                        <i class="fa fa-filter"></i>&nbsp;高级筛选&nbsp;<i class="fa fa-chevron-down" style="font-size:10px;"></i>
+                    </a>
+                </div>
+                <div id="scoreProFilterPanel" class="collapse"
+                     style="margin:0 0 12px 0;padding:12px;background:#f9fafc;border:1px solid #e5e5e5;border-radius:4px;">
+                    <div class="row" style="margin-bottom:8px;">
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">项目名称</label>
+                            <input type="text" class="form-control input-sm" id="filterProName" placeholder="支持模糊匹配">
+                        </div>
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">申报单位</label>
+                            <input type="text" class="form-control input-sm" id="filterApplyCompany" placeholder="支持模糊匹配">
+                        </div>
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">专业</label>
+                            <input type="text" class="form-control input-sm" id="filterMajor" placeholder="支持模糊匹配">
+                        </div>
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">申报账号</label>
+                            <input type="text" class="form-control input-sm" id="filterDeclareAccount" placeholder="支持模糊匹配">
+                        </div>
+                    </div>
+                    <div class="row" style="margin-bottom:8px;">
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">分组</label>
+                            <input type="text" class="form-control input-sm" id="filterQcGroupName" placeholder="支持模糊匹配">
+                        </div>
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">专家分组</label>
+                            <input type="text" class="form-control input-sm" id="filterExpertGroupName" placeholder="支持模糊匹配">
+                        </div>
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">淘汰状态</label>
+                            <select class="form-control input-sm" id="filterEliminated">
+                                <option value="">全部</option>
+                                <option value="0">未淘汰</option>
+                                <option value="1">已淘汰</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-3">
+                            <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">状态</label>
+                            <select class="form-control input-sm" id="filterProStat">
+                                <option value="">全部</option>
+                                <option value="check">审核中</option>
+                                <option value="to_validate">待审核</option>
+                                <option value="to_assign_experts">分派专家</option>
+                                <option value="experts_score">专家打分</option>
+                                <option value="score">专家打分(科技)</option>
+                                <option value="partake_award">参评</option>
+                                <option value="no_award">不评</option>
+                                <option value="delayed_award">缓评</option>
+                                <option value="reject">已驳回</option>
+                                <option value="improve_partake">完善后参评</option>
+                                <option value="eliminated">已淘汰</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <button class="btn btn-primary btn-sm" onclick="applyScoreProFilter()">
+                            <i class="fa fa-search"></i>&nbsp;筛选
+                        </button>
+                        <button class="btn btn-default btn-sm" onclick="resetScoreProFilter()">
+                            <i class="fa fa-undo"></i>&nbsp;重置
+                        </button>
+                    </div>
+                </div>
                 <table id="exampleTable" data-mobile-responsive="true">
                 </table>
 
@@ -39,7 +111,8 @@
 
 
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=1.6"></script>
+<!-- Phase C 升级：新增"淘汰等级/回避/确认提交"功能 → v=1.7 -->
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=2.1"></script>
 
 </body>
 </html>

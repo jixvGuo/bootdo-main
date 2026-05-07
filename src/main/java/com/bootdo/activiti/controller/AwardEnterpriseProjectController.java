@@ -5,7 +5,10 @@ import com.bootdo.activiti.domain.EnterpriseDocUploadDo;
 import com.bootdo.activiti.domain.EnterpriseProjectInfoDo;
 import com.bootdo.activiti.domain.PublishAwardTaskDo;
 import com.bootdo.activiti.domain.QcGroupDO;
+// 新增：专家分组（与已有的 QcGroup/分组管理 不是同一个功能点）
+import com.bootdo.activiti.domain.AwardExpertGroupDO;
 import com.bootdo.activiti.service.AwardEnterpriseProjectService;
+import com.bootdo.activiti.service.AwardExpertGroupService;
 import com.bootdo.activiti.service.AwardFlowService;
 import com.bootdo.activiti.service.QcGroupService;
 import com.bootdo.common.config.BootdoConfig;
@@ -109,6 +112,9 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
     private QcGroupService qcGroupService;
     @Autowired
     private QcGroupDao qcGroupDao;
+    // 新增：专家分组服务
+    @Autowired
+    private AwardExpertGroupService awardExpertGroupService;
     @Autowired
     private QcReviewResultRecordService qcReviewResultRecordService;
     @Autowired
@@ -1228,5 +1234,227 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
         } else {
             return new org.apache.poi.hssf.usermodel.HSSFWorkbook(inputStream);
         }
+    }
+
+    // ============================================================
+    // 专家分组管理（与上方"分组管理 / qcGroup / ass_qc_group"不是同一功能点）
+    // 新增表：ass_award_expert_group / ass_award_pro_expert_group
+    // 路由前缀：/enterprise_pro/expert_group/*
+    // 适用于勘察奖任务管理下四个子 tab 的课题专家分组
+    // ============================================================
+
+    /**
+     * 跳转到专家分组管理页面
+     */
+    @RequestMapping("/to_expert_group_manage/{taskId}")
+    public String toExpertGroupManage(@PathVariable("taskId") String taskId, ModelMap map) {
+        map.put("taskId", taskId);
+        return "act/award/expert_group_manage";
+    }
+
+    /**
+     * 跳转到新增专家分组页面
+     */
+    @RequestMapping("/expert_group/add/{taskId}")
+    public String expertGroupAdd(@PathVariable("taskId") String taskId, ModelMap map) {
+        map.put("taskId", taskId);
+        return "act/award/expert_group_form";
+    }
+
+    /**
+     * 跳转到编辑专家分组页面
+     */
+    @RequestMapping("/expert_group/edit/{taskId}/{groupid}")
+    public String expertGroupEdit(@PathVariable("taskId") String taskId,
+                                  @PathVariable("groupid") Integer groupid, ModelMap map) {
+        map.put("taskId", taskId);
+        AwardExpertGroupDO group = awardExpertGroupService.get(taskId, groupid);
+        map.put("group", group);
+        return "act/award/expert_group_form";
+    }
+
+    /**
+     * 获取专家分组列表
+     */
+    @ResponseBody
+    @GetMapping("/expert_group/list")
+    public PageUtils expertGroupList(@RequestParam Map<String, Object> params) {
+        if (params.get("taskId") != null) {
+            params.put("taskid", params.get("taskId").toString());
+        }
+        Query query = new Query(params);
+        List<AwardExpertGroupDO> list = awardExpertGroupService.list(query);
+        int total = awardExpertGroupService.count(query);
+        return new PageUtils(list, total);
+    }
+
+    /**
+     * 保存专家分组（新增 / 编辑）
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/save")
+    public R expertGroupSave(AwardExpertGroupDO group) {
+        if (group == null || group.getTaskid() == null || group.getName() == null
+                || group.getName().trim().isEmpty()) {
+            return R.error("参数不完整");
+        }
+
+        if (group.getGroupid() == null || group.getGroupid() == 0) {
+            // 新增：检查名称重复，并生成新 groupid
+            if (awardExpertGroupService.isGroupNameExist(group.getTaskid(), group.getName())) {
+                return R.error("专家分组名称已存在");
+            }
+            List<AwardExpertGroupDO> groups = awardExpertGroupService.getGroupsByTaskId(group.getTaskid());
+            int maxGroupId = 0;
+            for (AwardExpertGroupDO g : groups) {
+                if (g.getGroupid() != null && g.getGroupid() > maxGroupId) {
+                    maxGroupId = g.getGroupid();
+                }
+            }
+            group.setGroupid(maxGroupId + 1);
+            if (awardExpertGroupService.save(group) > 0) {
+                return R.ok();
+            }
+        } else {
+            // 编辑：排除自身后检查名称重复
+            AwardExpertGroupDO exist = awardExpertGroupService.isGroupNameExistExcludeGroupId(
+                    group.getTaskid(), group.getName(), group.getGroupid());
+            if (exist != null) {
+                return R.error("专家分组名称已存在");
+            }
+            if (awardExpertGroupService.update(group) > 0) {
+                return R.ok();
+            }
+        }
+        return R.error();
+    }
+
+    /**
+     * 删除单个专家分组（含课题分配关系清理）
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/remove")
+    public R expertGroupRemove(String taskId, Integer groupid) {
+        if (taskId == null || groupid == null) {
+            return R.error("参数不完整");
+        }
+        if (awardExpertGroupService.remove(taskId, groupid) > 0) {
+            return R.ok();
+        }
+        return R.error();
+    }
+
+    /**
+     * 检查并删除单个专家分组（若分组下仍有课题则拒绝）
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/check_and_remove")
+    public R expertGroupCheckAndRemove(String taskId, Integer groupid) {
+        if (taskId == null || groupid == null) {
+            return R.error("参数不完整");
+        }
+        int count = awardExpertGroupService.countProByGroupId(taskId, groupid);
+        if (count > 0) {
+            return R.error("该专家分组下已有 " + count + " 个课题，无法删除！");
+        }
+        if (awardExpertGroupService.remove(taskId, groupid) > 0) {
+            return R.ok();
+        }
+        return R.error();
+    }
+
+    /**
+     * 批量检查并删除专家分组
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/batch_check_and_remove")
+    public R expertGroupBatchCheckAndRemove(Integer[] groupids, String taskId) {
+        if (groupids == null || groupids.length == 0) {
+            return R.error("请选择要删除的专家分组");
+        }
+        if (taskId == null || taskId.trim().isEmpty()) {
+            return R.error("任务 ID 不能为空");
+        }
+
+        List<String> errorMessages = new ArrayList<>();
+        for (Integer gid : groupids) {
+            int count = awardExpertGroupService.countProByGroupId(taskId, gid);
+            if (count > 0) {
+                AwardExpertGroupDO g = awardExpertGroupService.get(taskId, gid);
+                errorMessages.add("专家分组【" + (g != null ? g.getName() : gid)
+                        + "】下已有 " + count + " 个课题，无法删除！");
+                continue;
+            }
+            awardExpertGroupService.remove(taskId, gid);
+        }
+
+        if (!errorMessages.isEmpty()) {
+            StringBuilder sb = new StringBuilder("以下专家分组无法删除：<br/>");
+            for (String msg : errorMessages) {
+                sb.append(msg).append("<br/>");
+            }
+            return R.error(sb.toString());
+        }
+        return R.ok();
+    }
+
+    /**
+     * 批量删除专家分组（不做项目占用检查；保留以兼容前端）
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/batchRemove")
+    public R expertGroupBatchRemove(Integer[] groupids, String taskId) {
+        if (taskId == null || groupids == null || groupids.length == 0) {
+            return R.error("参数不完整");
+        }
+        if (awardExpertGroupService.batchRemove(taskId, groupids) > 0) {
+            return R.ok();
+        }
+        return R.error();
+    }
+
+    /**
+     * 将课题分配到专家分组（用于四个子 tab 的课题列表"选择专家分组"）
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/assign")
+    public R assignProToExpertGroup(@RequestParam String taskId,
+                                    @RequestParam Integer proId,
+                                    @RequestParam Integer groupId) {
+        if (taskId == null || proId == null || groupId == null) {
+            return R.error("参数不完整");
+        }
+        if (awardExpertGroupService.assignProToGroup(taskId, proId, groupId) > 0) {
+            return R.ok();
+        }
+        return R.error();
+    }
+
+    /**
+     * 查询课题当前所属专家分组 ID（前端可用于回显）
+     */
+    @ResponseBody
+    @GetMapping("/expert_group/pro_group")
+    public R getProExpertGroup(@RequestParam String taskId, @RequestParam Integer proId) {
+        Integer groupId = awardExpertGroupService.getProGroupId(taskId, proId);
+        Map<String, Object> data = new HashMap<>();
+        data.put("groupId", groupId);
+        return R.ok(data);
+    }
+
+    /**
+     * 批量返回某任务下所有课题的专家分组归属（含名称），用于前端列表渲染。
+     * 返回格式：{ code:0, data:[ { proid, groupid, name }, ... ] }
+     */
+    @ResponseBody
+    @GetMapping("/expert_group/pro_assignments")
+    public R listProExpertGroupAssignments(@RequestParam String taskId) {
+        if (taskId == null || taskId.trim().isEmpty()) {
+            return R.error("任务 ID 不能为空");
+        }
+        List<Map<String, Object>> list = awardExpertGroupService.listProAssignments(taskId);
+        Map<String, Object> data = new HashMap<>();
+        data.put("data", list);
+        return R.ok(data);
     }
 }

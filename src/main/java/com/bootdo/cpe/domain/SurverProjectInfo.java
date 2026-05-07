@@ -71,6 +71,33 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
      */
     private String latestReviewRemarks;
 
+    /**
+     * 管理员淘汰标记: 0=未淘汰, 1=已淘汰
+     * 来源于 4 张申报子表的 eliminated 字段，由 listProInfo 中 CASE 表达式按 pro_sub_type 取值
+     */
+    private Integer eliminated;
+
+    /**
+     * 新增：专家分组名称（来自 ass_award_pro_expert_group + ass_award_expert_group）
+     */
+    private String expertGroupName;
+
+    public String getExpertGroupName() {
+        return expertGroupName;
+    }
+
+    public void setExpertGroupName(String expertGroupName) {
+        this.expertGroupName = expertGroupName;
+    }
+
+    public Integer getEliminated() {
+        return eliminated;
+    }
+
+    public void setEliminated(Integer eliminated) {
+        this.eliminated = eliminated;
+    }
+
 
     public int getId() {
         return id;

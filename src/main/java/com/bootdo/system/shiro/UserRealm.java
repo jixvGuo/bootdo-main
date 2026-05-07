@@ -86,7 +86,10 @@ public class UserRealm extends AuthorizingRealm {
 			// 优秀勘察
 			for(Long m : roleIdList){
 				// if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_ASSOCIATION_LEADER){
-				if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_SURVER_SPECALIST_ID|| m == ROLE_ASSOCIATION_LEADER){
+				// 原代码：
+				// if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_SURVER_SPECALIST_ID|| m == ROLE_ASSOCIATION_LEADER){
+				// 新代码：增加勘察奖小组联络人角色(86)的登录权限
+				if (m == 1 || m == 74 || m == 73 || m == ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID|| m == ROLE_SURVER_SPECALIST_ID|| m == ROLE_ASSOCIATION_LEADER || m == ROLE_SURVER_GROUP_CONTACT_ID){
 					isCanLogin = true ;
 				}
 			}

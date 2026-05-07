@@ -28,13 +28,32 @@ function load() {
                 showColumns: false, // 是否显示内容下拉框（选择显示的列）
                 sidePagination: "server", // 设置在哪里进行分页，可选值为"client" 或者 "server"
                 queryParams: function (params) {
-                    return {
+                    // 基础参数
+                    var qp = {
                         //说明：传入后台的参数包括offset开始索引，limit步长，sort排序列，order：desc或者,以及所有列的键值对
                         limit: params.limit,
                         offset: params.offset,
                         proSubType: $("#proSubType").val(),
                         taskId: $("#taskId").val(),
                     };
+                    // ===== 新增：8 项高级筛选参数（空值不传，避免 SQL <if> 误命中） =====
+                    var fmap = {
+                        filterProName:           $("#filterProName").val(),
+                        filterApplyCompany:      $("#filterApplyCompany").val(),
+                        filterMajor:             $("#filterMajor").val(),
+                        filterDeclareAccount:    $("#filterDeclareAccount").val(),
+                        filterQcGroupName:       $("#filterQcGroupName").val(),
+                        filterExpertGroupName:   $("#filterExpertGroupName").val(),
+                        filterEliminated:        $("#filterEliminated").val(),
+                        filterProStat:           $("#filterProStat").val()
+                    };
+                    Object.keys(fmap).forEach(function(k) {
+                        var v = fmap[k];
+                        if (v !== undefined && v !== null && (v + "").length > 0) {
+                            qp[k] = (v + "").trim();
+                        }
+                    });
+                    return qp;
                 },
                 // //请求服务器数据时，你可以通过重写参数的方式添加一些额外的参数，例如 toolbar 中的参数 如果
                 // queryParamsType = 'limit' ,返回参数必须包含
@@ -93,6 +112,34 @@ function load() {
                                     '</div>';
                             }
                             return '<span class="group-name-' + row.proId + '">' + groupName + '</span>';
+                        }
+                    },
+                    // 新增列：专家分组（与上方 qcGroupName/分组 不是同一功能点）
+                    // 由于专家分组是任务级（taskid 维度），四个子奖项可共用同一个专家组
+                    {
+                        field: 'expertGroupName',
+                        title: '专家分组',
+                        formatter: function(value, row, index) {
+                            var cached = (typeof EXPERT_GROUP_ASSIGN_MAP !== 'undefined') ? EXPERT_GROUP_ASSIGN_MAP[row.proId] : null;
+                            var name = (cached && cached.name) ? cached.name : '未分配';
+                            if ($("#isAssociationLeader").val() === '1') {
+                                return '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+                                    '<span class="expert-group-name-' + row.proId + '" style="flex:1;overflow:hidden;text-overflow:ellipsis;">' + name + '</span>' +
+                                    '<button class="btn btn-xs btn-info" onclick="showExpertGroupSelect(' + row.proId + ')" style="margin-left:10px;white-space:nowrap;">选择专家分组</button>' +
+                                    '</div>';
+                            }
+                            return '<span class="expert-group-name-' + row.proId + '">' + name + '</span>';
+                        }
+                    },
+                    // Phase B 新增：淘汰状态列（来源 SurverProjectInfo.eliminated，由 4 张子表 CASE 取值）
+                    {
+                        field: 'eliminated',
+                        title: '淘汰状态',
+                        formatter: function (value, row, index) {
+                            if (value == 1 || value === '1') {
+                                return '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span>';
+                            }
+                            return '<span style="color:#999;">-</span>';
                         }
                     },
                     {
@@ -220,6 +267,12 @@ function load() {
                  * @param {点击列的整行数据} row
                  * @param {td 元素} $element
                  */
+                // 新增：表格数据加载完成后，批量拉取并填充专家分组归属
+                onLoadSuccess: function (data) {
+                    if (typeof loadExpertGroupAssignments === 'function') {
+                        loadExpertGroupAssignments();
+                    }
+                },
                 onClickCell: function (field, value, row, $element) {
 
                     if (field === "proCode") {
@@ -334,6 +387,33 @@ function toGroupManage() {
     page('/enterprise_pro/to_group_manage/' + taskId, '分组管理', 20220601, true);
 }
 
+// 新增：专家分组管理，跳转至对四个子tab课题进行专家分组的页面
+function toExpertGroupManage() {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        layer.msg("缺少任务ID");
+        return;
+    }
+    page('/enterprise_pro/to_expert_group_manage/'
+        + taskId, '专家分组管理', 20220602, true);
+}
+
+// 新增：勘察奖小组联络人(86)专用——跳转到专业组管理页面（只能看到绑定的专业组）
+function toSurverMajorGroupAdminForContact() {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        layer.msg("缺少任务ID");
+        return;
+    }
+    var url = '/cpe/suverProcess/toSurverMajorGroupAdmin?taskId=' + taskId + '&proType=surver_pro_group';
+    // 使用 layer 弹窗或 page() 跳转；若当前页在 iframe 内，直接跳转
+    if (typeof page === 'function') {
+        page(url, '专业组管理', 20250429, true);
+    } else {
+        window.location.href = url;
+    }
+}
+
 function showGroupSelect(proId) {
     var taskId = $("#taskId").val();
     $.ajax({
@@ -350,7 +430,6 @@ function showGroupSelect(proId) {
                 data.rows.forEach(function(group) {
                     optionsHtml += '<option value="' + group.groupid + '">' + group.name + '</option>';
                 });
-
                 layer.open({
                     type: 1,
                     title: '选择分组',
@@ -551,7 +630,7 @@ function showReviewRecordList(proId, proSubType) {
                 html += '<div style="border:1px solid #ddd;margin-bottom:10px;padding:10px;border-radius:4px;background:#fff;">';
                 html += '<p><b>形审结果:</b> ' + (record.reviewResult || '无') + '</p>';
                 html += '<p><b>形审时间:</b> ' + (record.created || record.reviewTime || '') + '</p>';
-                html += '<p><b>形审人员:</b> ' + (record.optUid || record.reviewerName || '未知') + '</p>';
+                html += '<p><b>形审人员:</b> ' + (record.reviewerName || '未知') + '</p>';
                 html += '<p><b>形审评语:</b></p>';
                 html += '<div style="border:1px solid #eee;padding:8px;min-height:80px;background:#f9f9f9;">' + (record.remarks || record.opinionDesc || '暂无评语') + '</div>';
                 html += '</div>';
@@ -810,4 +889,510 @@ function batchRemove() {
     }, function () {
 
     });
+}
+
+// ============================================================
+// 新增：专家分组（任务级，四个子奖项共用同一个专家组）
+// ============================================================
+
+// proId -> { groupId, name }
+var EXPERT_GROUP_ASSIGN_MAP = {};
+
+/**
+ * 拉取当前任务下所有课题的专家分组归属，填充到 EXPERT_GROUP_ASSIGN_MAP，
+ * 并直接更新表格中各 .expert-group-name-<proId> 的展示文本。
+ */
+function loadExpertGroupAssignments() {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        return;
+    }
+    $.ajax({
+        url: "/enterprise_pro/expert_group/pro_assignments",
+        type: "get",
+        data: { taskId: taskId },
+        success: function (r) {
+            if (!r || r.code != 0) {
+                return;
+            }
+            EXPERT_GROUP_ASSIGN_MAP = {};
+            var list = (r.data && r.data.data) ? r.data.data : (r.data || []);
+            for (var i = 0; i < list.length; i++) {
+                var item = list[i] || {};
+                var pid = item.proid != null ? item.proid : item.proId;
+                if (pid == null) continue;
+                EXPERT_GROUP_ASSIGN_MAP[pid] = {
+                    groupId: item.groupid != null ? item.groupid : item.groupId,
+                    name: item.name || ''
+                };
+            }
+            // 更新当前已渲染的单元格
+            $("[class^='expert-group-name-'], [class*=' expert-group-name-']").each(function () {
+                var cls = $(this).attr('class') || '';
+                var m = cls.match(/expert-group-name-(\d+)/);
+                if (!m) return;
+                var pid = m[1];
+                var info = EXPERT_GROUP_ASSIGN_MAP[pid];
+                $(this).text(info && info.name ? info.name : '未分配');
+            });
+        }
+    });
+}
+
+/**
+ * 弹出"选择专家分组"下拉。任务级共享，所以列表来源是
+ * /enterprise_pro/expert_group/list?taskId=...，与子 tab 无关。
+ */
+function showExpertGroupSelect(proId) {
+    var taskId = $("#taskId").val();
+    if (!taskId) {
+        layer.msg("缺少任务ID");
+        return;
+    }
+    $.ajax({
+        url: "/enterprise_pro/expert_group/list",
+        type: "get",
+        data: {
+            taskId: taskId,
+            limit: 1000,
+            offset: 0
+        },
+        success: function (data) {
+            var rows = (data && data.rows) ? data.rows : [];
+            if (!rows.length) {
+                layer.msg('暂无专家分组，请先在"专家分组管理"中创建');
+                return;
+            }
+            var current = EXPERT_GROUP_ASSIGN_MAP[proId];
+            var currentId = current ? String(current.groupId) : '';
+            var optionsHtml = '<option value="">请选择专家分组</option>';
+            rows.forEach(function (g) {
+                var sel = (String(g.groupid) === currentId) ? ' selected' : '';
+                optionsHtml += '<option value="' + g.groupid + '"' + sel + '>' + g.name + '</option>';
+            });
+            layer.open({
+                type: 1,
+                title: '选择专家分组',
+                area: ['400px', '300px'],
+                content: '<div style="padding:20px;">' +
+                    '<select id="expertGroupSelect" class="form-control">' + optionsHtml + '</select>' +
+                    '<div style="margin-top:20px;text-align:center;">' +
+                    '<button class="btn btn-primary" onclick="confirmExpertGroupSelect(' + proId + ')">确定</button> ' +
+                    '<button class="btn btn-default" onclick="layer.closeAll()">取消</button>' +
+                    '</div></div>'
+            });
+        }
+    });
+}
+
+function confirmExpertGroupSelect(proId) {
+    var groupId = $("#expertGroupSelect").val();
+    if (!groupId) {
+        layer.msg('请选择专家分组');
+        return;
+    }
+    var taskId = $("#taskId").val();
+    $.ajax({
+        url: "/enterprise_pro/expert_group/assign",
+        type: "post",
+        data: {
+            taskId: taskId,
+            proId: proId,
+            groupId: groupId
+        },
+        success: function (r) {
+            if (r.code == 0) {
+                layer.msg('分配成功');
+                layer.closeAll();
+                // 重新拉取并刷新单元格（避免整表 refresh 引发跳页）
+                loadExpertGroupAssignments();
+            } else {
+                layer.msg(r.msg || '分配失败');
+            }
+        }
+    });
+}
+
+// =====================================================================
+// Phase B 新增：勘察奖"淘汰管理"弹窗逻辑（管理员侧）
+// 服务端接口前缀：/cpe/suverProcess/eliminate/*
+// 设计要点：
+//   - 候选池数据来自专家评级活动表(ass_surver_expert_eliminate)的聚合
+//   - "确认淘汰" / "取消淘汰" 仅写 4 张申报子表的 eliminated 字段
+//   - 导入: xlsx 第 1 列=申报编号(proCode)，前端按行调 setEliminated
+//   - 导出: 客户端 XLSX.js (与 QC 风格一致)
+// =====================================================================
+
+var SURVER_ELIM_PREFIX = '/cpe/suverProcess/eliminate';
+var SURVER_SUBTYPE_LABEL = {
+    contribution: '优秀勘察奖',
+    design:       '优秀设计奖',
+    software:     '计算机软件奖',
+    standard:     '标准设计奖',
+    consulting:   '咨询奖'
+};
+var _surverElimCandidates = [];   // 缓存最新一次候选数据，用于导出
+var _surverElimConfirmed  = [];   // 缓存最新一次已确认数据，用于导出
+
+function _surverElimEscape(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** 入口：打开淘汰管理弹窗 */
+function openEliminateManage() {
+    var taskId = $("#taskId").val();
+    if (!taskId) { layer.msg('缺少任务ID'); return; }
+    layer.open({
+        type: 1,
+        title: '勘察奖 - 淘汰管理',
+        area: ['1240px', '720px'],
+        shadeClose: false,
+        content: $('#surverEliminateModal'),
+        success: function() {
+            // 默认进入候选池 Tab
+            loadEliminateCandidates();
+            // 切换到"已确认"Tab 时再懒加载
+            $('#surverElimTabs a[href="#surverElimTabConfirmed"]').off('shown.bs.tab.surverElim').on('shown.bs.tab.surverElim', function() {
+                loadEliminateConfirmed();
+            });
+        },
+        end: function() {
+            // 关闭弹窗后刷新主列表，让"淘汰状态"列同步更新
+            try { reLoad(); } catch (e) {}
+        }
+    });
+}
+
+/** 拉取候选淘汰池数据 */
+function loadEliminateCandidates() {
+    var taskId = $("#taskId").val();
+    var proSubType = $("#surverElimSubTypeFilter").val() || '';
+    $("#surverElimCandidatesBody").html('<tr><td colspan="11" style="text-align:center;color:#999;">加载中...</td></tr>');
+    $.ajax({
+        type: 'GET',
+        url: SURVER_ELIM_PREFIX + '/listCandidates',
+        data: { taskId: taskId, proSubType: proSubType },
+        success: function(r) {
+            if (r.code !== 0) { layer.msg(r.msg || '加载失败', { icon: 2 }); return; }
+            _surverElimCandidates = r.list || [];
+            _renderEliminateCandidates(_surverElimCandidates);
+        },
+        error: function() { layer.msg('加载候选池失败', { icon: 2 }); }
+    });
+}
+
+function _renderEliminateCandidates(list) {
+    var tbody = $("#surverElimCandidatesBody");
+    if (!list || list.length === 0) {
+        tbody.html('<tr><td colspan="11" style="text-align:center;color:#999;">暂无候选数据（当前任务下尚无专家评级）</td></tr>');
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+        var it = list[i];
+        var subTypeLabel = SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || '-');
+        var statusHtml = (it.eliminated == 1)
+            ? '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span>'
+            : '<span style="color:#999;">未淘汰</span>';
+        var actionHtml = (it.eliminated == 1)
+            ? '<button class="btn btn-xs btn-default" onclick="onCancelEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">取消淘汰</button>'
+            : '<button class="btn btn-xs btn-danger"  onclick="onConfirmEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">确认淘汰</button>';
+        // 专家评级列：把 "张三:A|李四:D" 渲染成多行 badge
+        var grades = (it.expertGrades || '').split('|').filter(function(s){ return s; }).map(function(s) {
+            var parts = s.split(':'); var name = parts[0] || ''; var g = parts[1] || '-';
+            var color = (g === 'D') ? '#d9534f' : (g === 'C' ? '#f0ad4e' : (g === 'A' ? '#5cb85c':'#5bc0de'));
+            return '<span title="' + _surverElimEscape(name) + '" style="display:inline-block;background:' 
+            + color 
+            + ';color:#fff;border-radius:3px;padding:1px 5px;margin:1px 2px;font-size:11px;cursor:default;">'
+            + _surverElimEscape(g) + '</span>';
+        }).join('');
+        html += '<tr>'
+            + '<td>' + (i + 1) + '</td>'
+            + '<td>' + _surverElimEscape(subTypeLabel) + '</td>'
+            + '<td>' + _surverElimEscape(it.proCode || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.topicName || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.companyName || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.declareAccount || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.groupName || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.expertGroupName || '-') + '</td>'
+            // + '<td>' + (it.gradeA || 0) + '</td>'
+            // + '<td>' + (it.gradeB || 0) + '</td>'
+            // + '<td>' + (it.gradeC || 0) + '</td>'
+            // + '<td><b style="color:#d9534f;">' + (it.gradeD || 0) + '</b></td>'
+            + '<td>' + grades + '</td>'
+            + '<td>' + statusHtml + '</td>'
+            + '<td>' + actionHtml + '</td>'
+            + '</tr>';
+    }
+    tbody.html(html);
+}
+
+/** 确认淘汰 - 写子表 eliminated=1 */
+function onConfirmEliminate(proSubType, proId) {
+    layer.confirm('确认将该项目设置为"已淘汰"？', { btn: ['确定', '取消'] }, function(idx) {
+        layer.close(idx);
+        $.ajax({
+            type: 'POST',
+            url: SURVER_ELIM_PREFIX + '/setEliminated',
+            data: { proSubType: proSubType, proId: proId, eliminated: 1 },
+            success: function(r) {
+                if (r.code === 0) {
+                    layer.msg(r.msg || '已确认淘汰', { icon: 1 });
+                    loadEliminateCandidates();
+                } else {
+                    layer.msg(r.msg || '操作失败', { icon: 2 });
+                }
+            },
+            error: function() { layer.msg('请求失败', { icon: 2 }); }
+        });
+    });
+}
+
+/** 取消淘汰 - 写子表 eliminated=0 */
+function onCancelEliminate(proSubType, proId) {
+    layer.confirm('确认取消该项目的"已淘汰"标记？', { btn: ['确定', '取消'] }, function(idx) {
+        layer.close(idx);
+        $.ajax({
+            type: 'POST',
+            url: SURVER_ELIM_PREFIX + '/setEliminated',
+            data: { proSubType: proSubType, proId: proId, eliminated: 0 },
+            success: function(r) {
+                if (r.code === 0) {
+                    layer.msg(r.msg || '已取消淘汰', { icon: 1 });
+                    loadEliminateCandidates();
+                } else {
+                    layer.msg(r.msg || '操作失败', { icon: 2 });
+                }
+            },
+            error: function() { layer.msg('请求失败', { icon: 2 }); }
+        });
+    });
+}
+
+/** 拉取已确认淘汰列表 */
+function loadEliminateConfirmed() {
+    var taskId = $("#taskId").val();
+    $("#surverElimConfirmedBody").html('<tr><td colspan="11" style="text-align:center;color:#999;">加载中...</td></tr>');
+    $.ajax({
+        type: 'GET',
+        url: SURVER_ELIM_PREFIX + '/listConfirmed',
+        data: { taskId: taskId },
+        success: function(r) {
+            if (r.code !== 0) { layer.msg(r.msg || '加载失败', { icon: 2 }); return; }
+            _surverElimConfirmed = r.list || [];
+            _renderEliminateConfirmed(_surverElimConfirmed);
+        },
+        error: function() { layer.msg('加载已确认列表失败', { icon: 2 }); }
+    });
+}
+
+function _renderEliminateConfirmed(list) {
+    var tbody = $("#surverElimConfirmedBody");
+    if (!list || list.length === 0) {
+        tbody.html('<tr><td colspan="11" style="text-align:center;color:#999;">暂无已确认淘汰项目</td></tr>');
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+        var it = list[i];
+        var subTypeLabel = SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || '-');
+        var grades = (it.expertGrades || '').split('|').filter(function(s){ return s; }).map(function(s) {
+            var parts = s.split(':'); var name = parts[0] || ''; var g = parts[1] || '-';
+            var color = (g === 'D') ? '#d9534f' : (g === 'C' ? '#f0ad4e' : (g === 'A' ? '#5cb85c':'#5bc0de'));
+            return '<span title="' + _surverElimEscape(name) + '" style="display:inline-block;background:'
+            + color
+            + ';color:#fff;border-radius:3px;padding:1px 5px;margin:1px 2px;font-size:11px;cursor:default;">'
+            + _surverElimEscape(g) + '</span>';
+        }).join('');
+        html += '<tr>'
+            + '<td>' + (i + 1) + '</td>'
+            + '<td>' + _surverElimEscape(subTypeLabel) + '</td>'
+            + '<td>' + _surverElimEscape(it.proCode || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.topicName || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.companyName || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.declareAccount || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.groupName || '-') + '</td>'
+            + '<td>' + _surverElimEscape(it.expertGroupName || '-') + '</td>'
+            + '<td>' + grades + '</td>'
+            + '<td><span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span></td>'
+            + '<td><button class="btn btn-xs btn-default" onclick="onCancelEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">取消淘汰</button></td>'
+            + '</tr>';
+    }
+    tbody.html(html);
+}
+
+// ---------------- 导出（客户端 XLSX）----------------
+
+function _surverElimEnsureXlsx(cb) {
+    if (typeof XLSX !== 'undefined') { cb(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.onload = function() { cb(); };
+    s.onerror = function() { layer.msg('Excel 库加载失败，请检查网络', { icon: 2 }); };
+    document.head.appendChild(s);
+}
+
+function exportEliminateCandidatesExcel() {
+    if (!_surverElimCandidates || _surverElimCandidates.length === 0) {
+        layer.msg('暂无数据可导出', { icon: 0 }); return;
+    }
+    _surverElimEnsureXlsx(function() {
+        var header = ['序号', '类别', '申报编号', '项目名称', '申报单位', 'A', 'B', 'C', 'D', '专家评级', '淘汰状态'];
+        var aoa = [header];
+        _surverElimCandidates.forEach(function(it, idx) {
+            aoa.push([
+                idx + 1,
+                SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || ''),
+                it.proCode || '',
+                it.topicName || '',
+                it.companyName || '',
+                it.gradeA || 0, it.gradeB || 0, it.gradeC || 0, it.gradeD || 0,
+                (it.expertGrades || '').replace(/\|/g, ', '),
+                (it.eliminated == 1) ? '已淘汰' : '未淘汰'
+            ]);
+        });
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{wch:6},{wch:14},{wch:14},{wch:30},{wch:24},{wch:5},{wch:5},{wch:5},{wch:5},{wch:36},{wch:10}];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '候选淘汰池');
+        XLSX.writeFile(wb, '勘察奖_候选淘汰池.xlsx');
+    });
+}
+
+function exportEliminateConfirmedExcel() {
+    if (!_surverElimConfirmed || _surverElimConfirmed.length === 0) {
+        layer.msg('暂无数据可导出', { icon: 0 }); return;
+    }
+    _surverElimEnsureXlsx(function() {
+        var header = ['序号', '类别', '申报编号', '项目名称', '申报单位', '申报账号', '分组', '专家分组'];
+        var aoa = [header];
+        _surverElimConfirmed.forEach(function(it, idx) {
+            aoa.push([
+                idx + 1,
+                SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || ''),
+                it.proCode || '',
+                it.topicName || '',
+                it.companyName || '',
+                it.declareAccount || '',
+                it.groupName || '',
+                it.expertGroupName || ''
+            ]);
+        });
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [{wch:6},{wch:14},{wch:14},{wch:30},{wch:24},{wch:16},{wch:14},{wch:16}];
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '已确认淘汰');
+        XLSX.writeFile(wb, '勘察奖_已确认淘汰名单.xlsx');
+    });
+}
+
+// ---------------- 导入（客户端解析 + 串行调 setEliminated）----------------
+
+function triggerImportEliminateExcel() {
+    $("#surverElimImportFile").val('');   // 清空，允许重复选同一文件
+    $("#surverElimImportFile").trigger('click');
+}
+
+function onImportEliminateExcel(evt) {
+    var file = evt.target.files && evt.target.files[0];
+    if (!file) return;
+    _surverElimEnsureXlsx(function() {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var wb = XLSX.read(e.target.result, { type: 'array' });
+                var ws = wb.Sheets[wb.SheetNames[0]];
+                var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                // 跳过表头：自动判断第一行第 1 列是否为"申报编号"或"proCode"
+                var startIdx = 0;
+                if (rows.length && rows[0] && /(申报编号|proCode|编号|code)/i.test(String(rows[0][0]))) {
+                    startIdx = 1;
+                }
+                var proCodes = [];
+                for (var i = startIdx; i < rows.length; i++) {
+                    var c = rows[i] && rows[i][0];
+                    if (c == null) continue;
+                    c = String(c).trim();
+                    if (c) proCodes.push(c);
+                }
+                if (proCodes.length === 0) {
+                    layer.msg('未读取到任何申报编号', { icon: 2 });
+                    return;
+                }
+                _surverElimDoImport(proCodes);
+            } catch (err) {
+                console.error(err);
+                layer.msg('解析 Excel 失败：' + err.message, { icon: 2 });
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+function _surverElimDoImport(proCodes) {
+    var taskId = $("#taskId").val();
+    var loadIdx = layer.load(1, { shade: [0.3, '#000'] });
+    var success = 0, fail = 0, notFound = [];
+    var i = 0;
+    function next() {
+        if (i >= proCodes.length) {
+            layer.close(loadIdx);
+            var msg = '导入完成：成功 ' + success + ' 条，失败 ' + fail + ' 条';
+            if (notFound.length) msg += '；未找到：' + notFound.slice(0, 5).join(',') + (notFound.length > 5 ? '...' : '');
+            layer.alert(msg, { icon: success > 0 ? 1 : 2 });
+            loadEliminateCandidates();
+            return;
+        }
+        var code = proCodes[i++];
+        $.ajax({
+            type: 'GET',
+            url: SURVER_ELIM_PREFIX + '/findByProCode',
+            data: { taskId: taskId, proCode: code },
+            success: function(r) {
+                if (r.code !== 0 || !r.data) {
+                    fail++; notFound.push(code); next(); return;
+                }
+                var info = r.data;
+                $.ajax({
+                    type: 'POST',
+                    url: SURVER_ELIM_PREFIX + '/setEliminated',
+                    data: { proSubType: info.proSubType, proId: info.proId, eliminated: 1 },
+                    success: function(rr) {
+                        if (rr.code === 0) success++; else fail++;
+                        next();
+                    },
+                    error: function() { fail++; next(); }
+                });
+            },
+            error: function() { fail++; next(); }
+        });
+    }
+    next();
+}
+
+/* ============================================================
+ * 高级筛选 - 应用 / 重置
+ *   - 应用：跳到第 1 页并刷新；queryParams 会自动读取所有 #filterXxx 输入
+ *   - 重置：清空所有 #filterXxx 输入，然后刷新到第 1 页
+ * ============================================================ */
+function applySurverProFilter() {
+    var $tbl = $('#exampleTable');
+    if ($tbl.data('bootstrap.table')) {
+        $tbl.bootstrapTable('selectPage', 1);   // 回到第一页
+        $tbl.bootstrapTable('refresh');
+    }
+}
+
+function resetSurverProFilter() {
+    $("#filterProName").val('');
+    $("#filterApplyCompany").val('');
+    $("#filterMajor").val('');
+    $("#filterDeclareAccount").val('');
+    $("#filterQcGroupName").val('');
+    $("#filterExpertGroupName").val('');
+    $("#filterEliminated").val('');
+    $("#filterProStat").val('');
+    applySurverProFilter();
 }

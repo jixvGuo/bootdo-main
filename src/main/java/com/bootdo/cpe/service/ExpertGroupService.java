@@ -55,4 +55,9 @@ public interface ExpertGroupService {
      */
     int directSave(ExpertGroupDO expertGroupDO);
 
+    /**
+     * 获取指定用户在指定 proType 下绑定的所有不重复 task_id
+     */
+    List<String> getDistinctTaskIdsByUserAndProType(String userId, String proType);
+
 }

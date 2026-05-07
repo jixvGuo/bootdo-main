@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bootdo.cpe.dao.SurverExpertEliminateDao">
+
+    <sql id="cols">
+        `id`,`task_id` AS taskId,`pro_id` AS proId,`pro_sub_type` AS proSubType,
+        `pro_code` AS proCode,`topic_name` AS topicName,`company_name` AS companyName,
+        `group_name` AS groupName,`expert_uid` AS expertUid,`expert_name` AS expertName,
+        `grade`,`remark`,`deleted`,`created`,`updated`
+    </sql>
+
+    <select id="get" resultType="com.bootdo.cpe.domain.SurverExpertEliminateDO">
+        select <include refid="cols"/> from ass_surver_expert_eliminate where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.SurverExpertEliminateDO">
+        select <include refid="cols"/> from ass_surver_expert_eliminate
+        <where>
+            <if test="id != null"> and id = #{id} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="proSubType != null and proSubType != ''"> and pro_sub_type = #{proSubType} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="grade != null and grade != ''"> and grade = #{grade} </if>
+            <if test="deleted != null"> and deleted = #{deleted} </if>
+        </where>
+        order by id desc
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_surver_expert_eliminate
+        <where>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="proSubType != null and proSubType != ''"> and pro_sub_type = #{proSubType} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="deleted != null"> and deleted = #{deleted} </if>
+        </where>
+    </select>
+
+    <select id="getByUnique" resultType="com.bootdo.cpe.domain.SurverExpertEliminateDO">
+        select <include refid="cols"/>
+        from ass_surver_expert_eliminate
+        where task_id = #{taskId} and pro_id = #{proId} and expert_uid = #{expertUid}
+        limit 1
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.SurverExpertEliminateDO"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into ass_surver_expert_eliminate
+        (`task_id`,`pro_id`,`pro_sub_type`,`pro_code`,`topic_name`,`company_name`,`group_name`,
+         `expert_uid`,`expert_name`,`grade`,`remark`,`deleted`,`created`,`updated`)
+        values
+        (#{taskId},#{proId},#{proSubType},#{proCode},#{topicName},#{companyName},#{groupName},
+         #{expertUid},#{expertName},#{grade},#{remark},0,now(),now())
+    </insert>
+
+    <update id="update" parameterType="com.bootdo.cpe.domain.SurverExpertEliminateDO">
+        update ass_surver_expert_eliminate
+        <set>
+            <if test="proCode != null">`pro_code` = #{proCode}, </if>
+            <if test="topicName != null">`topic_name` = #{topicName}, </if>
+            <if test="companyName != null">`company_name` = #{companyName}, </if>
+            <if test="groupName != null">`group_name` = #{groupName}, </if>
+            <if test="expertName != null">`expert_name` = #{expertName}, </if>
+            <if test="grade != null">`grade` = #{grade}, </if>
+            <if test="remark != null">`remark` = #{remark}, </if>
+            <if test="deleted != null">`deleted` = #{deleted}, </if>
+            `updated` = now()
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="remove">
+        delete from ass_surver_expert_eliminate where id = #{value}
+    </delete>
+
+    <update id="batchSoftDeleteByTaskId">
+        update ass_surver_expert_eliminate set deleted = 1, updated = now()
+        where task_id = #{taskId} and deleted = 0
+    </update>
+
+    <!-- ============================================================== -->
+    <!-- Phase B: 管理员"淘汰管理"弹窗用 - 候选汇总(按 task+pro 聚合 + A/B/C/D 计数) -->
+    <!--   左联 4 张申报子表 → 取 eliminated 当前值 (admin侧持久化的"淘汰状态")    -->
+    <!-- ============================================================== -->
+    <!-- 修复：原 SQL 用 MAX(e.topic_name)/MAX(e.company_name) 取 snapshot 字段，
+              但 saveGrade 入参不含 topicName/companyName，导致这两列为 NULL，
+              页面"项目名称""申报单位"显示空。
+              改为 LEFT JOIN ass_award_enterprise_project + sys_user/sys_dept，
+              与 listConfirmedEliminated 同源，保证数据可靠。 -->
+    <select id="aggregateCandidates" resultType="java.util.HashMap">
+        SELECT
+            e.task_id      AS taskId,
+            e.pro_id       AS proId,
+            e.pro_sub_type AS proSubType,
+            MAX(e.pro_code)     AS proCode,
+            <!-- 原快照字段写法（已注释保留） -->
+            <!-- MAX(e.topic_name)   AS topicName, -->
+            <!-- MAX(e.company_name) AS companyName, -->
+            <!-- 改为从项目表取真实数据 -->
+            MAX(p.chengguo)     AS topicName,
+            MAX(sd.name)        AS companyName,
+            MAX(e.group_name)   AS groupName,
+            MAX(p.declare_account) AS declareAccount,
+            (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ')
+               FROM ass_award_pro_expert_group peg
+               JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid
+              WHERE peg.proid = e.pro_id) AS expertGroupName,
+            SUM(CASE WHEN e.grade='A' THEN 1 ELSE 0 END) AS gradeA,
+            SUM(CASE WHEN e.grade='B' THEN 1 ELSE 0 END) AS gradeB,
+            SUM(CASE WHEN e.grade='C' THEN 1 ELSE 0 END) AS gradeC,
+            SUM(CASE WHEN e.grade='D' THEN 1 ELSE 0 END) AS gradeD,
+            SUM(CASE WHEN e.grade IS NULL OR e.grade = '' THEN 1 ELSE 0 END) AS gradeEmpty,
+            COUNT(*) AS totalRows,
+            GROUP_CONCAT(CONCAT_WS(':', IFNULL(e.expert_name,''), IFNULL(e.grade,'-')) ORDER BY e.expert_uid SEPARATOR '|') AS expertGrades,
+            CASE e.pro_sub_type
+                WHEN 'design'       THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'software'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                ELSE 0
+            END AS eliminated
+        FROM ass_surver_expert_eliminate e
+        LEFT JOIN ass_award_enterprise_project p ON p.id = e.pro_id
+        LEFT JOIN sys_user su ON su.user_id = p.create_uid
+        LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
+        WHERE e.task_id = #{taskId}
+          AND e.deleted = 0
+        <if test="proSubType != null and proSubType != ''">
+          AND e.pro_sub_type = #{proSubType}
+        </if>
+        GROUP BY e.task_id, e.pro_id, e.pro_sub_type
+        ORDER BY gradeD DESC, gradeC DESC, e.pro_sub_type, e.pro_id
+    </select>
+
+    <!-- ============================================================== -->
+    <!-- Phase B: 管理员设置/取消"淘汰状态" → 路由到 4 张申报子表的 eliminated 字段 -->
+    <!--   注意: pro_sub_type=consulting 不在 Phase A 加字段范围, 调用方需先校验    -->
+    <!-- ============================================================== -->
+    <update id="updateEliminatedBySubType">
+        <choose>
+            <when test="proSubType == 'design'">
+                UPDATE ass_surver_design_apply_table_info    SET eliminated = #{eliminated} WHERE pro_id = #{proId}
+            </when>
+            <when test="proSubType == 'software'">
+                UPDATE ass_surver_soft_apply_table_info      SET eliminated = #{eliminated} WHERE pro_id = #{proId}
+            </when>
+            <when test="proSubType == 'standard'">
+                UPDATE ass_surver_standard_apply_table_info  SET eliminated = #{eliminated} WHERE pro_id = #{proId}
+            </when>
+            <when test="proSubType == 'contribution'">
+                UPDATE ass_surver_excellent_apply_table_info SET eliminated = #{eliminated} WHERE pro_id = #{proId}
+            </when>
+            <otherwise>
+                <!-- 不支持的 proSubType (如 consulting), 退化为 0 行更新 -->
+                UPDATE ass_surver_expert_eliminate SET id = id WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </update>
+
+    <!-- 新增：如果子表没有记录则插入一条最小记录（仅含 pro_id + eliminated） -->
+    <insert id="insertMinimalIfNotExists">
+        <choose>
+            <when test="proSubType == 'design'">
+                INSERT INTO ass_surver_design_apply_table_info (pro_id, eliminated)
+                SELECT #{proId}, #{eliminated} FROM dual
+                WHERE NOT EXISTS (SELECT 1 FROM ass_surver_design_apply_table_info WHERE pro_id = #{proId})
+            </when>
+            <when test="proSubType == 'software'">
+                INSERT INTO ass_surver_soft_apply_table_info (pro_id, eliminated)
+                SELECT #{proId}, #{eliminated} FROM dual
+                WHERE NOT EXISTS (SELECT 1 FROM ass_surver_soft_apply_table_info WHERE pro_id = #{proId})
+            </when>
+            <when test="proSubType == 'standard'">
+                INSERT INTO ass_surver_standard_apply_table_info (pro_id, eliminated)
+                SELECT #{proId}, #{eliminated} FROM dual
+                WHERE NOT EXISTS (SELECT 1 FROM ass_surver_standard_apply_table_info WHERE pro_id = #{proId})
+            </when>
+            <when test="proSubType == 'contribution'">
+                INSERT INTO ass_surver_excellent_apply_table_info (pro_id, eliminated)
+                SELECT #{proId}, #{eliminated} FROM dual
+                WHERE NOT EXISTS (SELECT 1 FROM ass_surver_excellent_apply_table_info WHERE pro_id = #{proId})
+            </when>
+        </choose>
+    </insert>
+
+    <!-- 列出某 task 下 4 张子表中已被淘汰(eliminated=1)的项目, 用于"已确认淘汰"列表 -->
+    <select id="listConfirmedEliminated" resultType="java.util.HashMap">
+        SELECT
+            'design' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
+            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            p.declare_account AS declareAccount,
+            (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'design' AND e2.deleted = 0) AS expertGrades
+          FROM ass_surver_design_apply_table_info t
+          JOIN ass_award_enterprise_project p ON p.id = t.pro_id
+          LEFT JOIN sys_user su ON su.user_id = p.create_uid
+          LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
+         WHERE t.eliminated = 1 AND p.publish_task_id = #{taskId}
+        UNION ALL
+        SELECT
+            'software' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
+            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            p.declare_account AS declareAccount,
+            (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'software' AND e2.deleted = 0) AS expertGrades
+          FROM ass_surver_soft_apply_table_info t
+          JOIN ass_award_enterprise_project p ON p.id = t.pro_id
+          LEFT JOIN sys_user su ON su.user_id = p.create_uid
+          LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
+         WHERE t.eliminated = 1 AND p.publish_task_id = #{taskId}
+        UNION ALL
+        SELECT
+            'standard' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
+            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            p.declare_account AS declareAccount,
+            (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'standard' AND e2.deleted = 0) AS expertGrades
+          FROM ass_surver_standard_apply_table_info t
+          JOIN ass_award_enterprise_project p ON p.id = t.pro_id
+          LEFT JOIN sys_user su ON su.user_id = p.create_uid
+          LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
+         WHERE t.eliminated = 1 AND p.publish_task_id = #{taskId}
+        UNION ALL
+        SELECT
+            'contribution' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
+            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            p.declare_account AS declareAccount,
+            (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'contribution' AND e2.deleted = 0) AS expertGrades
+          FROM ass_surver_excellent_apply_table_info t
+          JOIN ass_award_enterprise_project p ON p.id = t.pro_id
+          LEFT JOIN sys_user su ON su.user_id = p.create_uid
+          LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
+         WHERE t.eliminated = 1 AND p.publish_task_id = #{taskId}
+        ORDER BY proSubType, proId
+    </select>
+
+    <!-- 统计该专家在该任务下通过专家分组关联可见的项目总数（与 SurverAwardMapper.listProInfo 保持一致） -->
+    <select id="countAssignedProjects" resultType="int">
+        SELECT COUNT(DISTINCT pro.id)
+          FROM ass_award_enterprise_project pro
+          JOIN ass_award_pro_expert_group peg ON peg.proid = pro.id
+          JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid
+          JOIN add_special_info si ON si.group_name = eg.name
+               AND si.user_id = #{uid}
+               AND si.pro_type = 'surver_pro_group'
+               AND si.deleted = 0
+         WHERE pro.pro_type = 'surver_pro'
+           AND pro.publish_task_id = #{taskId}
+    </select>
+
+    <!-- 查询项目快照信息（补全评级冗余字段用） -->
+    <select id="getProjectSnapshotInfo" resultType="java.util.HashMap">
+        SELECT
+            p.pro_result_code AS proCode,
+            IFNULL(p.chengguo, (SELECT cbi.chengguo_name FROM ass_enterprise_chengguo_base_info cbi WHERE cbi.pro_id = p.id LIMIT 1)) AS topicName,
+            (SELECT eg.name FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id LIMIT 1) AS groupName,
+            (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = p.create_uid LIMIT 1) AS companyName
+        FROM ass_award_enterprise_project p
+        WHERE p.id = #{proId}
+        LIMIT 1
+    </select>
+
+    <!-- 按 proCode 反查 (taskId, proId, proSubType), 用于"按申报编号导入淘汰名单" -->
+    <select id="findProInfoByProCode" resultType="java.util.HashMap">
+        SELECT id AS proId, pro_code AS proCode, pro_sub_type AS proSubType
+          FROM ass_award_enterprise_project
+         WHERE publish_task_id = #{taskId}
+           AND pro_code = #{proCode}
+           AND pro_type = 'surver_pro'
+         LIMIT 1
+    </select>
+
+</mapper>

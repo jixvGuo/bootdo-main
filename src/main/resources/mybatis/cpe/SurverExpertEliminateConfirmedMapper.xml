@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bootdo.cpe.dao.SurverExpertEliminateConfirmedDao">
+
+    <sql id="cols">
+        `id`,`task_id` AS taskId,`pro_id` AS proId,`pro_sub_type` AS proSubType,
+        `pro_code` AS proCode,`topic_name` AS topicName,`company_name` AS companyName,
+        `group_name` AS groupName,`expert_uid` AS expertUid,`expert_name` AS expertName,
+        `grade`,`remark`,`confirmed_at` AS confirmedAt
+    </sql>
+
+    <select id="get" resultType="com.bootdo.cpe.domain.SurverExpertEliminateConfirmedDO">
+        select <include refid="cols"/> from ass_surver_expert_eliminate_confirmed where id = #{value}
+    </select>
+
+    <select id="list" resultType="com.bootdo.cpe.domain.SurverExpertEliminateConfirmedDO">
+        select <include refid="cols"/> from ass_surver_expert_eliminate_confirmed
+        <where>
+            <if test="id != null"> and id = #{id} </if>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="proSubType != null and proSubType != ''"> and pro_sub_type = #{proSubType} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+            <if test="grade != null and grade != ''"> and grade = #{grade} </if>
+        </where>
+        order by id desc
+    </select>
+
+    <select id="count" resultType="int">
+        select count(*) from ass_surver_expert_eliminate_confirmed
+        <where>
+            <if test="taskId != null and taskId != ''"> and task_id = #{taskId} </if>
+            <if test="proId != null"> and pro_id = #{proId} </if>
+            <if test="proSubType != null and proSubType != ''"> and pro_sub_type = #{proSubType} </if>
+            <if test="expertUid != null"> and expert_uid = #{expertUid} </if>
+        </where>
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.SurverExpertEliminateConfirmedDO"
+            useGeneratedKeys="true" keyProperty="id">
+        insert into ass_surver_expert_eliminate_confirmed
+        (`task_id`,`pro_id`,`pro_sub_type`,`pro_code`,`topic_name`,`company_name`,`group_name`,
+         `expert_uid`,`expert_name`,`grade`,`remark`,`confirmed_at`)
+        values
+        (#{taskId},#{proId},#{proSubType},#{proCode},#{topicName},#{companyName},#{groupName},
+         #{expertUid},#{expertName},#{grade},#{remark},now())
+    </insert>
+
+    <delete id="remove">
+        delete from ass_surver_expert_eliminate_confirmed where id = #{value}
+    </delete>
+
+    <insert id="copyFromActiveByExpertAndTask">
+        insert into ass_surver_expert_eliminate_confirmed
+        (`task_id`,`pro_id`,`pro_sub_type`,`pro_code`,`topic_name`,`company_name`,`group_name`,
+         `expert_uid`,`expert_name`,`grade`,`remark`,`confirmed_at`)
+        select e.`task_id`,e.`pro_id`,e.`pro_sub_type`,e.`pro_code`,e.`topic_name`,e.`company_name`,
+               e.`group_name`,e.`expert_uid`,e.`expert_name`,e.`grade`,e.`remark`,now()
+        from ass_surver_expert_eliminate e
+        where e.expert_uid = #{expertUid}
+          and e.task_id    = #{taskId}
+          and e.deleted    = 0
+    </insert>
+
+    <delete id="deleteByExpertAndTask">
+        delete from ass_surver_expert_eliminate_confirmed
+        where expert_uid = #{expertUid} and task_id = #{taskId}
+    </delete>
+
+</mapper>

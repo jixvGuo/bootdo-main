@@ -1,3 +1,26 @@
+﻿/* ============================================================================
+ * 文件：award_task_list.js
+ * 作用：申报任务管理列表页（左侧菜单 → "申报任务管理"）的前端动态交互
+ *
+ * ★ 多奖项共用同一个页面 ★
+ *   本列表页通过 localStorage.enterType（即 awardId）区分当前进入的奖项：
+ *     awardId == 1  科技进步奖
+ *     awardId == 2  勘察设计奖（勘察奖）  ← 本项目重点维护对象
+ *     awardId == 3  QC 质量管理奖
+ *     awardId == 4  优质工程奖
+ *     awardId == 5  工法奖
+ *
+ *   ⚠ 因此操作列 formatter 中大量 if(row.awardId == X) 分支并不是冗余，
+ *     而是同一行数据按当前奖项类型展示不同按钮、跳转不同后端 URL。
+ *
+ * 主要结构：
+ *   - 工具函数：QC 任务阶段判断、申报按钮状态、协会角色矩阵等
+ *   - load()：初始化 bootstrapTable，定义列与数据请求
+ *   - 操作列 formatter：按奖项 + 角色生成按钮 HTML（详见函数内分支注释）
+ *   - 各类入口函数：applyAward / applySurverAward / surverProList 等
+ *   - 任务打分情况弹窗 & 导出（_awardShowTaskScoresModal / exportTaskScoreMatrix）
+ * ============================================================================ */
+
 // 动态交互和数据处理
 var prefix = "/award_flow"
 // 页面初始化
@@ -452,10 +475,22 @@ function load() {
 						field:"selSpecialist",
 						title:"是否选择专家"
 					},
+					/* ----------------------------------------------------------------
+					 * 操作列：所有奖项共用此 formatter，按 awardId + 角色返回不同按钮组合
+					 *   awardId == 1 科技进步奖 / 2 勘察设计奖(重点) / 3 QC奖 / 4 优质工程奖 / 5 工法奖
+					 * 返回分支：
+					 *   分支1: QC(3) + 协会管理角色   按任务阶段矩阵显示按钮
+					 *   分支2: QC(3) + 企业用户         仅 "申报 + 查看"
+					 *   分支3: 默认（含勘察奖2）        项目列表/申报/编辑/专业组管理/分派 等
+					 * UI : flex 布局保证按钮居左对齐 + 自动换行（width:420 / align:left）
+					 * ---------------------------------------------------------------- */
 					{
 						title : '操作',
 						field : 'operation',
-						align : 'center',
+						align : 'left',
+						// 新增：表头同样居左对齐（不删除原 align，仅补充表头对齐）
+						halign : 'left',
+						width : 420,
 						formatter : function(value, row, index) {
 							var asssociationProList = '<a class="btn btn-primary btn-sm ' + s_assciation_prolist + '" href="#" mce_href="#" title="查看" onclick="viewProList(\''
 								+ row.id
@@ -486,8 +521,14 @@ function load() {
 							var isSpecialAdmin = '';
 							// 科技进步奖的专家分派页面
 							let specGroupAdminUrl = '/scienceProgressScience/toAssignExperts?taskId='+row.id+"&proType=science_progress";
+							if (row.awardId == 2) {
+								// 勘察奖：专业组管理跳转到专用页面，且始终显示
+								specGroupAdminUrl = '/cpe/suverProcess/toSurverMajorGroupAdmin?taskId=' + row.id + '&proType=surver_pro_group';
+							}
 							let managementBtn = row.isSpecialAdmin ? s_management_h : 'hidden';
-							// 作用域：所有非QC奖的任务（科技奖、勘察奖、优质工程奖等）
+							if (row.awardId == 2) {
+								managementBtn = s_management_h;
+							}
 							var f = '<a class="btn btn-primary btn-sm ' +
 								managementBtn + '" ' +
 								isSpecialAdmin +
@@ -698,7 +739,13 @@ function load() {
 										+ row.id + '\',\'import_check_result_qc\')">导入形式审查结果</a> '
 									: '';
 
+								// === 分支1 return：QC管理员（按阶段矩阵） ===
 								// 第3步修改：QC角色冲突按钮不拼（企业列表/其他奖项申报入口）
+								// === 美化前（已注释，保留参考）===
+								// return '<div style="display:flex;flex-wrap:wrap;gap:6px;row-gap:6px;align-items:center;">' + qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcExpertGroupBtn + qcDeleteBtn + '</div>';
+								// === 美化后（已注释，保留参考）===
+								// return '<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:6px;row-gap:6px;text-align:left;padding:4px 6px;">' + qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcExpertGroupBtn + qcDeleteBtn + '</div>';
+								// === 终版：参考 QC 视觉，使用 .op-btn-bar 类，按钮高度/字号/阴影统一 ===
 								return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcExpertGroupBtn + qcDeleteBtn;
 								// return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn + qcAssignBtn + qcDeleteBtn;
 							}
@@ -708,17 +755,29 @@ function load() {
 							// 	return qcProListBtn + qcImportBtn + qcViewBtn + qcEditBtn  + qcAssignBtn + qcDeleteBtn;
 							// }
 
+							// === 分支2：QC企业用户 ===
 							if (row.awardId == 3 && !isQcManagerRole()) {
 								// 企业矩阵：只保留项目列表 + 申报入口
-								return applyQcBtn+a;
+								// === 美化前（已注释，保留参考）===
+								// return '<div style="display:flex;flex-wrap:wrap;gap:6px;row-gap:6px;align-items:center;">' + applyQcBtn + a + '</div>';
+								// === 美化后（已注释，保留参考）===
+								// return '<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:6px;row-gap:6px;text-align:left;padding:4px 6px;">' + applyQcBtn + a + '</div>';
+								// === 终版：参考 QC 视觉，使用 .op-btn-bar 类 ===
+								return applyQcBtn + a;
 							}
 
                             let cleanProBtn = '<a class="btn btn-success btn-sm ' + s_task_pro_clean_btn + '" href="#" title="删除全部项目"  mce_href="#" onclick="cleanTaskAllPro(\''
                                               								+ row.id
                                               								+ '\')">删除</a> ';
 							// return proListBtn + applyAwardBtn + surverEnterListBtn + checkResultImportBtn + applyQcBtn + applyGfBtn + asssociationProList + a +file + e + d +  i + j + ha + f+ g + cleanProBtn;
+							// === 分支3 return：默认（勘察奖2/科技奖1/工法奖5/优质工程奖4） ===
 							// 第2步修改：不再拼接 surverEnterListBtn（企业列表），保留QC项目申报按钮
-							return proListBtn + applyAwardBtn + checkResultImportBtn + applyQcBtn + applyGfBtn + asssociationProList + a + file + e + d + i + j + ha + f + g + cleanProBtn;
+							// === 美化前（已注释，保留参考）===
+							// return '<div style="display:flex;flex-wrap:wrap;gap:6px;row-gap:6px;align-items:center;">' + proListBtn + applyAwardBtn + checkResultImportBtn + applyQcBtn + applyGfBtn + asssociationProList + a + file + e + d + f + i + j + ha + g + cleanProBtn + '</div>';
+							// === 美化后（已注释，保留参考）===
+							// return '<div style="display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:6px;row-gap:6px;text-align:left;padding:4px 6px;">' + proListBtn + applyAwardBtn + checkResultImportBtn + applyQcBtn + applyGfBtn + asssociationProList + a + file + e + d + f + i + j + ha + g + cleanProBtn + '</div>';
+							// === 终版：参考 QC 视觉，使用 .op-btn-bar 类 ===
+							return proListBtn + applyAwardBtn + checkResultImportBtn + applyQcBtn + applyGfBtn + asssociationProList + a + file + e + d + f + i + j + ha + g + cleanProBtn;
 						}
 					} ],
 				onPostBody:function (data) {

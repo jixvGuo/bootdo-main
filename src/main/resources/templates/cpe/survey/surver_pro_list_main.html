@@ -9,36 +9,53 @@
             <div class="col-sm-12">
                 <div class="tabs-container">
                     <ul class="nav nav-tabs">
-                        <li class="active"><a data-toggle="tab" href="#basic-1" aria-expanded="true"> 石油工程建设优秀勘察奖</a> </li>
-                        <li class=""><a data-toggle="tab" href="#basic-2" onclick="againload('basic-2')" aria-expanded="false">石油工程建设优秀设计奖</a> </li>
-                        <li class=""><a data-toggle="tab" href="#basic-3" onclick="againload('basic-3')" aria-expanded="false">石油工程建设优秀勘察设计计算机软件奖</a> </li>
-                        <li class=""><a data-toggle="tab" href="#basic-4" onclick="againload('basic-')" aria-expanded="false">石油工程建设优秀标准设计奖</a> </li>
+                        <li class="active">
+                            <a data-toggle="tab" href="#basic-1" aria-expanded="true">
+                            石油工程建设优秀勘察奖</a>
+                        </li>
+                        <li class="">
+                            <a data-toggle="tab" href="#basic-2" onclick="againload('basic-2')" aria-expanded="false">
+                            石油工程建设优秀设计奖</a>
+                        </li>
+                        <li class="">
+                            <a data-toggle="tab" href="#basic-3" onclick="againload('basic-3')" aria-expanded="false">
+                                石油工程建设优秀勘察设计计算机软件奖</a>
+                        </li>
+                        <li class="">
+                            <a data-toggle="tab" href="#basic-4" onclick="againload('basic-')" aria-expanded="false">
+                                石油工程建设优秀标准设计奖</a>
+                        </li>
 <!--                        <li class=""><a data-toggle="tab" href="#basic-5" onclick="againload('basic-2')" aria-expanded="false">石油工程建设优秀咨询奖</a> </li>-->
                     </ul>
                     <div class="tab-content">
                         <div id="basic-1" class="tab-pane active">
                             <div class="panel-body">
-                                <iframe id="contribution" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes" th:src="@{/surverPro/toProList?proSubType=contribution(taskId=${taskId},readonly=${readonly})}"></iframe>
+                                <iframe id="contribution" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes"
+                                        th:src="@{/surverPro/toProList?proSubType=contribution(taskId=${taskId},readonly=${readonly})}"></iframe>
                             </div>
                         </div>
                         <div id="basic-2" class="tab-pane">
                             <div class="panel-body">
-                                <iframe id="design" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes" th:src="@{/surverPro/toProList?proSubType=design(taskId=${taskId},readonly=${readonly})}"></iframe>
+                                <iframe id="design" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes"
+                                        th:src="@{/surverPro/toProList?proSubType=design(taskId=${taskId},readonly=${readonly})}"></iframe>
                             </div>
                         </div>
                         <div id="basic-3" class="tab-pane">
                             <div class="panel-body">
-                                <iframe id="software" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes" th:src="@{/surverPro/toProList?proSubType=software(taskId=${taskId},readonly=${readonly})}"></iframe>
+                                <iframe id="software" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes"
+                                        th:src="@{/surverPro/toProList?proSubType=software(taskId=${taskId},readonly=${readonly})}"></iframe>
                             </div>
                         </div>
                         <div id="basic-4" class="tab-pane">
                             <div class="panel-body">
-                                <iframe id="standard" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes" th:src="@{/surverPro/toProList?proSubType=standard(taskId=${taskId},readonly=${readonly})}"></iframe>
+                                <iframe id="standard" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes"
+                                        th:src="@{/surverPro/toProList?proSubType=standard(taskId=${taskId},readonly=${readonly})}"></iframe>
                             </div>
                         </div>
                         <div id="basic-5" class="tab-pane">
                             <div class="panel-body">
-                                <iframe id="consulting" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes" th:src="@{/surverPro/toProList?proSubType=consulting(taskId=${taskId},readonly=${readonly})}"></iframe>
+                                <iframe id="consulting" style="height: 700px; width: 100%;" frameborder='0' scrolling="yes"
+                                        th:src="@{/surverPro/toProList?proSubType=consulting(taskId=${taskId},readonly=${readonly})}"></iframe>
                             </div>
                         </div>
                     </div>

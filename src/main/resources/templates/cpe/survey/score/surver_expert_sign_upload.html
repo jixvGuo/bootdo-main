@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<!--
+  勘察奖 - 专家签章上传（参考 cpe/qc/score/qc_expert_sign_upload.html）
+  入口：/cpe/suverProcess/toUploadExpertSign?taskId=&loginAccount=&trIndex=
+  提交：/cpe/suverProcess/uploadExpertSign
+-->
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head th:include="include :: header"></head>
+<link href="/css/plugins/dropzone/basic.css" th:href="@{/css/plugins/dropzone/basic.css}" rel="stylesheet">
+<link href="/css/plugins/dropzone/dropzone.css" th:href="@{/css/plugins/dropzone/dropzone.css}" rel="stylesheet">
+<body class="gray-bg">
+<div class="wrapper wrapper-content animated fadeIn">
+    <div class="col-sm-12">
+        <div class="ibox float-e-margins">
+            <div class="ibox-title">
+                <h5>上传专家签章（勘察奖）</h5>
+            </div>
+            <div class="ibox-content">
+                <form id="signDropzone" enctype="multipart/form-data"
+                      class="dropzone" action="/cpe/suverProcess/uploadExpertSign">
+                    <input type="hidden" th:value="${taskId}"    name="taskId"    id="taskId"/>
+                    <input type="hidden" th:value="${expertUid}" name="expertUid" id="expertUid"/>
+                    <input type="hidden" th:value="${trIndex}"   name="trIndex"   id="trIndex"/>
+                    <div class="dropzone-previews"></div>
+                    <div class="dz-default dz-message">将图片拖到此处，或点击上传（支持 jpg / png / gif）</div>
+                    <button type="submit" class="btn btn-primary pull-right">提交</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="/js/jquery.min.js?v=2.1.4"></script>
+<script src="/js/bootstrap.min.js?v=3.3.6"></script>
+<script src="/js/plugins/dropzone/dropzone.js"></script>
+<script>
+    $(document).ready(function () {
+        Dropzone.options.signDropzone = {
+            addRemoveLinks: true,
+            autoProcessQueue: false,
+            uploadMultiple: true,
+            parallelUploads: 1,
+            maxFiles: 1,
+            maxFilesize: 10,
+            acceptedFiles: "image/*",
+            init: function () {
+                var myDropzone = this;
+                this.element.querySelector("button[type=submit]").addEventListener("click", function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (myDropzone.getQueuedFiles().length === 0) {
+                        alert("请先选择签章图片");
+                        return;
+                    }
+                    myDropzone.processQueue();
+                });
+                this.on("successmultiple", function (files, response) {
+                    if (response.code !== 0) {
+                        alert("上传失败：" + response.msg);
+                        return;
+                    }
+                    var fileUrl = response.fileUrl;
+                    var trIndex = $("#trIndex").val();
+                    // 通知父窗口刷新该行的签章预览（与 JS 中 onAddSign 约定一致）
+                    if (parent && typeof parent.onSignUploaded === 'function') {
+                        parent.onSignUploaded(trIndex, fileUrl);
+                    } else if (parent) {
+                        var imgTag = "<img src=\"" + fileUrl + "\" width='75' height='40'>";
+                        parent.$("#signImg_" + trIndex).html(imgTag);
+                    }
+                    var index = parent.layer.getFrameIndex(window.name);
+                    parent.layer.close(index);
+                });
+                this.on("errormultiple", function (files, message) {
+                    alert("上传出错：" + message);
+                });
+            }
+        };
+    });
+</script>
+</body>
+</html>

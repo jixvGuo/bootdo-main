@@ -78,7 +78,6 @@
 			<if test="awardTypeId != null and awardTypeId != ''">and award_id =  #{awardTypeId}</if>
 			<if test="name != null and name != ''">and task_name like CONCAT('%',#{name},'%')</if>
 		    <if test="isOutWorker">
-               and now() between pt.check_start_time and pt.check_end_time
                and exists(
                    select 1
                    from ass_award_enterprise_project pro
@@ -89,6 +88,16 @@
 			</if>
 			<if test="isSpecialist">
                 and exists(SELECT * FROM add_special_info where user_id = #{specialUid} and task_id = pt.id and deleted = 0)
+			</if>
+			<!-- 新增：勘察奖小组联络人(86)按 surver_view_scope 绑定记录过滤任务 -->
+			<if test="isSurverGroupContact">
+				and exists(
+					SELECT 1 FROM add_special_info
+					WHERE user_id = #{specialUid}
+					AND task_id = pt.id
+					AND pro_type = 'surver_view_scope'
+					AND deleted = 0
+				)
 			</if>
 			<if test="proId != null">
 				and exists(
@@ -164,7 +173,6 @@
 			</if>
 
 			<if test="isOutWorker">
-				and now() between check_start_time and check_end_time
 				and exists(
 					select 1
 					from ass_award_enterprise_project pro
@@ -181,6 +189,16 @@
 				WHERE user_id = #{specialUid}
 				AND task_id = pt.id
 				AND deleted = 0
+				)
+			</if>
+			<!-- 新增：勘察奖小组联络人(86)按 surver_view_scope 绑定记录过滤任务 -->
+			<if test="isSurverGroupContact">
+				and exists(
+					SELECT 1 FROM add_special_info
+					WHERE user_id = #{specialUid}
+					AND task_id = pt.id
+					AND pro_type = 'surver_view_scope'
+					AND deleted = 0
 				)
 			</if>
 		</where>

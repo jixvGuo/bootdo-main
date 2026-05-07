@@ -51,4 +51,9 @@ public interface ExpertGroupDao {
      * 按 userId + taskId + proType 物理删除记录（用于形审专家分组绑定的清理）
      */
     int deleteByUserIdAndTaskIdAndProType(@Param("userId") String userId, @Param("taskId") String taskId, @Param("proType") String proType);
+
+    /**
+     * 获取指定用户在指定 proType 下绑定的所有不重复 task_id
+     */
+    List<String> getDistinctTaskIdsByUserAndProType(@Param("userId") String userId, @Param("proType") String proType);
 }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!--
+  勘察奖 - 小组联络人任务列表页
+  展示当前联络人绑定的所有任务，点击可进入对应任务的专业组管理页
+  路由：/cpe/suverProcess/toSurverContactTaskList
+-->
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head th:include="include :: head"></head>
+
+<body class="gray-bg">
+<div class="wrapper wrapper-content animated fadeInRight" style="padding:20px;">
+
+    <div class="row">
+        <div class="col-sm-12">
+            <div class="ibox">
+                <div class="ibox-title">
+                    <h5><i class="fa fa-list"></i>&nbsp;我的任务列表</h5>
+                    <span class="pull-right" style="color:#888;font-size:13px;">
+                        当前用户：<span th:text="${userName}"></span>
+                    </span>
+                </div>
+                <div class="ibox-content">
+                    <p style="color:#666;margin-bottom:16px;">
+                        以下是您被绑定的勘察奖任务，点击「查看专业组」进入对应任务的专业组管理页面。
+                    </p>
+
+                    <div th:if="${#lists.isEmpty(taskList)}" style="text-align:center;padding:40px 0;color:#999;">
+                        <i class="fa fa-inbox" style="font-size:48px;"></i>
+                        <p style="margin-top:12px;">暂无绑定的任务，请联系管理员进行分组绑定。</p>
+                    </div>
+
+                    <div th:if="${!#lists.isEmpty(taskList)}">
+                        <table class="table table-bordered table-striped table-hover">
+                            <thead>
+                            <tr>
+                                <th style="width:50px;">#</th>
+                                <th>任务名称</th>
+                                <th>申报时间</th>
+                                <th>绑定的专业组</th>
+                                <th style="width:160px;">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="task, stat : ${taskList}">
+                                <td th:text="${stat.index + 1}"></td>
+                                <td>
+                                    <strong th:text="${task.taskName}"></strong>
+                                </td>
+                                <td>
+                                    <span th:text="${task.applyStartDate}"></span>
+                                    <span th:if="${task.applyEndDate != null and task.applyEndDate != ''}">
+                                        ~ <span th:text="${task.applyEndDate}"></span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span th:each="g, gStat : ${task.groupNames}">
+                                        <span class="label label-info" th:text="${g}"></span>
+                                    </span>
+                                    <span th:if="${#lists.isEmpty(task.groupNames)}" style="color:#999;">无</span>
+                                </td>
+                                <td>
+                                    <a class="btn btn-info btn-sm" style="margin-right:4px;"
+                                       th:href="@{/surverPro/toProList(taskId=${task.taskId})}">
+                                        <i class="fa fa-list"></i>&nbsp;项目列表
+                                    </a>
+                                    <a class="btn btn-primary btn-sm"
+                                       th:href="@{/cpe/suverProcess/toSurverMajorGroupAdmin(taskId=${task.taskId})}">
+                                        <i class="fa fa-users"></i>&nbsp;查看专业组
+                                    </a>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div th:include="include::footer"></div>
+</body>
+</html>

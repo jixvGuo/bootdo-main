@@ -27,6 +27,8 @@ public class RoleAwardParamData {
     private boolean isOutWorker;
     //是否为专家
     private boolean isSpecialist;
+    // 新增：是否为勘察奖小组联络人(86)，用于任务列表按 surver_view_scope 过滤
+    private boolean isSurverGroupContact;
 
     public long getRoleId() {
         return roleId;
@@ -74,6 +76,15 @@ public class RoleAwardParamData {
 
     public void setIsSpecialist(boolean specialist) {
         isSpecialist = specialist;
+    }
+
+    // 新增：勘察奖小组联络人(86)标志
+    public boolean getIsSurverGroupContact() {
+        return isSurverGroupContact;
+    }
+
+    public void setIsSurverGroupContact(boolean surverGroupContact) {
+        isSurverGroupContact = surverGroupContact;
     }
 
 //    public static RoleAwardParamData getInstance(List<Long> roleList, String awardId) throws CpeException {
@@ -245,6 +256,24 @@ public class RoleAwardParamData {
                 paramData.setIsSpecialist(true);
                 paramData.setAwardId(awardIdInt);
                 paramData.setRoleId(ROLE_SURVER_SPECALIST_ID);
+                paramData.setType("2");
+                return paramData;
+            }
+            // 原代码：勘察奖小组联络人(86)，使用 isOutWorker（会导致任务列表查不到数据）
+            // if (roleList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
+            //     paramData.setIsAssociation(false);
+            //     paramData.setIsOutWorker(true);
+            //     paramData.setAwardId(awardIdInt);
+            //     paramData.setRoleId(ROLE_SURVER_GROUP_CONTACT_ID);
+            //     paramData.setType("2");
+            //     return paramData;
+            // }
+            // 新代码：勘察奖小组联络人(86)，使用独立标志 isSurverGroupContact，按 surver_view_scope 过滤任务
+            if (roleList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
+                paramData.setIsAssociation(false);
+                paramData.setIsSurverGroupContact(true);
+                paramData.setAwardId(awardIdInt);
+                paramData.setRoleId(ROLE_SURVER_GROUP_CONTACT_ID);
                 paramData.setType("2");
                 return paramData;
             }

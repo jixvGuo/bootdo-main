@@ -114,18 +114,20 @@ public class BaseSurverController extends BaseController {
             //通过企业审查菜单进入的只能查看分派的项目信息
             params.put("ass_assign_uid", uid);
         }
-        // 外聘人员：强制只看分派给自己的项目（优先级高于协会角色）
+        // 勘察奖协会外聘人员(75)：查看全部项目，不按分派过滤（跳过 ass_assign_uid）
         if (roleIds.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)) {
             params.remove("ass_worker_uid");
             params.remove("associationUserId");
-            params.put("ass_assign_uid", uid);
+            params.remove("ass_assign_uid");
             return params;
         }
 
         for (long rid : roleIds) {
-            if (rid == ROLE_ADMIN_ID) {
-                //超级管理员查看全部的项目
+            if (rid == ROLE_ADMIN_ID || rid == ROLE_ASSOCIATION_LEADER) {
+                //超级管理员、协会领导查看全部的项目
                 params.remove("ass_assign_uid");
+                params.remove("ass_worker_uid");
+                params.remove("createUid");
                 break;
             } else if (rid == ROLE_SURVER_ASSOCIATION_ID) {
                 params.put("role", "association_worker");

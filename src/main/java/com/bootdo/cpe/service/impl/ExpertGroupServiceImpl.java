@@ -135,4 +135,9 @@ public class ExpertGroupServiceImpl implements ExpertGroupService {
     public int directSave(ExpertGroupDO expertGroupDO) {
         return expertGroupDao.save(expertGroupDO);
     }
+
+    @Override
+    public List<String> getDistinctTaskIdsByUserAndProType(String userId, String proType) {
+        return expertGroupDao.getDistinctTaskIdsByUserAndProType(userId, proType);
+    }
 }

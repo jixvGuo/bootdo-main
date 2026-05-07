@@ -25,7 +25,7 @@
                pro.pro_stat,
                pro.pro_result_code proCode,
                pro.declare_account declareAccount,
-               ifnull(pro.qc_group_name, pro.pro_group_name) qcGroupName,
+               pro.qc_group_name qcGroupName,
                case pro.pro_sub_type
                    when 'design' then (select r.review_result from ass_surver_review_design_result r where r.pro_id = pro.id order by r.id desc limit 1)
                    when 'software' then (select r.review_result from ass_surver_review_soft_result r where r.pro_id = pro.id order by r.id desc limit 1)
@@ -64,7 +64,19 @@
                        where sdu.pro_id = pro.id and ifnull(sdu.deleted,0) = 0
                    )
                    else ''
-               end memberList
+               end memberList,
+               <!-- Phase B: 管理员淘汰标记，按 pro_sub_type 路由到对应申报子表的 eliminated 字段 -->
+               case pro.pro_sub_type
+                   when 'design'       then (select ifnull(t.eliminated,0) from ass_surver_design_apply_table_info    t where t.pro_id = pro.id order by t.id desc limit 1)
+                   when 'software'     then (select ifnull(t.eliminated,0) from ass_surver_soft_apply_table_info      t where t.pro_id = pro.id order by t.id desc limit 1)
+                   when 'standard'     then (select ifnull(t.eliminated,0) from ass_surver_standard_apply_table_info  t where t.pro_id = pro.id order by t.id desc limit 1)
+                   when 'contribution' then (select ifnull(t.eliminated,0) from ass_surver_excellent_apply_table_info t where t.pro_id = pro.id order by t.id desc limit 1)
+                   else 0
+               end eliminated,
+               <!-- 新增：专家分组名称（通过 ass_award_pro_expert_group + ass_award_expert_group 关联查询） -->
+               (select eg.name from ass_award_pro_expert_group peg
+                join ass_award_expert_group eg on eg.groupid = peg.groupid and eg.taskid = peg.taskid
+                where peg.proid = pro.id limit 1) expertGroupName
                from
                 boot_do.ass_award_enterprise_project pro
                    JOIN
@@ -82,8 +94,17 @@
              and pt.association_userid = #{ass_worker_uid}
         </if>
         <if test="scoreSpecialistUid != null">
-            join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
+            <!-- 原代码（listProInfo v1）：按 pro.major 匹配专家组名 -->
+            <!-- join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0 -->
+            <!-- 新代码（listProInfo v4）：通过 ass_award_pro_expert_group + ass_award_expert_group 查出项目所在分组名，再匹配专家绑定 -->
+            join ass_award_pro_expert_group peg on peg.proid = pro.id
+            join ass_award_expert_group eg on eg.groupid = peg.groupid and eg.taskid = peg.taskid
+            join add_special_info si on si.group_name = eg.name
+             and si.user_id  = #{scoreSpecialistUid}
+             and si.pro_type = 'surver_pro_group'
+             and si.deleted  = 0
         </if>
+        <!-- contactUserId 过滤移至 WHERE EXISTS，避免重复行 -->
 
         <if test="ass_assign_uid != null">
             join ass_award_assign_project asignPro on asignPro.pro_id = pro.id and asignPro.uid = #{ass_assign_uid}
@@ -103,11 +124,23 @@
 
         <where>
             pro.pro_type = 'surver_pro'
-            AND pro.major IS NOT NULL
+            <if test="scoreSpecialistUid == null and contactUserId == null">AND pro.major IS NOT NULL</if>
             <if test="proSubType != null and proSubType != ''"> and pro.pro_sub_type = #{proSubType}</if>
             <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
             <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
             <if test="taskId != null and taskId != ''"> and publish_task_id = #{taskId} </if>
+            <if test="contactUserId != null">
+                AND EXISTS (
+                    SELECT 1 FROM ass_award_pro_expert_group cpeg
+                    JOIN ass_award_expert_group ceg ON ceg.groupid = cpeg.groupid AND ceg.taskid = cpeg.taskid
+                    JOIN add_special_info csi ON csi.group_name = ceg.name
+                     AND csi.task_id  = cpeg.taskid
+                     AND csi.user_id  = #{contactUserId}
+                     AND csi.pro_type = 'surver_view_scope'
+                     AND csi.deleted  = 0
+                    WHERE cpeg.proid = pro.id
+                )
+            </if>
             <if test="keyWord != null and keyWord != ''">
                  and (
                    pro.pro_result_code like #{keyWord} or
@@ -123,6 +156,41 @@
             </if>
             <if test="enterpriseUid != null">
               and pro.create_uid = #{enterpriseUid}
+            </if>
+            <!-- ===== 高级筛选条件（前端 filterXxx 参数，模糊/等值匹配） ===== -->
+            <if test="filterProName != null and filterProName != ''">
+                AND pro.chengguo LIKE concat('%', #{filterProName}, '%')
+            </if>
+            <if test="filterApplyCompany != null and filterApplyCompany != ''">
+                AND sd.name LIKE concat('%', #{filterApplyCompany}, '%')
+            </if>
+            <if test="filterMajor != null and filterMajor != ''">
+                AND pro.major LIKE concat('%', #{filterMajor}, '%')
+            </if>
+            <if test="filterDeclareAccount != null and filterDeclareAccount != ''">
+                AND pro.declare_account LIKE concat('%', #{filterDeclareAccount}, '%')
+            </if>
+            <if test="filterQcGroupName != null and filterQcGroupName != ''">
+                AND ifnull(pro.qc_group_name, pro.pro_group_name) LIKE concat('%', #{filterQcGroupName}, '%')
+            </if>
+            <if test="filterExpertGroupName != null and filterExpertGroupName != ''">
+                AND EXISTS (
+                    SELECT 1 FROM ass_award_pro_expert_group peg2
+                    JOIN ass_award_expert_group eg2 ON eg2.groupid = peg2.groupid AND eg2.taskid = peg2.taskid
+                    WHERE peg2.proid = pro.id AND eg2.name LIKE concat('%', #{filterExpertGroupName}, '%')
+                )
+            </if>
+            <if test="filterEliminated != null and filterEliminated != ''">
+                AND (CASE pro.pro_sub_type
+                    WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    ELSE 0
+                END) = #{filterEliminated}
+            </if>
+            <if test="filterProStat != null and filterProStat != ''">
+                AND pro.pro_stat = #{filterProStat}
             </if>
         </where>
         <choose>
@@ -158,7 +226,25 @@
             and pt.association_userid = #{ass_worker_uid}
         </if>
         <if test="scoreSpecialistUid != null">
-            join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0
+            <!-- 原代码（countProInfo v1）：同 listProInfo 旧逻辑 -->
+            <!-- join add_special_info si on pro.major = si.group_name and si.user_id = #{scoreSpecialistUid} and si.deleted = 0 -->
+            <!-- 新代码（countProInfo v4）：同 listProInfo v4 修复 -->
+            join ass_award_pro_expert_group peg on peg.proid = pro.id
+            join ass_award_expert_group eg on eg.groupid = peg.groupid and eg.taskid = peg.taskid
+            join add_special_info si on si.group_name = eg.name
+             and si.user_id  = #{scoreSpecialistUid}
+             and si.pro_type = 'surver_pro_group'
+             and si.deleted  = 0
+        </if>
+        <if test="contactUserId != null">
+            <!-- 勘察奖小组联络人(86)：通过 surver_view_scope 绑定过滤项目（同 listProInfo） -->
+            join ass_award_pro_expert_group cpeg on cpeg.proid = pro.id
+            join ass_award_expert_group ceg on ceg.groupid = cpeg.groupid and ceg.taskid = cpeg.taskid
+            join add_special_info csi on csi.group_name = ceg.name
+             and csi.task_id  = cpeg.taskid
+             and csi.user_id  = #{contactUserId}
+             and csi.pro_type = 'surver_view_scope'
+             and csi.deleted  = 0
         </if>
 
         <if test="ass_assign_uid != null">
@@ -179,11 +265,23 @@
 
         <where>
             pro.pro_type = 'surver_pro'
-            AND pro.major IS NOT NULL
+            <if test="scoreSpecialistUid == null and contactUserId == null">AND pro.major IS NOT NULL</if>
             <if test="proSubType != null and proSubType != ''"> and pro.pro_sub_type = #{proSubType}</if>
             <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
             <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
             <if test="taskId != null and taskId != ''"> and publish_task_id = #{taskId} </if>
+            <if test="contactUserId != null">
+                AND EXISTS (
+                    SELECT 1 FROM ass_award_pro_expert_group cpeg
+                    JOIN ass_award_expert_group ceg ON ceg.groupid = cpeg.groupid AND ceg.taskid = cpeg.taskid
+                    JOIN add_special_info csi ON csi.group_name = ceg.name
+                     AND csi.task_id  = cpeg.taskid
+                     AND csi.user_id  = #{contactUserId}
+                     AND csi.pro_type = 'surver_view_scope'
+                     AND csi.deleted  = 0
+                    WHERE cpeg.proid = pro.id
+                )
+            </if>
             <if test="keyWord != null and keyWord != ''">
                 and (
                 pro.pro_result_code like #{keyWord} or
@@ -199,6 +297,41 @@
             </if>
             <if test="enterpriseUid != null">
                 and pro.create_uid = #{enterpriseUid}
+            </if>
+            <!-- ===== 高级筛选条件（同 listProInfo） ===== -->
+            <if test="filterProName != null and filterProName != ''">
+                AND pro.chengguo LIKE concat('%', #{filterProName}, '%')
+            </if>
+            <if test="filterApplyCompany != null and filterApplyCompany != ''">
+                AND sd.name LIKE concat('%', #{filterApplyCompany}, '%')
+            </if>
+            <if test="filterMajor != null and filterMajor != ''">
+                AND pro.major LIKE concat('%', #{filterMajor}, '%')
+            </if>
+            <if test="filterDeclareAccount != null and filterDeclareAccount != ''">
+                AND pro.declare_account LIKE concat('%', #{filterDeclareAccount}, '%')
+            </if>
+            <if test="filterQcGroupName != null and filterQcGroupName != ''">
+                AND ifnull(pro.qc_group_name, pro.pro_group_name) LIKE concat('%', #{filterQcGroupName}, '%')
+            </if>
+            <if test="filterExpertGroupName != null and filterExpertGroupName != ''">
+                AND EXISTS (
+                    SELECT 1 FROM ass_award_pro_expert_group peg2
+                    JOIN ass_award_expert_group eg2 ON eg2.groupid = peg2.groupid AND eg2.taskid = peg2.taskid
+                    WHERE peg2.proid = pro.id AND eg2.name LIKE concat('%', #{filterExpertGroupName}, '%')
+                )
+            </if>
+            <if test="filterEliminated != null and filterEliminated != ''">
+                AND (CASE pro.pro_sub_type
+                    WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    ELSE 0
+                END) = #{filterEliminated}
+            </if>
+            <if test="filterProStat != null and filterProStat != ''">
+                AND pro.pro_stat = #{filterProStat}
             </if>
         </where>
     </select>

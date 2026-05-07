@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<!--
+  勘察奖 - 专业组管理（参考 QC 奖 cpe/qc/score/major_group_admin.html）
+  与 QC 页面共享 ass_qc_group 主表，专家绑定使用 add_special_info(proType=surver_pro_group)
+  路由：/cpe/suverProcess/toSurverMajorGroupAdmin?taskId={taskId}
+-->
+<!-- cxq-勘察奖专业组管理页面 -->
+<html xmlns:th="http://www.w3.org/1999/xhtml">
+<head th:include="include :: header"></head>
+
+<body class="gray-bg">
+<div class="wrapper wrapper-content animated fadeInRight" style="padding:15px;">
+    <input type="hidden" id="taskId" th:value="${taskId}"/>
+    <input type="hidden" id="proType" th:value="${proType}"/>
+    <!-- 新增：权限标志（参考 QC 形审专家绑定按钮） -->
+    <input type="hidden" id="canManageContactBinding" th:value="${canManageContactBinding}"/>
+    <input type="hidden" id="isSurverGroupContactRole" th:value="${isSurverGroupContactRole}"/>
+    <!-- 新增：70角色（管理员）签章/工作单位列可见性标志（参考 QC 奖 isQcAssociationContactRole70） -->
+    <input type="hidden" id="isQcAssociationContactRole70" th:value="${isQcAssociationContactRole70}"/>
+
+    <div class="ibox">
+        <div class="ibox-title" style="display:flex;align-items:center;gap:12px;">
+            <h4 style="margin:0;flex:1;">勘察奖专业组管理</h4>
+            <div class="ui labeled icon input">
+                <input type="text" id="searchKey" placeholder="搜索登录账号 / 专家姓名" style="min-width:240px;">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="reloadExperts()">
+                <i class="fa fa-search"></i> 搜索
+            </button>
+            <!-- 新增：本任务批量重置淘汰提交状态 -->
+<!--            <button class="btn btn-danger btn-sm" onclick="resetAllEliminate()" title="将本任务所有勘察奖专业组专家的淘汰提交状态重置为未提交">-->
+<!--                <i class="fa fa-undo"></i> 重置淘汰状态-->
+<!--            </button>-->
+            <!-- 勘察奖小组联络人(86)返回任务列表 -->
+            <a class="btn btn-default btn-sm"
+               th:if="${isSurverGroupContactRole}"
+               href="/cpe/suverProcess/toSurverContactTaskList">
+                <i class="fa fa-arrow-left"></i> 返回任务列表
+            </a>
+            <!-- 新增：小组联络人绑定（仅协会领导/勘察奖协会联系人可见，参考 QC"形审专家绑定"按钮） -->
+            <button class="btn btn-info btn-sm"
+                    onclick="openContactBindingModal()"
+                    th:if="${canManageContactBinding}"
+                    title="为「勘察奖小组联络人」角色配置可见的专家组">
+                <i class="fa fa-link"></i> 小组联络人绑定
+            </button>
+        </div>
+
+        <div class="ibox-content" style="display:flex;gap:16px;">
+            <!-- 左：专业组列表 -->
+            <div style="width:260px;border-right:1px solid #eee;padding-right:12px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <strong>专业组</strong>
+                    <span class="text-muted" style="font-size:12px;">点击切换</span>
+                </div>
+                <ul id="majorGroupList" class="list-group" style="max-height:560px;overflow:auto;">
+                    <li class="list-group-item active" data-group="">
+                        <i class="fa fa-th-large"></i> 全部
+                    </li>
+                    <li th:each="g : ${qcGroupList}"
+                        class="list-group-item"
+                        th:attr="data-group=${g.name}">
+                        <i class="fa fa-users"></i>&nbsp;<span th:text="${g.name}"></span>
+                    </li>
+                </ul>
+                <!-- 原提示：专业组主数据来自任务的"分组管理"。如需新增/编辑专业组，请到"分组管理"页面操作。 -->
+                <!-- 新提示：主数据改为来自"专家分组管理" -->
+<!--                <p class="text-muted" style="font-size:12px;margin-top:8px;">-->
+<!--                    专业组主数据来自任务的"专家分组管理"(ass_award_expert_group)。<br/>-->
+<!--                    如需新增 / 编辑专业组，请到"专家分组管理"页面操作。-->
+<!--                </p>-->
+            </div>
+
+            <!-- 右：选中专业组的专家绑定 -->
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+                    <strong>专家绑定（当前专业组：<span id="currentGroupLabel">全部</span>）</strong>
+                    <span style="flex:1;"></span>
+                    <button class="btn btn-success btn-sm" onclick="openAddExpertDialog()">
+                        <i class="fa fa-plus"></i> 添加专家
+                    </button>
+                </div>
+
+                <table id="expertTable" data-mobile-responsive="true"></table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加专家弹层模板（layer.open 时复用） -->
+    <div id="addExpertTpl" style="display:none;">
+        <div style="padding:18px;">
+            <form id="addExpertForm" class="form-horizontal">
+                <div class="form-group">
+                    <label class="col-sm-3 control-label">专业组</label>
+                    <div class="col-sm-8">
+                        <select id="dlg_groupName" name="groupName" class="form-control"></select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-sm-3 control-label">登录账号</label>
+                    <div class="col-sm-8">
+                        <!-- 改造：登录账号留空时由前端自动生成（参考旧 specialist_major_group.html add() 逻辑） -->
+                        <input type="text" id="dlg_loginAccount" name="loginAccount" class="form-control" placeholder="留空将自动生成（推荐）">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-sm-3 control-label">专家名称 <span style="color:#d9534f;">*</span></label>
+                    <div class="col-sm-8">
+                        <input type="text" id="dlg_expertName" name="expertName" class="form-control" placeholder="必填">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-sm-3 control-label">工作单位</label>
+                    <div class="col-sm-8">
+                        <input type="text" id="dlg_company" name="company" class="form-control">
+                    </div>
+                </div>
+                <!-- 改造：恢复"手机号"字段（创建 sys_user 账号需要） -->
+                <div class="form-group">
+                    <label class="col-sm-3 control-label">手机号</label>
+                    <div class="col-sm-8">
+                        <input type="text" id="dlg_phone" name="phone" class="form-control" placeholder="选填">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-sm-offset-3 col-sm-8" style="color:#888;font-size:12px;">
+                        说明：保存后系统将自动创建专家账号并赋予「勘察设计奖评审专家」角色。<br/>
+                        签章请在保存后，于右侧表格行的「上传签章」按钮中上传。
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="col-sm-3 control-label">是否组长</label>
+                    <div class="col-sm-8">
+                        <select id="dlg_isGroupLeader" name="isGroupLeader" class="form-control">
+                            <option value="0" selected>否</option>
+                            <option value="1">是</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="col-sm-offset-3 col-sm-8">
+                        <button type="button" class="btn btn-primary" onclick="submitAddExpert()">保存</button>
+                        <button type="button" class="btn btn-default" onclick="layer.closeAll()">取消</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 勘察奖回避管理弹窗（参考 QC 奖 avoidanceModal，供 layer.open 使用） -->
+    <div id="surverAvoidanceModal" style="display:none; padding: 20px;">
+        <!-- 筛选条件 -->
+        <div class="row" style="margin-bottom: 10px;">
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="surver_avoid_filter_topicName" placeholder="项目名称">
+            </div>
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="surver_avoid_filter_proCode" placeholder="申报账号">
+            </div>
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="surver_avoid_filter_unitName" placeholder="申报单位">
+            </div>
+            <div class="col-sm-3">
+                <input type="text" class="form-control" id="surver_avoid_filter_groupDesc" placeholder="分组">
+            </div>
+        </div>
+        <div class="row" style="margin-bottom: 15px;">
+            <div class="col-sm-3">
+                <select class="form-control" id="surver_avoid_filter_status">
+                    <option value="">状态 - 全选</option>
+                    <option value="1">已回避</option>
+                    <option value="0">未回避</option>
+                </select>
+            </div>
+            <div class="col-sm-3">
+                <button class="btn btn-primary btn-sm" onclick="surverApplyAvoidanceFilters()">筛选</button>
+                <button class="btn btn-default btn-sm" onclick="surverClearAvoidanceFilters()">重置</button>
+            </div>
+        </div>
+        <table class="table table-bordered table-hover">
+            <thead>
+            <tr>
+                <th>项目名称</th>
+                <th>申报账号</th>
+                <th>申报单位</th>
+                <th>分组</th>
+                <th>状态</th>
+                <th>回避状态</th>
+                <th>操作</th>
+            </tr>
+            </thead>
+            <tbody id="surverAvoidanceTableBody">
+            <tr><td colspan="7" class="text-center">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div th:include="include :: footer"></div>
+<!-- 升级：点击"添加专家"按钮去掉弹窗，直接生成账号 + 绑定专业组（与 QC 一致） → v=1.4 -->
+<!-- 升级（v1.5）：添加专家改为 QC 风格的"暂存→显式保存"——前端 prepend 暂存行，填好姓名/单位再点【保存】才落库；常态行新增【编辑】按钮支持 inline 编辑 -->
+<!-- 升级（v1.6）：① 修复点击【编辑】报 Unknown method: updateByUniqueId（改用 load(getData()) 重渲染）② 专家姓名改为可选 -->
+<!-- 升级（v1.7）：新增回避管理功能，参考 QC 奖 manageAvoidance -->
+<script type="text/javascript" src="/js/appjs/cpe/surver/major_group_admin.js?v=1.9"></script>
+</body>
+</html>

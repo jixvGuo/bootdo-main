@@ -44,6 +44,18 @@ public class SurverReviewProBaseInfo {
      * 专业
      */
     private String major;
+    /**
+     * 形审人员姓名（非持久化，由后端填充）
+     */
+    private String reviewerName;
+
+    public String getReviewerName() {
+        return reviewerName;
+    }
+
+    public void setReviewerName(String reviewerName) {
+        this.reviewerName = reviewerName;
+    }
 
     public String getProCode() {
         return proCode;

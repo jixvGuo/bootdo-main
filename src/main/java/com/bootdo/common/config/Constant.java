@@ -66,6 +66,12 @@ public class Constant {
     public static long ROLE_QC_SPECIALIST_ID = 85L;
     //勘察奖协会外聘人员
     public static long ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID = 75L;
+    // ===== 新增（参考 ROLE_QC_EXTERNAL_EMPLOYMENT_ID=72 的"分组可见性"机制）=====
+    // 勘察奖小组联络人：仅能看到被绑定的"专家组"及其专家信息；
+    // 其它权限对齐勘察奖协会外聘人员（除"重新分组"和"形审专家绑定"按钮外，其它都有）。
+    // TODO 由 DBA 在 sys_role 中分配新角色 ID 后，将下方占位 -75L 替换为真实值；
+    //      同时部署 db/expert_group_ddl.sql 中追加的 sys_role INSERT 语句。
+    public static long ROLE_SURVER_GROUP_CONTACT_ID = 86L;
     //优质工程外聘
     public static long ROLE_GOOD_PRO_EMPLOYMENT_ID = 82L;
     //工法外聘
