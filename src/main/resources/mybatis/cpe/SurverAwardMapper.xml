@@ -25,7 +25,7 @@
                pro.pro_stat,
                pro.pro_result_code proCode,
                pro.declare_account declareAccount,
-               pro.qc_group_name qcGroupName,
+               (select qg.name from ass_qc_group qg where qg.groupid = pro.group_id and qg.taskid = pro.publish_task_id limit 1) qcGroupName,
                case pro.pro_sub_type
                    when 'design' then (select r.review_result from ass_surver_review_design_result r where r.pro_id = pro.id order by r.id desc limit 1)
                    when 'software' then (select r.review_result from ass_surver_review_soft_result r where r.pro_id = pro.id order by r.id desc limit 1)

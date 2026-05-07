@@ -101,7 +101,7 @@
             <!-- 改为从项目表取真实数据 -->
             MAX(p.chengguo)     AS topicName,
             MAX(sd.name)        AS companyName,
-            MAX(e.group_name)   AS groupName,
+            (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName,
             MAX(p.declare_account) AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ')
                FROM ass_award_pro_expert_group peg
@@ -189,7 +189,7 @@
     <select id="listConfirmedEliminated" resultType="java.util.HashMap">
         SELECT
             'design' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
-            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
             (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'design' AND e2.deleted = 0) AS expertGrades
@@ -201,7 +201,7 @@
         UNION ALL
         SELECT
             'software' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
-            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
             (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'software' AND e2.deleted = 0) AS expertGrades
@@ -213,7 +213,7 @@
         UNION ALL
         SELECT
             'standard' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
-            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
             (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'standard' AND e2.deleted = 0) AS expertGrades
@@ -225,7 +225,7 @@
         UNION ALL
         SELECT
             'contribution' AS proSubType, t.pro_id AS proId, p.pro_code AS proCode, p.chengguo AS topicName,
-            sd.name AS companyName, p.qc_group_name AS groupName, p.major AS major,
+            sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
             (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'contribution' AND e2.deleted = 0) AS expertGrades
