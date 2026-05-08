@@ -55,10 +55,12 @@ import com.bootdo.cpe.service.SurverReviewSoftResultService;
 import com.bootdo.cpe.service.SurverReviewStandardResultService;
 import com.bootdo.cpe.service.SurverReviewSurverResultService;
 
+import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.util.*;
+import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
 import com.bootdo.common.utils.*;
 import com.bootdo.cpe.domain.*;
@@ -1456,5 +1458,183 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
         Map<String, Object> data = new HashMap<>();
         data.put("data", list);
         return R.ok(data);
+    }
+
+    /**
+     * 导出"上传专家分组"模板（含当前项目数据，表头去掉后四项"分组、形审结果、形审评语、状态"，添加"专业分组"列）
+     */
+    @RequestMapping("/expert_group/exportTemplate")
+    public void exportExpertGroupTemplate(HttpServletResponse response, @RequestParam String taskId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("taskId", taskId);
+        // 查询全部四个子类型的项目
+        String[] subTypes = {"contribution", "design", "software", "standard"};
+        List<SurverProjectInfo> proList = new ArrayList<>();
+        for (String subType : subTypes) {
+            Map<String, Object> queryParams = new HashMap<>(params);
+            queryParams.put("proSubType", subType);
+            List<SurverProjectInfo> subList = surverAwardService.listProInfo(queryParams);
+            if (subList != null && !subList.isEmpty()) {
+                proList.addAll(subList);
+            }
+        }
+        // 获取当前专家分组分配情况
+        List<Map<String, Object>> assignments = awardExpertGroupService.listProAssignments(taskId);
+        Map<Integer, String> proGroupNameMap = new HashMap<>();
+        if (assignments != null) {
+            for (Map<String, Object> a : assignments) {
+                Object pidObj = a.get("proid");
+                Object nameObj = a.get("name");
+                if (pidObj != null && nameObj != null) {
+                    proGroupNameMap.put(Integer.parseInt(pidObj.toString()), nameObj.toString());
+                }
+            }
+        }
+
+        String[] header = {"序号", "proId", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单", "申报账号", "申报联系方式", "专业分组"};
+        List<Map<String, String>> rows = new ArrayList<>();
+        int idx = 1;
+        for (SurverProjectInfo pro : proList) {
+            Map<String, String> row = new LinkedHashMap<>();
+            row.put("序号", String.valueOf(idx++));
+            row.put("proId", String.valueOf(pro.getProId()));
+            row.put("项目编号", pro.getProCode() != null ? pro.getProCode() : "");
+            row.put("项目类别", pro.getProSubTypeStr() != null ? pro.getProSubTypeStr() : "");
+            row.put("项目名称", pro.getProName() != null ? pro.getProName() : "");
+            row.put("申报单位", pro.getApplyCompany() != null ? pro.getApplyCompany() : "");
+            row.put("专业", pro.getMajor() != null ? pro.getMajor() : "");
+            row.put("人员名单", pro.getMemberList() != null ? pro.getMemberList() : "");
+            row.put("申报账号", pro.getDeclareAccount() != null ? pro.getDeclareAccount() : "");
+            row.put("申报联系方式", pro.getApplyAccount() != null ? pro.getApplyAccount() : "");
+            row.put("专业分组", proGroupNameMap.getOrDefault(pro.getProId(), ""));
+            rows.add(row);
+        }
+
+        try {
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-disposition", "attachment;filename=" +
+                    java.net.URLEncoder.encode("专家分组导入模板.xls", "UTF-8"));
+            org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+            org.apache.poi.hssf.usermodel.HSSFSheet sheet = workbook.createSheet("专家分组模板");
+            sheet.setDefaultColumnWidth(18);
+            org.apache.poi.hssf.usermodel.HSSFCellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(org.apache.poi.ss.usermodel.IndexedColors.YELLOW.index);
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+            org.apache.poi.hssf.usermodel.HSSFRow headRow = sheet.createRow(0);
+            for (int i = 0; i < header.length; i++) {
+                org.apache.poi.hssf.usermodel.HSSFCell cell = headRow.createCell(i);
+                cell.setCellValue(header[i]);
+                cell.setCellStyle(headerStyle);
+            }
+            for (int i = 0; i < rows.size(); i++) {
+                org.apache.poi.hssf.usermodel.HSSFRow row = sheet.createRow(i + 1);
+                Map<String, String> rowData = rows.get(i);
+                for (int j = 0; j < header.length; j++) {
+                    String val = rowData.get(header[j]);
+                    row.createCell(j).setCellValue(val == null ? "" : val);
+                }
+            }
+            response.flushBuffer();
+            workbook.write(response.getOutputStream());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 导入"上传专家分组"Excel，按 proId 匹配更新专家分组
+     */
+    @ResponseBody
+    @RequestMapping("/expert_group/importExcel")
+    public R importExpertGroupExcel(@RequestParam("file") MultipartFile file, @RequestParam String taskId) {
+        if (file == null || file.isEmpty()) {
+            return R.error("请选择文件");
+        }
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+        try {
+            Workbook workbook = org.apache.poi.ss.usermodel.WorkbookFactory.create(file.getInputStream());
+            Sheet sheet = workbook.getSheetAt(0);
+            if (sheet == null) {
+                return R.error("表格为空");
+            }
+
+            // 读取表头，找到 proId 和 专业分组 列的索引
+            Row headerRow = sheet.getRow(0);
+            if (headerRow == null) {
+                return R.error("表头为空");
+            }
+            int proIdCol = -1;
+            int groupNameCol = -1;
+            for (int i = 0; i < headerRow.getLastCellNum(); i++) {
+                String cellVal = getCellStringValue(headerRow.getCell(i));
+                if ("proId".equals(cellVal.trim())) {
+                    proIdCol = i;
+                } else if ("专业分组".equals(cellVal.trim())) {
+                    groupNameCol = i;
+                }
+            }
+            if (proIdCol < 0 || groupNameCol < 0) {
+                return R.error("表头缺少'proId'或'专业分组'列");
+            }
+
+            // 预加载该任务下的所有专家分组 name -> groupId 的映射
+            List<AwardExpertGroupDO> allGroups = awardExpertGroupService.getGroupsByTaskId(taskId);
+            Map<String, Integer> groupNameIdMap = new HashMap<>();
+            if (allGroups != null) {
+                for (AwardExpertGroupDO g : allGroups) {
+                    if (g.getName() != null) {
+                        groupNameIdMap.put(g.getName().trim(), g.getGroupid());
+                    }
+                }
+            }
+
+            int successCount = 0;
+            int failCount = 0;
+            StringBuilder failMsg = new StringBuilder();
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                Row row = sheet.getRow(i);
+                if (row == null) continue;
+                String proIdStr = getCellStringValue(row.getCell(proIdCol)).trim();
+                String groupName = getCellStringValue(row.getCell(groupNameCol)).trim();
+                if (proIdStr.isEmpty()) continue;
+                if (groupName.isEmpty()) continue;
+
+                Integer proId;
+                try {
+                    proId = Integer.parseInt(proIdStr.contains(".") ? proIdStr.substring(0, proIdStr.indexOf(".")) : proIdStr);
+                } catch (NumberFormatException e) {
+                    failCount++;
+                    failMsg.append("第").append(i + 1).append("行proId格式错误; ");
+                    continue;
+                }
+
+                Integer groupId = groupNameIdMap.get(groupName);
+                if (groupId == null) {
+                    failCount++;
+                    failMsg.append("第").append(i + 1).append("行分组'").append(groupName).append("'不存在; ");
+                    continue;
+                }
+
+                awardExpertGroupService.assignProToGroup(taskId, proId, groupId);
+                successCount++;
+            }
+
+            String msg = "导入完成：成功 " + successCount + " 条";
+            if (failCount > 0) {
+                msg += "，失败 " + failCount + " 条。" + failMsg.toString();
+            }
+            return R.ok(msg);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("导入异常: " + e.getMessage());
+        }
+    }
+
+    private String getCellStringValue(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) return "";
+        cell.setCellType(org.apache.poi.ss.usermodel.CellType.STRING);
+        return cell.getStringCellValue() != null ? cell.getStringCellValue().trim() : "";
     }
 }

@@ -74,9 +74,9 @@
                    else 0
                end eliminated,
                <!-- 新增：专家分组名称（通过 ass_award_pro_expert_group + ass_award_expert_group 关联查询） -->
-               (select eg.name from ass_award_pro_expert_group peg
-                join ass_award_expert_group eg on eg.groupid = peg.groupid and eg.taskid = peg.taskid
-                where peg.proid = pro.id limit 1) expertGroupName
+               (select egn.name from ass_award_pro_expert_group pegn
+                join ass_award_expert_group egn on egn.groupid = pegn.groupid and egn.taskid = pegn.taskid
+                where pegn.proid = pro.id limit 1) expertGroupName
                from
                 boot_do.ass_award_enterprise_project pro
                    JOIN

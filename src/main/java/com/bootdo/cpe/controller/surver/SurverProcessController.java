@@ -1103,8 +1103,12 @@ public class SurverProcessController extends BaseSurverController {
         activeQ.put("deleted", 0);
         List<com.bootdo.cpe.domain.SurverExpertEliminateDO> myGrades = surverExpertEliminateService.list(activeQ);
         Map<Integer, String> gradeMap = new HashMap<>();
+        Map<Integer, String> remarkMap = new HashMap<>();
         for (com.bootdo.cpe.domain.SurverExpertEliminateDO g : myGrades) {
-            if (g.getProId() != null) gradeMap.put(g.getProId(), g.getGrade());
+            if (g.getProId() != null) {
+                gradeMap.put(g.getProId(), g.getGrade());
+                if (g.getRemark() != null) remarkMap.put(g.getProId(), g.getRemark());
+            }
         }
 
         // 3) 当前我已回避的项目集合
@@ -1119,7 +1123,37 @@ public class SurverProcessController extends BaseSurverController {
                 .put("avoidedCount", avoidedProIds == null ? 0 : avoidedProIds.size())
                 .put("totalCount", totalAssigned)
                 .put("grades", gradeMap)
+                .put("remarks", remarkMap)
                 .put("avoidances", avoidedProIds == null ? Collections.emptyList() : avoidedProIds);
+    }
+
+    /**
+     * 管理员侧：查看某项目下所有专家的评级详情（姓名、等级、评级理由）
+     * 入参: taskId, proId
+     * 出参: { code, data: [ { expertName, grade, remark }, ... ] }
+     */
+    @ResponseBody
+    @RequestMapping("/eliminate/expertGradeDetails")
+    public R expertGradeDetails(@RequestParam Map<String, Object> params) {
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+        if (StringUtils.isBlank(taskId) || StringUtils.isBlank(proIdStr)) {
+            return R.error("缺少必填参数 taskId / proId");
+        }
+        Map<String, Object> q = new HashMap<>();
+        q.put("taskId", taskId);
+        q.put("proId", Integer.valueOf(proIdStr));
+        q.put("deleted", 0);
+        List<com.bootdo.cpe.domain.SurverExpertEliminateDO> list = surverExpertEliminateService.list(q);
+        List<Map<String, Object>> result = new java.util.ArrayList<>();
+        for (com.bootdo.cpe.domain.SurverExpertEliminateDO item : list) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("expertName", item.getExpertName());
+            m.put("grade", item.getGrade());
+            m.put("remark", item.getRemark());
+            result.add(m);
+        }
+        return R.ok().put("data", result);
     }
 
     /**

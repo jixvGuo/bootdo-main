@@ -108,8 +108,11 @@ public class SurverProController extends BaseSurverController {
                 || roleIdList.contains(ROLE_SCIENCE_EXTERNAL_EMPLOYMENT_ID)) {
             // 其他外聘人员：只看分派给自己的项目
             params.put("ass_assign_uid", uid);
+        } else if (roleIdList.contains(ROLE_ASSOCIATION_LEADER)
+                || roleIdList.contains(ROLE_ADMIN_ID)) {
+            // 协会领导/管理员：查看全部项目
         } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
-            //todo 临时使用协会联系人的用户id
+            // 协会联系人：按协会维度查看
             params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
         } else if (roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID)) {
             //企业用户查看自己创建项目
@@ -117,6 +120,17 @@ public class SurverProController extends BaseSurverController {
         } else if(roleIdList.contains(ROLE_SURVER_SPECALIST_ID)) {
             //评审专家
             params.put("scoreSpecialistUid", uid);
+            // 自动匹配专家绑定的任务ID
+            Map<String, Object> bindQuery = new HashMap<>();
+            bindQuery.put("userId", String.valueOf(uid));
+            bindQuery.put("proType", "surver_pro_group");
+            List<com.bootdo.cpe.domain.ExpertGroupDO> expertBindings = expertGroupService.list(bindQuery);
+            if (expertBindings != null && !expertBindings.isEmpty()) {
+                String bindTaskId = expertBindings.get(0).getTaskId();
+                if (bindTaskId != null && !bindTaskId.isEmpty()) {
+                    params.put("taskId", bindTaskId);
+                }
+            }
         // 新增：勘察奖小组联络人(86) 仅看绑定分组下的项目
         } else if (roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
             params.put("contactUserId", uid);
@@ -124,7 +138,19 @@ public class SurverProController extends BaseSurverController {
             //分派给自己的项目
             params.put("ass_assign_uid", uid);
         }
-        getProListParamsByRole(params);
+        boolean isLeaderOrAdmin = roleIdList.contains(ROLE_ASSOCIATION_LEADER) || roleIdList.contains(ROLE_ADMIN_ID);
+        if (!isLeaderOrAdmin) {
+            getProListParamsByRole(params);
+        } else {
+            // 领导/管理员直接查看当前任务下全部项目，不叠加角色限制
+            params.remove("ass_assign_uid");
+            params.remove("ass_worker_uid");
+            params.remove("associationUserId");
+            params.remove("enterpriseUid");
+            params.remove("scoreSpecialistUid");
+            params.remove("contactUserId");
+            params.remove("createUid");
+        }
 
         params.put("proStatStr", "");
         Object keyWordObj = params.get("keyWord");
@@ -141,8 +167,35 @@ public class SurverProController extends BaseSurverController {
 
         Query query = new Query(params);
 
+        // [DEBUG-expert] 临时调试：打印查询参数
+        System.out.println("[DEBUG-expert] params=" + params);
+        // [DEBUG-expert] 检查专家绑定数据
+        if (params.get("scoreSpecialistUid") != null) {
+            try {
+                String debugTaskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+                String debugUid = params.get("scoreSpecialistUid").toString();
+                // 1. 检查 add_special_info 中专家绑定
+                Map<String, Object> debugQuery = new HashMap<>();
+                debugQuery.put("userId", debugUid);
+                debugQuery.put("proType", "surver_pro_group");
+                List<com.bootdo.cpe.domain.ExpertGroupDO> bindings = expertGroupService.list(debugQuery);
+                System.out.println("[DEBUG-expert] add_special_info bindings for uid=" + debugUid + ", proType=surver_pro_group: " + (bindings != null ? bindings.size() : 0));
+                if (bindings != null) {
+                    for (com.bootdo.cpe.domain.ExpertGroupDO b : bindings) {
+                        System.out.println("[DEBUG-expert]   binding: groupName=" + b.getGroupName() + ", taskId=" + b.getTaskId());
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("[DEBUG-expert] debug error: " + e.getMessage());
+            }
+        }
+
         List<SurverProjectInfo> proDataDtoList = surverAwardService.listProInfo(query);
         int total = surverAwardService.countProInfo(query);
+
+        // [DEBUG-expert] 临时调试：打印结果数量
+        System.out.println("[DEBUG-expert] listSize=" + proDataDtoList.size() + ", total=" + total);
+
         PageUtils pageUtils = new PageUtils(proDataDtoList, total);
         return pageUtils;
     }
@@ -252,7 +305,9 @@ public class SurverProController extends BaseSurverController {
         UserDO user = getUser();
         Long uid = getUserId();
         List<Long> roleIdList = user.getRoleIds();
-        if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
+        if (roleIdList.contains(ROLE_ASSOCIATION_LEADER) || roleIdList.contains(ROLE_ADMIN_ID)) {
+            // 协会领导/管理员：不额外限制项目来源
+        } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
             params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
         } else if (roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID)) {
             params.put("enterpriseUid", uid);
@@ -261,7 +316,18 @@ public class SurverProController extends BaseSurverController {
         } else {
             params.put("ass_assign_uid", uid);
         }
-        getProListParamsByRole(params);
+        boolean isLeaderOrAdmin = roleIdList.contains(ROLE_ASSOCIATION_LEADER) || roleIdList.contains(ROLE_ADMIN_ID);
+        if (!isLeaderOrAdmin) {
+            getProListParamsByRole(params);
+        } else {
+            params.remove("ass_assign_uid");
+            params.remove("ass_worker_uid");
+            params.remove("associationUserId");
+            params.remove("enterpriseUid");
+            params.remove("scoreSpecialistUid");
+            params.remove("contactUserId");
+            params.remove("createUid");
+        }
 
         params.remove("offset");
         params.remove("limit");
@@ -323,7 +389,10 @@ public class SurverProController extends BaseSurverController {
         UserDO user = getUser();
         Long uid = getUserId();
         List<Long> roleIdList = user.getRoleIds();
-        if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
+        if (roleIdList.contains(ROLE_ASSOCIATION_LEADER) || roleIdList.contains(ROLE_ADMIN_ID)) {
+            // 勘察奖协会外聘人员(75)：只能看分派给自己的项目
+            params.put("ass_assign_uid", uid);
+        } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
             params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
         } else if (roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID)) {
             params.put("enterpriseUid", uid);

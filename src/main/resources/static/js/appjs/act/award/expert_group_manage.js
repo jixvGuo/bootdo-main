@@ -1,3 +1,4 @@
+// 勘察奖专家分组新增、编辑、删除-cxq
 var prefix = "/enterprise_pro";
 
 $(function () {
@@ -85,6 +86,74 @@ function remove(groupid) {
                 }
             }
         });
+    });
+}
+
+// ============================================================
+// 上传专家分组（Excel 导入）
+// ============================================================
+function openImportExpertGroup() {
+    var html = '<div style="padding:20px;">' +
+        '<div style="margin-bottom:15px;">' +
+        '  <label style="display:inline-block;width:80px;">表格文件：</label>' +
+        '  <input type="text" id="importExpertGroupFileName" class="form-control" style="display:inline-block;width:250px;" placeholder="请输入...." readonly />' +
+        '  <button class="btn btn-default" onclick="$(\'#importExpertGroupFile\').click()">选择</button>' +
+        '  <input type="file" id="importExpertGroupFile" accept=".xls,.xlsx" style="display:none;" onchange="onExpertGroupFileSelected(this)" />' +
+        '</div>' +
+        '<div style="margin-bottom:15px;text-align:center;">' +
+        '  <a href="javascript:void(0);" onclick="exportExpertGroupTemplate()" style="color:#1890ff;">导出模板</a>' +
+        '</div>' +
+        '</div>';
+    layer.open({
+        type: 1,
+        title: '上传表格',
+        area: ['480px', '250px'],
+        btn: ['确认', '取消'],
+        content: html,
+        yes: function (index) {
+            submitImportExpertGroup(index);
+        }
+    });
+}
+
+function onExpertGroupFileSelected(input) {
+    if (input.files && input.files.length > 0) {
+        $("#importExpertGroupFileName").val(input.files[0].name);
+    }
+}
+
+function exportExpertGroupTemplate() {
+    var taskId = $("#taskId").val();
+    window.location.href = prefix + "/expert_group/exportTemplate?taskId=" + encodeURIComponent(taskId);
+}
+
+function submitImportExpertGroup(layerIndex) {
+    var fileInput = document.getElementById('importExpertGroupFile');
+    if (!fileInput.files || fileInput.files.length === 0) {
+        layer.msg('请先选择表格文件');
+        return;
+    }
+    var formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    formData.append('taskId', $("#taskId").val());
+    $.ajax({
+        url: prefix + "/expert_group/importExcel",
+        type: 'POST',
+        data: formData,
+        processData: false,
+        contentType: false,
+        success: function (r) {
+            if (r.code == 0) {
+                layer.msg(r.msg || '导入成功');
+                layer.close(layerIndex);
+                reLoad();
+            } else {
+                layer.msg(r.msg || '导入失败');
+            }
+        },
+        error: function () {
+            layer.msg('上传失败，请重试');
+        }
     });
 }
 

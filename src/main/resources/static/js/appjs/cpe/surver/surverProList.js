@@ -1069,24 +1069,31 @@ function openEliminateManage() {
 function loadEliminateCandidates() {
     var taskId = $("#taskId").val();
     var proSubType = $("#surverElimSubTypeFilter").val() || '';
-    $("#surverElimCandidatesBody").html('<tr><td colspan="11" style="text-align:center;color:#999;">加载中...</td></tr>');
+    // [DEBUG] 临时调试
+    console.log('[DEBUG-elim] loadEliminateCandidates taskId=' + taskId + ', proSubType=' + proSubType);
+    $("#surverElimCandidatesBody").html('<tr><td colspan="12" style="text-align:center;color:#999;">加载中...</td></tr>');
     $.ajax({
         type: 'GET',
         url: SURVER_ELIM_PREFIX + '/listCandidates',
         data: { taskId: taskId, proSubType: proSubType },
         success: function(r) {
+            // [DEBUG] 临时调试
+            console.log('[DEBUG-elim] response:', r);
             if (r.code !== 0) { layer.msg(r.msg || '加载失败', { icon: 2 }); return; }
             _surverElimCandidates = r.list || [];
             _renderEliminateCandidates(_surverElimCandidates);
         },
-        error: function() { layer.msg('加载候选池失败', { icon: 2 }); }
+        error: function(xhr, status, err) {
+            console.log('[DEBUG-elim] error:', status, err);
+            layer.msg('加载候选池失败', { icon: 2 });
+        }
     });
 }
 
 function _renderEliminateCandidates(list) {
     var tbody = $("#surverElimCandidatesBody");
     if (!list || list.length === 0) {
-        tbody.html('<tr><td colspan="11" style="text-align:center;color:#999;">暂无候选数据（当前任务下尚无专家评级）</td></tr>');
+        tbody.html('<tr><td colspan="12" style="text-align:center;color:#999;">暂无候选数据（当前任务下尚无专家评级）</td></tr>');
         return;
     }
     var html = '';
@@ -1099,8 +1106,10 @@ function _renderEliminateCandidates(list) {
         var actionHtml = (it.eliminated == 1)
             ? '<button class="btn btn-xs btn-default" onclick="onCancelEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">取消淘汰</button>'
             : '<button class="btn btn-xs btn-danger"  onclick="onConfirmEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">确认淘汰</button>';
-        // 专家评级列：把 "张三:A|李四:D" 渲染成多行 badge
-        var grades = (it.expertGrades || '').split('|').filter(function(s){ return s; }).map(function(s) {
+        // 专家名称列 + 专家评级列：从 "张三:A|李四:D" 中提取
+        var gradeItems = (it.expertGrades || '').split('|').filter(function(s){ return s; });
+        var expertNames = gradeItems.map(function(s) { return s.split(':')[0] || ''; }).filter(function(n){ return n; }).join('、');
+        var grades = gradeItems.map(function(s) {
             var parts = s.split(':'); var name = parts[0] || ''; var g = parts[1] || '-';
             var color = (g === 'D') ? '#d9534f' : (g === 'C' ? '#f0ad4e' : (g === 'A' ? '#5cb85c':'#5bc0de'));
             return '<span title="' + _surverElimEscape(name) + '" style="display:inline-block;background:' 
@@ -1121,12 +1130,47 @@ function _renderEliminateCandidates(list) {
             // + '<td>' + (it.gradeB || 0) + '</td>'
             // + '<td>' + (it.gradeC || 0) + '</td>'
             // + '<td><b style="color:#d9534f;">' + (it.gradeD || 0) + '</b></td>'
-            + '<td>' + grades + '</td>'
+            + '<td>' + _surverElimEscape(expertNames || '-') + '</td>'
+            + '<td>' + grades + ' <a href="javascript:;" style="font-size:11px;margin-left:4px;" onclick="showExpertGradeDetails(' + it.proId + ')">查看</a></td>'
             + '<td>' + statusHtml + '</td>'
             + '<td>' + actionHtml + '</td>'
             + '</tr>';
     }
     tbody.html(html);
+}
+
+/** 查看某项目下所有专家的评级详情（姓名、等级、评级理由） */
+function showExpertGradeDetails(proId) {
+    var taskId = $("#taskId").val();
+    $.ajax({
+        type: 'GET',
+        url: SURVER_ELIM_PREFIX + '/expertGradeDetails',
+        data: { taskId: taskId, proId: proId },
+        success: function(r) {
+            if (r.code !== 0) { layer.msg(r.msg || '获取详情失败', { icon: 2 }); return; }
+            var list = r.data || [];
+            if (list.length === 0) { layer.msg('暂无专家评级数据'); return; }
+            var html = '<div style="padding:16px;max-height:450px;overflow-y:auto;">';
+            for (var i = 0; i < list.length; i++) {
+                var item = list[i];
+                var gradeColor = (item.grade === 'D') ? '#d9534f' : (item.grade === 'C' ? '#f0ad4e' : (item.grade === 'A' ? '#5cb85c' : '#5bc0de'));
+                html += '<div style="border:1px solid #ddd;margin-bottom:10px;padding:12px;border-radius:4px;background:#fff;">';
+                html += '<p><b>专家姓名：</b>' + _surverElimEscape(item.expertName || '未知') + '</p>';
+                html += '<p><b>评级等级：</b><span style="display:inline-block;background:' + gradeColor + ';color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">' + _surverElimEscape(item.grade || '-') + '</span></p>';
+                html += '<p><b>评级理由：</b></p>';
+                html += '<div style="border:1px solid #eee;padding:8px;min-height:60px;background:#f9f9f9;white-space:pre-wrap;word-break:break-all;">' + _surverElimEscape(item.remark || '未填写') + '</div>';
+                html += '</div>';
+            }
+            html += '</div>';
+            layer.open({
+                type: 1,
+                title: '专家评级详情',
+                area: ['560px', '500px'],
+                content: html
+            });
+        },
+        error: function() { layer.msg('请求失败', { icon: 2 }); }
+    });
 }
 
 /** 确认淘汰 - 写子表 eliminated=1 */
@@ -1262,29 +1306,42 @@ function exportEliminateCandidatesExcel() {
 }
 
 function exportEliminateConfirmedExcel() {
-    if (!_surverElimConfirmed || _surverElimConfirmed.length === 0) {
-        layer.msg('暂无数据可导出', { icon: 0 }); return;
-    }
-    _surverElimEnsureXlsx(function() {
-        var header = ['序号', '类别', '申报编号', '项目名称', '申报单位', '申报账号', '分组', '专家分组'];
-        var aoa = [header];
-        _surverElimConfirmed.forEach(function(it, idx) {
-            aoa.push([
-                idx + 1,
-                SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || ''),
-                it.proCode || '',
-                it.topicName || '',
-                it.companyName || '',
-                it.declareAccount || '',
-                it.groupName || '',
-                it.expertGroupName || ''
-            ]);
-        });
-        var ws = XLSX.utils.aoa_to_sheet(aoa);
-        ws['!cols'] = [{wch:6},{wch:14},{wch:14},{wch:30},{wch:24},{wch:16},{wch:14},{wch:16}];
-        var wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, '已确认淘汰');
-        XLSX.writeFile(wb, '勘察奖_已确认淘汰名单.xlsx');
+    var taskId = $("#taskId").val();
+    var loadIdx = layer.load(1, { shade: [0.3, '#000'] });
+    $.ajax({
+        type: 'GET',
+        url: SURVER_ELIM_PREFIX + '/listConfirmed',
+        data: { taskId: taskId },
+        success: function(r) {
+            layer.close(loadIdx);
+            if (r.code !== 0) { layer.msg(r.msg || '加载失败', { icon: 2 }); return; }
+            _surverElimConfirmed = r.list || [];
+            if (!_surverElimConfirmed.length) {
+                layer.msg('暂无数据可导出', { icon: 0 }); return;
+            }
+            _surverElimEnsureXlsx(function() {
+                var header = ['序号', '类别', '申报编号', '项目名称', '申报单位', '申报账号', '分组', '专家分组'];
+                var aoa = [header];
+                _surverElimConfirmed.forEach(function(it, idx) {
+                    aoa.push([
+                        idx + 1,
+                        SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || ''),
+                        it.proCode || '',
+                        it.topicName || '',
+                        it.companyName || '',
+                        it.declareAccount || '',
+                        it.groupName || '',
+                        it.expertGroupName || ''
+                    ]);
+                });
+                var ws = XLSX.utils.aoa_to_sheet(aoa);
+                ws['!cols'] = [{wch:6},{wch:14},{wch:14},{wch:30},{wch:24},{wch:16},{wch:14},{wch:16}];
+                var wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, '已确认淘汰');
+                XLSX.writeFile(wb, '勘察奖_已确认淘汰名单.xlsx');
+            });
+        },
+        error: function() { layer.close(loadIdx); layer.msg('加载失败', { icon: 2 }); }
     });
 }
 

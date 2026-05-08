@@ -4,6 +4,7 @@ var prefix = "/surverScore"
 var SURVER_ELIM_EXPERT_PREFIX = '/cpe/suverProcess/eliminate/expert';
 // 全局缓存：当前专家在此任务下的"已评等级 / 回避情况 / 是否已确认提交"
 var SURVER_EXPERT_GRADE_MAP = {};   // proId -> 'A|B|C|D'
+var SURVER_EXPERT_REMARK_MAP = {};  // proId -> '评级理由'
 var SURVER_EXPERT_AVOID_SET = {};   // proId -> true (已回避)
 var SURVER_EXPERT_LOCKED   = false; // 已确认提交后锁定
 
@@ -26,6 +27,7 @@ function loadExpertGradeContext(cb) {
         success: function(r) {
             if (r && r.code === 0) {
                 SURVER_EXPERT_GRADE_MAP = r.grades || {};
+                SURVER_EXPERT_REMARK_MAP = r.remarks || {};
                 SURVER_EXPERT_AVOID_SET = {};
                 (r.avoidances || []).forEach(function(pid) { SURVER_EXPERT_AVOID_SET[pid] = true; });
                 SURVER_EXPERT_LOCKED   = (r.eliminateOver == 1);
@@ -192,34 +194,54 @@ function load() {
                         }
                     },
 
-                    // Phase C 新增：淘汰等级（A/B/C/D 下拉，已确认提交则禁用）
+                    // Phase C 原代码：淘汰等级（内联下拉）- 已注释
+                    // {
+                    //     field: '_elimGrade',
+                    //     title: '淘汰等级',
+                    //     align: 'center',
+                    //     formatter: function (value, row, index) {
+                    //         if (row.proSubType === 'consulting') {
+                    //             return '<span style="color:#bbb;font-size:12px;">不参与</span>';
+                    //         }
+                    //         if (SURVER_EXPERT_AVOID_SET[row.proId]) {
+                    //             return '<span style="color:#d9534f;font-size:12px;">已回避(无需评级)</span>';
+                    //         }
+                    //         var current = SURVER_EXPERT_GRADE_MAP[row.proId] || '';
+                    //         var disabled = SURVER_EXPERT_LOCKED ? 'disabled' : '';
+                    //         var opts = ['', 'A', 'B', 'C', 'D'].map(function(g) {
+                    //             var sel = (g === current) ? 'selected' : '';
+                    //             var label = g === '' ? '请选择' : g;
+                    //             return '<option value="' + g + '" ' + sel + '>' + label + '</option>';
+                    //         }).join('');
+                    //         return '<select class="form-control input-sm" style="width:90px;display:inline-block;" '
+                    //             + disabled
+                    //             + ' onchange="onSurverGradeChange(this, ' + row.proId + ', \'' + row.proSubType + '\', \''
+                    //             + (row.proCode || '') + '\')">'
+                    //             + opts
+                    //             + '</select>'
+                    //             + (current ? ' <span class="label label-success" style="margin-left:4px;">' + current + '</span>' : '');
+                    //     }
+                    // },
+                    // Phase C 改造：淘汰按钮 + 弹窗（含评级下拉 + 评级理由）
                     {
                         field: '_elimGrade',
-                        title: '淘汰等级',
+                        title: '淘汰',
                         align: 'center',
                         formatter: function (value, row, index) {
-                            // consulting 暂不参与淘汰流程（4 子表才有 eliminated 字段）
                             if (row.proSubType === 'consulting') {
                                 return '<span style="color:#bbb;font-size:12px;">不参与</span>';
                             }
-                            // 已回避 → 不允许打分
                             if (SURVER_EXPERT_AVOID_SET[row.proId]) {
-                                return '<span style="color:#d9534f;font-size:12px;">已回避(无需评级)</span>';
+                                return '<span style="color:#d9534f;font-size:12px;">已回避</span>';
                             }
                             var current = SURVER_EXPERT_GRADE_MAP[row.proId] || '';
+                            var btnLabel = current ? '已评级(' + current + ')' : '淘汰';
+                            var btnClass = current ? 'btn-success' : 'btn-primary';
                             var disabled = SURVER_EXPERT_LOCKED ? 'disabled' : '';
-                            var opts = ['', 'A', 'B', 'C', 'D'].map(function(g) {
-                                var sel = (g === current) ? 'selected' : '';
-                                var label = g === '' ? '请选择' : g;
-                                return '<option value="' + g + '" ' + sel + '>' + label + '</option>';
-                            }).join('');
-                            return '<select class="form-control input-sm" style="width:90px;display:inline-block;" '
-                                + disabled
-                                + ' onchange="onSurverGradeChange(this, ' + row.proId + ', \'' + row.proSubType + '\', \''
-                                + (row.proCode || '') + '\')">'
-                                + opts
-                                + '</select>'
-                                + (current ? ' <span class="label label-success" style="margin-left:4px;">' + current + '</span>' : '');
+                            return '<button class="btn btn-xs ' + btnClass + '" ' + disabled
+                                + ' onclick="openSurverGradeDialog(' + row.proId + ', \'' + (row.proSubType || '')
+                                + '\', \'' + (row.proCode || '') + '\')">'
+                                + btnLabel + '</button>';
                         }
                     },
                     // Phase C 新增：回避（手动）
@@ -440,11 +462,6 @@ function renderExpertSubmitToolbar() {
         + '<span style="margin-right:16px;">已回避 <b style="color:#d9534f;">' + stat.avoidedCount + '</b> 项</span>'
         + (remaining > 0 ? '<span style="margin-right:16px;">剩余 <b style="color:#f0ad4e;">' + remaining + '</b> 项未处理</span>' : '')
         + '<span style="margin-right:16px;">';
-        // + (locked
-        //     ? '<span style="display:inline-block;padding:4px 10px;font-size:13px;border-radius:3px;background:#5cb85c;color:#fff;vertical-align:middle;">' +
-        //     '已确认提交（锁定）</span>'
-        //     : '<span style="display:inline-block;padding:4px 10px;font-size:13px;border-radius:3px;background:#f0ad4e;color:#fff;vertical-align:middle;">' +
-        //     '未提交（可继续修改）</span>') + '</span>';
     if (!locked) {
         html += '<button class="btn btn-danger btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;" onclick="onSurverConfirmSubmitElim()">'
             + '<i class="fa fa-check"></i> 确认提交淘汰评级名单</button>';
@@ -453,43 +470,89 @@ function renderExpertSubmitToolbar() {
             + '<i class="fa fa-lock"></i> 已确认提交（不可撤回）</span>';
     }
     html += '</div>';
-    // 插入到 #exampleTable 上方
     var $existing = $('#surverElimExpertToolbar');
     if ($existing.length) { $existing.replaceWith(html); }
     else { $('#exampleTable').before(html); }
 }
 
-/** 等级下拉切换 → 调 saveGrade；选"请选择"(空值)则清除已有评级 */
-function onSurverGradeChange(sel, proId, proSubType, proCode) {
-    var grade = $(sel).val();
-    if (SURVER_EXPERT_LOCKED) {
-        layer.msg('已确认提交，无法再修改', { icon: 2 });
-        return;
-    }
-    var taskId = $("#taskId").val();
-    $.ajax({
-        type: 'POST',
-        url: SURVER_ELIM_EXPERT_PREFIX + '/saveGrade',
-        data: { taskId: taskId, proId: proId, proSubType: proSubType, grade: grade, proCode: proCode },
-        success: function(r) {
-            if (r.code === 0) {
-                if (grade) {
-                    layer.msg('已保存：' + grade, { icon: 1, time: 800 });
-                    SURVER_EXPERT_GRADE_MAP[proId] = grade;
-                } else {
-                    layer.msg('已清除评级', { icon: 1, time: 800 });
-                    delete SURVER_EXPERT_GRADE_MAP[proId];
-                }
-                // 刷新顶部计数 + 当前行
-                loadExpertGradeContext(function() {
-                    renderExpertSubmitToolbar();
-                    $('#exampleTable').bootstrapTable('refresh');
-                });
-            } else {
-                layer.msg(r.msg || '保存失败', { icon: 2 });
-            }
+/** 原代码：等级下拉切换 - 已注释 */
+// function onSurverGradeChange(sel, proId, proSubType, proCode) {
+//     var grade = $(sel).val();
+//     if (SURVER_EXPERT_LOCKED) { layer.msg('已确认提交，无法再修改', { icon: 2 }); return; }
+//     var taskId = $("#taskId").val();
+//     $.ajax({
+//         type: 'POST', url: SURVER_ELIM_EXPERT_PREFIX + '/saveGrade',
+//         data: { taskId: taskId, proId: proId, proSubType: proSubType, grade: grade, proCode: proCode },
+//         success: function(r) {
+//             if (r.code === 0) {
+//                 if (grade) { layer.msg('已保存：' + grade, { icon: 1, time: 800 }); SURVER_EXPERT_GRADE_MAP[proId] = grade; }
+//                 else { layer.msg('已清除评级', { icon: 1, time: 800 }); delete SURVER_EXPERT_GRADE_MAP[proId]; }
+//                 loadExpertGradeContext(function() { renderExpertSubmitToolbar(); $('#exampleTable').bootstrapTable('refresh'); });
+//             } else { layer.msg(r.msg || '保存失败', { icon: 2 }); }
+//         },
+//         error: function() { layer.msg('请求失败', { icon: 2 }); }
+//     });
+// }
+
+/** 新增：打开淘汰评级弹窗（含评级下拉 + 评级理由） */
+function openSurverGradeDialog(proId, proSubType, proCode) {
+    if (SURVER_EXPERT_LOCKED) { layer.msg('已确认提交，无法再修改', { icon: 2 }); return; }
+    var currentGrade = SURVER_EXPERT_GRADE_MAP[proId] || '';
+    var currentRemark = SURVER_EXPERT_REMARK_MAP[proId] || '';
+    var maxLen = 2000;
+    var gradeOpts = ['', 'A', 'B', 'C', 'D'].map(function(g) {
+        var sel = (g === currentGrade) ? 'selected' : '';
+        var label = g === '' ? '请选择评级' : g;
+        return '<option value="' + g + '" ' + sel + '>' + label + '</option>';
+    }).join('');
+    var escapedRemark = (currentRemark || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    var dlgHtml = '<div style="padding:20px 30px;">'
+        + '<div style="margin-bottom:16px;"><span style="color:red;">*</span> '
+        + '<label style="font-weight:bold;margin-right:10px;">专家评级：</label>'
+        + '<select id="_surverGradeDlgSelect" class="form-control" style="display:inline-block;width:220px;">' + gradeOpts + '</select>'
+        + '</div>'
+        + '<div style="margin-bottom:8px;">'
+        + '<label style="font-weight:bold;">评级理由：</label>'
+        + '<span id="_surverGradeDlgCount" style="float:right;color:#999;font-size:12px;">' + (currentRemark.length) + '/' + maxLen + '</span>'
+        + '</div>'
+        + '<textarea id="_surverGradeDlgRemark" class="form-control" rows="8" maxlength="' + maxLen + '" '
+        + 'placeholder="请输入..." style="resize:vertical;">' + escapedRemark + '</textarea>'
+        + '</div>';
+    layer.open({
+        type: 1, title: '淘汰', area: ['480px', '420px'], shadeClose: false,
+        content: dlgHtml, btn: ['确定', '取消'],
+        success: function() {
+            $('#_surverGradeDlgRemark').on('input', function() {
+                var len = $(this).val().length;
+                $('#_surverGradeDlgCount').text(len + '/' + maxLen);
+                $('#_surverGradeDlgCount').css('color', len > maxLen ? '#d9534f' : '#999');
+            });
         },
-        error: function() { layer.msg('请求失败', { icon: 2 }); }
+        yes: function(idx) {
+            var grade = $('#_surverGradeDlgSelect').val();
+            var remark = $('#_surverGradeDlgRemark').val() || '';
+            if (!grade) { layer.msg('请选择评级', { icon: 2 }); return; }
+            if (remark.length > maxLen) { layer.msg('评级理由超过' + maxLen + '字符限制', { icon: 2 }); return; }
+            var taskId = $("#taskId").val();
+            $.ajax({
+                type: 'POST',
+                url: SURVER_ELIM_EXPERT_PREFIX + '/saveGrade',
+                data: { taskId: taskId, proId: proId, proSubType: proSubType, grade: grade, proCode: proCode, remark: remark },
+                success: function(r) {
+                    if (r.code === 0) {
+                        layer.close(idx);
+                        layer.msg('已保存：' + grade, { icon: 1, time: 800 });
+                        SURVER_EXPERT_GRADE_MAP[proId] = grade;
+                        SURVER_EXPERT_REMARK_MAP[proId] = remark;
+                        loadExpertGradeContext(function() {
+                            renderExpertSubmitToolbar();
+                            $('#exampleTable').bootstrapTable('refresh');
+                        });
+                    } else { layer.msg(r.msg || '保存失败', { icon: 2 }); }
+                },
+                error: function() { layer.msg('请求失败', { icon: 2 }); }
+            });
+        }
     });
 }
 
@@ -583,18 +646,10 @@ function onSurverCancelSubmitElim() {
     });
 }
 
-/* ----------------------------------------------------------------
- * 形审记录弹窗：与 surverProList.js 中同名函数实现保持一致
- * 当前页面（专家打分列表）需点击"形审结果"列文本弹出审查记录，
- * 但本页未引入 surverProList.js，所以将该函数复制到此处。
- * 仅依赖：jQuery、layer（页面已加载）
- * ---------------------------------------------------------------- */
-// 新增：高级筛选 - 应用筛选（刷新表格）
 function applyScoreProFilter() {
     $('#exampleTable').bootstrapTable('refresh');
 }
 
-// 新增：高级筛选 - 重置所有筛选条件并刷新
 function resetScoreProFilter() {
     $("#filterProName").val('');
     $("#filterApplyCompany").val('');
