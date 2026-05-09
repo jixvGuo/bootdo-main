@@ -16,10 +16,17 @@
                                 <label class="col-sm-2 control-label">奖项选择：</label>
                                 <div class="col-sm-4">
                                     <select class="form-control m-b" name="account" id="awardSubType" onchange="selAwardChange()">
-                                        <option value="contribution" th:selected="${proSubType == 'contribution'}">石油工程建设优秀勘察奖</option>
-                                        <option value="design" th:selected="${proSubType == 'design'}">石油工程建设优秀设计奖</option>
-                                        <option value="software" th:selected="${proSubType == 'software'}">石油工程建设优秀勘察设计计算机软件奖</option>
-                                        <option value="standard" th:selected="${proSubType == 'standard'}">石油工程建设优秀标准设计奖</option>
+<!--    勘察奖的四个子tab        -->
+<!--                                        <option value="contribution" th:selected="${proSubType == 'contribution'}">石油工程建设优秀勘察奖</option>-->
+<!--                                        <option value="design" th:selected="${proSubType == 'design'}">石油工程建设优秀设计奖</option>-->
+<!--                                        <option value="software" th:selected="${proSubType == 'software'}">石油工程建设优秀勘察设计计算机软件奖</option>-->
+<!--                                        <option value="standard" th:selected="${proSubType == 'standard'}">石油工程建设优秀标准设计奖</option>-->
+
+                                        <option value="contribution" th:selected="${proSubType == 'contribution'}">勘察项目</option>
+                                        <option value="design" th:selected="${proSubType == 'design'}">设计项目</option>
+                                        <option value="software" th:selected="${proSubType == 'software'}">计算机软件项目</option>
+                                        <option value="standard" th:selected="${proSubType == 'standard'}">标准设计项目</option>
+
                                         <option value="consulting" th:selected="${proSubType == 'consulting'}">石油工程建设优秀咨询奖</option>
                                     </select>
                                 </div>

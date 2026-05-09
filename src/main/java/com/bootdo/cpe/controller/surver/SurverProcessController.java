@@ -113,6 +113,27 @@ public class SurverProcessController extends BaseSurverController {
     @Autowired
     private BootdoConfig bootdoConfig;
 
+    /**
+     * 从专家分组绑定反查真实 taskId，避免前端页面 taskId 与管理员侧不一致。
+     * 逻辑与 SurverProController.getSurverProList 中 ROLE_SURVER_SPECALIST_ID 分支一致。
+     * @param uid 当前登录用户 ID
+     * @param fallbackTaskId 前端传入的 taskId，找不到绑定时回退使用
+     * @return 真实 taskId
+     */
+    private String resolveExpertTaskId(Long uid, String fallbackTaskId) {
+        Map<String, Object> bindQuery = new HashMap<>();
+        bindQuery.put("userId", String.valueOf(uid));
+        bindQuery.put("proType", "surver_pro_group");
+        List<ExpertGroupDO> expertBindings = expertGroupService.list(bindQuery);
+        if (expertBindings != null && !expertBindings.isEmpty()) {
+            String bindTaskId = expertBindings.get(0).getTaskId();
+            if (StringUtils.isNotBlank(bindTaskId)) {
+                return bindTaskId;
+            }
+        }
+        return fallbackTaskId;
+    }
+
     // Phase B 新增：勘察奖"淘汰管理"弹窗后端服务
     @Autowired
     private com.bootdo.cpe.service.SurverExpertEliminateService surverExpertEliminateService;
@@ -1088,6 +1109,7 @@ public class SurverProcessController extends BaseSurverController {
         Long uid = getUserId();
         String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         if (StringUtils.isBlank(taskId)) return R.error("任务ID不能为空");
+        taskId = resolveExpertTaskId(uid, taskId);
 
         // 1) 是否已确认提交（看快照表是否有当前专家+任务的记录）
         Map<String, Object> snapQ = new HashMap<>();
@@ -1172,16 +1194,20 @@ public class SurverProcessController extends BaseSurverController {
         if (StringUtils.isBlank(taskId) || StringUtils.isBlank(proIdStr) || StringUtils.isBlank(proSubType)) {
             return R.error("缺少必填参数 taskId / proId / proSubType");
         }
-        // 锁定校验
+        Integer proId;
+        try { proId = Integer.valueOf(proIdStr); }
+        catch (NumberFormatException e) { return R.error("proId 必须是整数"); }
+
+        // 修复：从专家分组绑定反查真实 taskId，避免前端传入的 taskId 不一致
+        taskId = resolveExpertTaskId(uid, taskId);
+
+        // 锁定校验（使用修正后的 taskId）
         Map<String, Object> snapQ = new HashMap<>();
         snapQ.put("expertUid", uid);
         snapQ.put("taskId", taskId);
         if (surverExpertEliminateConfirmedService.count(snapQ) > 0) {
             return R.error("您已确认提交，无法再修改评级。");
         }
-        Integer proId;
-        try { proId = Integer.valueOf(proIdStr); }
-        catch (NumberFormatException e) { return R.error("proId 必须是整数"); }
 
         // grade 为空 → 清除已有评级
         if (StringUtils.isBlank(grade)) {
@@ -1310,6 +1336,7 @@ public class SurverProcessController extends BaseSurverController {
         Long uid = getUserId();
         String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         if (StringUtils.isBlank(taskId)) return R.error("任务ID不能为空");
+        taskId = resolveExpertTaskId(uid, taskId);
 
         Map<String, Object> snapQ = new HashMap<>();
         snapQ.put("expertUid", uid);

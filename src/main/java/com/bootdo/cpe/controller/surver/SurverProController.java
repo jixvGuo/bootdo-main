@@ -57,6 +57,14 @@ public class SurverProController extends BaseSurverController {
     private ExpertGroupService expertGroupService;
     @Autowired
     private com.bootdo.activiti.service.AwardPublishTaskService awardPublishTaskService;
+    @Autowired
+    private SurverDesignApplyProjectProfileService surverDesignApplyProjectProfileService;
+    @Autowired
+    private SurverExcellentApplyProjectProfileService surverExcellentApplyProjectProfileService;
+    @Autowired
+    private SurverStandardApplyProjectProfileService surverStandardApplyProjectProfileService;
+    @Autowired
+    private SurverSoftApplyProjectProfileService surverSoftApplyProjectProfileService;
 
     @RequiresPermissions("surveraward:to:prolist")
     @RequestMapping("/toProListMain")
@@ -380,8 +388,43 @@ public class SurverProController extends BaseSurverController {
         }
     }
 
+    // ========================= 原版导出详情（已注释，保留参考） =========================
+    // /**
+    //  * 勘察奖项目列表导出详情（按当前分奖项导出申报表字段）- 旧版，单 Sheet 简单表头
+    //  */
+    // @RequestMapping("/exportDetailExcel")
+    // public void exportDetailExcel(HttpServletResponse response, @RequestParam Map<String, Object> params, ModelMap map) {
+    //     packageAwardTaskId(map, params);
+    //     UserDO user = getUser();
+    //     Long uid = getUserId();
+    //     List<Long> roleIdList = user.getRoleIds();
+    //     if (roleIdList.contains(ROLE_ASSOCIATION_LEADER) || roleIdList.contains(ROLE_ADMIN_ID)) {
+    //         params.put("ass_assign_uid", uid);
+    //     } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
+    //         params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
+    //     } else if (roleIdList.contains(ROLE_ENTERPRISE_SURVER_ID)) {
+    //         params.put("enterpriseUid", uid);
+    //     } else if (roleIdList.contains(ROLE_SURVER_SPECALIST_ID)) {
+    //         params.put("scoreSpecialistUid", uid);
+    //     } else {
+    //         params.put("ass_assign_uid", uid);
+    //     }
+    //     getProListParamsByRole(params);
+    //     params.remove("offset");
+    //     params.remove("limit");
+    //     String proSubType = params.get("proSubType") == null ? "" : params.get("proSubType").toString();
+    //     if (StringUtils.isBlank(proSubType)) { response.setStatus(HttpServletResponse.SC_BAD_REQUEST); return; }
+    //     List<SurverProjectInfo> proList = surverAwardService.listProInfo(params);
+    //     String[] header; List<Map<String, String>> rows = new ArrayList<>();
+    //     // ... (设计/软件/标准/勘察各子分支填充 rows) ...
+    //     try { PoiWordUtils.downSurveyAwardExcel(header, rows, response); } catch (Exception e) { e.printStackTrace(); }
+    // }
+    // ========================= 原版导出详情 END =========================
+
     /**
-     * 勘察奖项目列表导出详情（按当前分奖项导出申报表字段）
+     * 新版：导出"申报项目基本信息一览表"（4 Sheet，沿用模板样式）
+     * 模板文件：classpath:excel/surver_detail_template.xlsx
+     * Sheet 映射：设计=design, 勘察=contribution, 标准=standard, 软件=software
      */
     @RequestMapping("/exportDetailExcel")
     public void exportDetailExcel(HttpServletResponse response, @RequestParam Map<String, Object> params, ModelMap map) {
@@ -389,8 +432,8 @@ public class SurverProController extends BaseSurverController {
         UserDO user = getUser();
         Long uid = getUserId();
         List<Long> roleIdList = user.getRoleIds();
+        // 角色过滤（与原版一致）
         if (roleIdList.contains(ROLE_ASSOCIATION_LEADER) || roleIdList.contains(ROLE_ADMIN_ID)) {
-            // 勘察奖协会外聘人员(75)：只能看分派给自己的项目
             params.put("ass_assign_uid", uid);
         } else if (roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)) {
             params.put("associationUserId", roleIdList.contains(ROLE_SURVER_OFFLINE_VIEW_ID) ? 101 : user.getUserId());
@@ -402,127 +445,205 @@ public class SurverProController extends BaseSurverController {
             params.put("ass_assign_uid", uid);
         }
         getProListParamsByRole(params);
-
         params.remove("offset");
         params.remove("limit");
 
-        String proSubType = params.get("proSubType") == null ? "" : params.get("proSubType").toString();
-        if (StringUtils.isBlank(proSubType)) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
+        Object taskIdObj = params.get("taskId");
 
-        List<SurverProjectInfo> proList = surverAwardService.listProInfo(params);
-        String[] header;
-        List<Map<String, String>> rows = new ArrayList<>();
+        try (java.io.InputStream tplIs = getClass().getClassLoader().getResourceAsStream("excel/surver_detail_template.xlsx")) {
+            if (tplIs == null) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                return;
+            }
+            org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(tplIs);
 
-        if ("design".equals(proSubType)) {
-            header = new String[]{"序号", "项目编号", "项目名称", "申报单位", "申报专业", "工程起止时间", "投产时间", "验收部门", "验收时间", "建筑规模", "建筑面积", "设计概(预)算", "竣工决算", "超概算", "主要设计单位", "协作单位", "联系人", "电话/手机", "传真"};
-            for (SurverProjectInfo pro : proList) {
-                SurverDesignApplyTableInfoDO t = getDesignTable(pro.getProId(), params.get("taskId"));
-                Map<String, String> row = new LinkedHashMap<>();
-                row.put("序号", safe(pro.getId()));
-                row.put("项目编号", safe(pro.getProCode()));
-                row.put("项目名称", safe(t == null ? pro.getProName() : t.getProName()));
-                row.put("申报单位", safe(pro.getApplyCompany()));
-                row.put("申报专业", safe(t == null ? "" : t.getApplyMajor()));
-                row.put("工程起止时间", safe(t == null ? "" : t.getProStartEndTime()));
-                row.put("投产时间", safe(t == null ? "" : t.getUseTime()));
-                row.put("验收部门", safe(t == null ? "" : t.getAcceptanceDepartment()));
-                row.put("验收时间", safe(t == null ? "" : t.getAcceptanceTime()));
-                row.put("建筑规模", safe(t == null ? "" : t.getBuildScope()));
-                row.put("建筑面积", safe(t == null ? "" : t.getBuildArea()));
-                row.put("设计概(预)算", safe(t == null ? "" : t.getDesignBudget()));
-                row.put("竣工决算", safe(t == null ? "" : t.getCompletionFinalAccounts()));
-                row.put("超概算", safe(t == null ? "" : t.getOverestimated()));
-                row.put("主要设计单位", safe(t == null ? "" : t.getMainDesignCompany()));
-                row.put("协作单位", safe(t == null ? "" : t.getCooperationUnit()));
-                row.put("联系人", safe(t == null ? "" : t.getApplyConcat()));
-                row.put("电话/手机", safe(t == null ? "" : t.getApplyPhone()));
-                row.put("传真", safe(t == null ? "" : t.getFax()));
-                rows.add(row);
-            }
-        } else if ("software".equals(proSubType)) {
-            header = new String[]{"序号", "项目编号", "软件全称", "软件简称", "申报专业", "软件类型", "软件类别", "任务来源", "开发起止时间", "试用时间", "鉴定部门", "鉴定时间", "评测公司", "评测时间", "主编单位", "协作单位", "联系人", "电话/手机", "传真"};
-            for (SurverProjectInfo pro : proList) {
-                SurverSoftApplyTableInfoDO t = getSoftTable(pro.getProId(), params.get("taskId"));
-                Map<String, String> row = new LinkedHashMap<>();
-                row.put("序号", safe(pro.getId()));
-                row.put("项目编号", safe(pro.getProCode()));
-                row.put("软件全称", safe(t == null ? pro.getProName() : t.getSoftName()));
-                row.put("软件简称", safe(t == null ? "" : t.getSoftShortName()));
-                row.put("申报专业", safe(t == null ? "" : t.getApplyMajor()));
-                row.put("软件类型", safe(t == null ? "" : t.getSoftType()));
-                row.put("软件类别", safe(t == null ? "" : t.getSoftCategory()));
-                row.put("任务来源", safe(t == null ? "" : t.getSoftTaskSource()));
-                row.put("开发起止时间", safe(t == null ? "" : t.getSoftStartEnd()));
-                row.put("试用时间", safe(t == null ? "" : t.getSoftTrialTime()));
-                row.put("鉴定部门", safe(t == null ? "" : t.getIdentificationDepartment()));
-                row.put("鉴定时间", safe(t == null ? "" : t.getIdentificationTime()));
-                row.put("评测公司", safe(t == null ? "" : t.getEvaluationCompany()));
-                row.put("评测时间", safe(t == null ? "" : t.getEvaluationTime()));
-                row.put("主编单位", safe(t == null ? "" : t.getEditorChief()));
-                row.put("协作单位", safe(t == null ? "" : t.getCooperationUnit()));
-                row.put("联系人", safe(t == null ? "" : t.getContactName()));
-                row.put("电话/手机", safe(t == null ? "" : t.getContactPhone()));
-                row.put("传真", safe(t == null ? "" : t.getFax()));
-                rows.add(row);
-            }
-        } else if ("standard".equals(proSubType)) {
-            header = new String[]{"序号", "项目编号", "图集名称", "图集号", "申报专业", "设计起止时间", "批准立项文件号", "批准实施文件号", "主编单位", "协作单位", "申报单位联系人", "电话/手机", "传真"};
-            for (SurverProjectInfo pro : proList) {
-                SurverStandardApplyTableInfoDO t = getStandardTable(pro.getProId(), params.get("taskId"));
-                Map<String, String> row = new LinkedHashMap<>();
-                row.put("序号", safe(pro.getId()));
-                row.put("项目编号", safe(pro.getProCode()));
-                row.put("图集名称", safe(t == null ? pro.getProName() : t.getGalleryName()));
-                row.put("图集号", safe(t == null ? "" : t.getAtlasNumber()));
-                row.put("申报专业", safe(t == null ? "" : t.getApplyMajor()));
-                row.put("设计起止时间", safe(t == null ? "" : t.getDesignStartEnd()));
-                row.put("批准立项文件号", safe(t == null ? "" : t.getApprovalDocumentNumber()));
-                row.put("批准实施文件号", safe(t == null ? "" : t.getApprovedDocumentNumber()));
-                row.put("主编单位", safe(t == null ? "" : t.getDditorChief()));
-                row.put("协作单位", safe(t == null ? "" : t.getCooperationUnit()));
-                row.put("申报单位联系人", safe(t == null ? "" : t.getReportingContactPerson()));
-                row.put("电话/手机", safe(t == null ? "" : t.getReportingContactPhone()));
-                row.put("传真", safe(t == null ? "" : t.getFax()));
-                rows.add(row);
-            }
-        } else if ("contribution".equals(proSubType)) {
-            header = new String[]{"序号", "项目编号", "项目名称", "申报专业", "工程建设时间", "工程起止时间", "验收时间", "验收部门", "计划编号", "勘察起止时间", "勘察面积/长度", "主要勘察单位", "协作单位", "通讯地址", "邮政编码", "联系人", "联系电话", "传真"};
-            for (SurverProjectInfo pro : proList) {
-                SurverBaseApplyTableInfoDO t = getContributionTable(pro.getProId(), params.get("taskId"));
-                Map<String, String> row = new LinkedHashMap<>();
-                row.put("序号", safe(pro.getId()));
-                row.put("项目编号", safe(pro.getProCode()));
-                row.put("项目名称", safe(t == null ? pro.getProName() : t.getProName()));
-                row.put("申报专业", safe(t == null ? "" : t.getApplyMajor()));
-                row.put("工程建设时间", safe(t == null ? "" : t.getProBuildTime()));
-                row.put("工程起止时间", safe(t == null ? "" : t.getProStartEnd()));
-                row.put("验收时间", safe(t == null ? "" : t.getAcceptanceTime()));
-                row.put("验收部门", safe(t == null ? "" : t.getAcceptanceDepartment()));
-                row.put("计划编号", safe(t == null ? "" : t.getPlanNumber()));
-                row.put("勘察起止时间", safe(t == null ? "" : t.getSurveyStartEnd()));
-                row.put("勘察面积/长度", safe(t == null ? "" : t.getSurveyAreaLength()));
-                row.put("主要勘察单位", safe(t == null ? "" : t.getMainSurveyUnit()));
-                row.put("协作单位", safe(t == null ? "" : t.getCooperationUnit()));
-                row.put("通讯地址", safe(t == null ? "" : t.getMailingAddress()));
-                row.put("邮政编码", safe(t == null ? "" : t.getPostCode()));
-                row.put("联系人", safe(t == null ? "" : t.getContactName()));
-                row.put("联系电话", safe(t == null ? "" : t.getContactPhone()));
-                row.put("传真", safe(t == null ? "" : t.getContactFox()));
-                rows.add(row);
-            }
-        } else {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
+            // Sheet 名称 → proSubType 映射
+            String[][] sheetMapping = {
+                {"设计", "design"}, {"勘察", "contribution"}, {"标准", "standard"}, {"软件", "software"}
+            };
+            // 各 Sheet 数据起始行（0-indexed）
+            int[] dataStartRows = {5, 5, 4, 4}; // 设计/勘察=row6, 标准/软件=row5
 
-        try {
-            PoiWordUtils.downSurveyAwardExcel(header, rows, response);
+            for (int si = 0; si < sheetMapping.length; si++) {
+                String sheetName = sheetMapping[si][0];
+                String subType = sheetMapping[si][1];
+                int startRow = dataStartRows[si];
+
+                org.apache.poi.xssf.usermodel.XSSFSheet sheet = wb.getSheet(sheetName);
+                if (sheet == null) continue;
+
+                // 清除模板中的示例数据行
+                for (int r = sheet.getLastRowNum(); r >= startRow; r--) {
+                    org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                    if (row != null) sheet.removeRow(row);
+                }
+                // 勘察sheet模板在startRow-1(第5行)也有示例数据，只清空单元格值，不删除行（保持合并区域完整）
+                if ("勘察".equals(sheetName)) {
+                    org.apache.poi.ss.usermodel.Row extraRow = sheet.getRow(startRow - 1);
+                    if (extraRow != null) {
+                        for (int c = extraRow.getLastCellNum() - 1; c >= 0; c--) {
+                            org.apache.poi.ss.usermodel.Cell cell = extraRow.getCell(c);
+                            if (cell != null) cell.setCellValue("");
+                        }
+                    }
+                }
+
+                // 查询该子类型项目
+                Map<String, Object> qp = new HashMap<>(params);
+                qp.put("proSubType", subType);
+                List<SurverProjectInfo> proList = surverAwardService.listProInfo(qp);
+
+                for (int i = 0; i < proList.size(); i++) {
+                    SurverProjectInfo pro = proList.get(i);
+                    org.apache.poi.xssf.usermodel.XSSFRow row = sheet.createRow(startRow + i);
+
+                    // 公共前 17 列（所有 Sheet 共用）
+                    setCellVal(row, 0, String.valueOf(i + 1));        // 序号
+                    setCellVal(row, 1, pro.getQcGroupName());          // 分组编号
+                    setCellVal(row, 2, String.valueOf(pro.getProId())); // ID
+                    setCellVal(row, 3, pro.getDeclareAccount());       // 申报账号
+                    setCellVal(row, 4, pro.getProCode());              // 项目编号
+                    setCellVal(row, 5, pro.getProName());              // 项目名称
+                    setCellVal(row, 6, pro.getApplyCompany());         // 申报单位
+                    // col 7(H): 主要设计/勘察/主编单位 — 按子类型
+                    // col 8(I): 协作单位
+                    // col 9(J): 申报专业
+                    setCellVal(row, 10, pro.getProSubTypeStr());  // K 类别（项目类型）
+                    setCellVal(row, 11, getRecommendedGrade(pro.getProId(), taskIdObj, subType)); // L 申报单位推荐等级
+                    // col 14(O): 人员名单
+                    setCellVal(row, 14, pro.getMemberList());
+
+                    // 按子类型填充特有字段
+                    if ("design".equals(subType)) {
+                        fillDesignRow(row, pro, taskIdObj);
+                    } else if ("contribution".equals(subType)) {
+                        fillContributionRow(row, pro, taskIdObj);
+                    } else if ("standard".equals(subType)) {
+                        fillStandardRow(row, pro, taskIdObj);
+                    } else if ("software".equals(subType)) {
+                        fillSoftwareRow(row, pro, taskIdObj);
+                    }
+                }
+            }
+
+            // 输出
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            String fileName = java.net.URLEncoder.encode("申报项目详细信息一览表.xlsx", "UTF-8").replaceAll("\\+", "%20");
+            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+            wb.write(response.getOutputStream());
+            wb.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    /** 单元格赋值工具 */
+    private void setCellVal(org.apache.poi.xssf.usermodel.XSSFRow row, int col, String val) {
+        if (val == null) val = "";
+        row.createCell(col).setCellValue(val);
+    }
+
+    // ---------- 设计 Sheet（68 列）数据行填充 ----------
+    private void fillDesignRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
+        SurverDesignApplyTableInfoDO t = getDesignTable(pro.getProId(), taskIdObj);
+        setCellVal(row, 7,  t == null ? "" : safe(t.getMainDesignCompany()));     // H 主要设计单位
+        setCellVal(row, 8,  t == null ? "" : cleanMeaningless(safe(t.getCooperationUnit()))); // I 协作单位
+        setCellVal(row, 9,  t == null ? safe(pro.getMajor()) : safe(t.getApplyMajor())); // J 申报专业
+        setCellVal(row, 17, t == null ? "" : safe(t.getProStartEndTime()));       // R 设计起止时间
+        setCellVal(row, 18, t == null ? "" : safe(t.getUseTime()));              // S 投产时间
+        setCellVal(row, 19, t == null ? "" : safe(t.getAcceptanceDepartment())); // T 验收部门
+        setCellVal(row, 20, t == null ? "" : safe(t.getAcceptanceTime()));       // U 验收时间
+        setCellVal(row, 22, t == null ? "" : safe(t.getBuildScope()));           // W 建设规模
+        setCellVal(row, 23, t == null ? "" : safe(t.getBuildArea()));            // X 建筑面积
+        setCellVal(row, 24, t == null ? "" : safe(t.getDesignBudget()));         // Y 设计概预算
+        setCellVal(row, 25, t == null ? "" : safe(t.getCompletionFinalAccounts())); // Z 竣工决算
+        setCellVal(row, 26, t == null ? "" : safe(t.getOverestimated()));        // AA 超概算的原因
+        // AB(col27) 简单介绍：只保留表头，不导出数据
+        // AT(col45) 曾获奖励级别：只保留表头，不导出数据
+        // 尾部共用列
+        setCellVal(row, 57, getProjectDescription(pro.getProId(), taskIdObj, "design")); // BF 项目简介（来自项目简介表）
+        // BG(col58) 形审初评发现问题汇总：只保留表头，不导出数据
+        // BH(col59) 形审初评意见：只保留表头，不导出数据
+        // BL(col63) 申报人：只保留表头，不导出数据
+        // BM(col64) 申报人电话：只保留表头，不导出数据
+        setCellVal(row, 65, t == null ? "" : safe(t.getApplyConcat()));   // BN 单位联系人
+        setCellVal(row, 66, t == null ? "" : safe(t.getApplyPhone()));    // BO 单位联系人电话
+    }
+
+    // ---------- 勘察 Sheet（57 列）数据行填充 ----------
+    private void fillContributionRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
+        SurverBaseApplyTableInfoDO t = getContributionTable(pro.getProId(), taskIdObj);
+        setCellVal(row, 7,  t == null ? "" : safe(t.getMainSurveyUnit()));     // H 主要勘察单位
+        setCellVal(row, 8,  t == null ? "" : cleanMeaningless(safe(t.getCooperationUnit()))); // I 协作单位
+        setCellVal(row, 9,  t == null ? safe(pro.getMajor()) : safe(t.getApplyMajor())); // J 申报专业
+        setCellVal(row, 17, t == null ? "" : safe(t.getProStartEnd()));        // R 工程起止时间
+        setCellVal(row, 18, t == null ? "" : safe(t.getProBuildTime()));       // S 工程建成时间
+        setCellVal(row, 19, t == null ? "" : safe(t.getAcceptanceDepartment())); // T 验收部门
+        setCellVal(row, 20, t == null ? "" : safe(t.getAcceptanceTime()));     // U 验收时间
+        setCellVal(row, 21, t == null ? "" : safe(t.getTaskResource()));       // V 任务来源
+        setCellVal(row, 22, t == null ? "" : safe(t.getPlanNumber()));         // W 计划编号
+        setCellVal(row, 23, t == null ? "" : safe(t.getSurveyStartEnd()));     // X 勘察起止时间
+        setCellVal(row, 24, t == null ? "" : safe(t.getSurveyAreaLength()));   // Y 勘察面积或线路长度
+        // Z(col25) 简单介绍：只保留表头，不导出数据
+        // 尾部共用列
+        setCellVal(row, 46, getProjectDescription(pro.getProId(), taskIdObj, "contribution")); // AU 项目简介（来自项目简介表）
+        setCellVal(row, 47, safe(pro.getLatestReviewRemarks()));  // AV 形审初评发现问题汇总
+        // AW(col48) 形审初评意见：只保留表头，不导出数据
+        // BA(col52) 申报人：只保留表头，不导出数据
+        // BB(col53) 申报人电话：只保留表头，不导出数据
+        setCellVal(row, 54, t == null ? "" : safe(t.getContactName()));  // BC 单位联系人
+        setCellVal(row, 55, t == null ? "" : safe(t.getContactPhone())); // BD 单位联系人电话
+    }
+
+    // ---------- 标准 Sheet（39 列）数据行填充 ----------
+    // 模板列位: R=图集名称, S=图集号, T=设计起止时间, U=批准立项文件号, V=批准实施文件号, AC=项目简介字数
+    private void fillStandardRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
+        SurverStandardApplyTableInfoDO t = getStandardTable(pro.getProId(), taskIdObj);
+        setCellVal(row, 7,  t == null ? "" : safe(t.getDditorChief()));        // H 主编单位
+        setCellVal(row, 8,  t == null ? "" : cleanMeaningless(safe(t.getCooperationUnit()))); // I 协作单位
+        setCellVal(row, 9,  t == null ? safe(pro.getMajor()) : safe(t.getApplyMajor())); // J 申报专业
+        setCellVal(row, 17, t == null ? "" : safe(t.getGalleryName()));        // R 图集名称
+        setCellVal(row, 18, t == null ? "" : safe(t.getAtlasNumber()));        // S 图集号
+        setCellVal(row, 19, t == null ? "" : safe(t.getDesignStartEnd()));     // T 设计起止时间
+        setCellVal(row, 20, t == null ? "" : safe(t.getApprovalDocumentNumber()));  // U 批准立项文件号
+        setCellVal(row, 21, t == null ? "" : safe(t.getApprovedDocumentNumber())); // V 批准实施文件号
+        // 尾部共用列
+        setCellVal(row, 28, getProjectDescription(pro.getProId(), taskIdObj, "standard")); // AC 项目简介（来自项目简介表）
+        setCellVal(row, 29, safe(pro.getLatestReviewRemarks()));  // AD 形审初评发现问题汇总
+        // AE(col30) 形审初评意见：只保留表头，不导出数据
+        // AI(col34) 申报人：只保留表头，不导出数据
+        // AJ(col35) 申报人电话：只保留表头，不导出数据
+        setCellVal(row, 36, t == null ? "" : safe(t.getReportingContactPerson())); // AK 单位联系人
+        setCellVal(row, 37, t == null ? "" : safe(t.getReportingContactPhone())); // AL 单位联系人电话
+    }
+
+    // ---------- 软件 Sheet（45 列）数据行填充 ----------
+    // 模板列位: R=软件简称, S=软件类型, T=软件类别, U=国家规范, V=任务来源, W=开发起止, X=试用, Y=鉴定部门, Z=鉴定时间, AA=评测公司, AB=评测时间, AI=项目简介
+    private void fillSoftwareRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
+        SurverSoftApplyTableInfoDO t = getSoftTable(pro.getProId(), taskIdObj);
+        setCellVal(row, 5,  t == null ? safe(pro.getProName()) : safe(t.getSoftName())); // F 软件全称
+        setCellVal(row, 7,  t == null ? "" : safe(t.getEditorChief()));        // H 主编单位
+        setCellVal(row, 8,  t == null ? "" : cleanMeaningless(safe(t.getCooperationUnit()))); // I 协作单位
+        setCellVal(row, 9,  t == null ? safe(pro.getMajor()) : safe(t.getApplyMajor())); // J 申报专业
+        setCellVal(row, 17, t == null ? "" : safe(t.getSoftShortName()));      // R 软件简称
+        setCellVal(row, 18, t == null ? "" : safe(t.getSoftType()));           // S 软件类型
+        setCellVal(row, 19, t == null ? "" : safe(t.getSoftCategory()));       // T 软件类别
+        setCellVal(row, 20, t == null ? "" : safe(t.getSoftNationalStandard())); // U 软件符合哪类现行国家规范
+        setCellVal(row, 21, t == null ? "" : safe(t.getSoftTaskSource()));     // V 任务来源
+        setCellVal(row, 22, t == null ? "" : safe(t.getSoftStartEnd()));       // W 开发起止时间
+        setCellVal(row, 23, t == null ? "" : safe(t.getSoftTrialTime()));      // X 试用时间
+        setCellVal(row, 24, t == null ? "" : safe(t.getIdentificationDepartment())); // Y 鉴定部门
+        setCellVal(row, 25, t == null ? "" : safe(t.getIdentificationTime()));  // Z 鉴定时间
+        setCellVal(row, 26, t == null ? "" : safe(t.getEvaluationCompany()));   // AA 评测公司
+        setCellVal(row, 27, t == null ? "" : safe(t.getEvaluationTime()));      // AB 评测时间
+        // 尾部共用列
+        setCellVal(row, 34, getProjectDescription(pro.getProId(), taskIdObj, "software")); // AI 项目简介（来自项目简介表）
+        // AJ(col35) 形审初评发现问题汇总：只保留表头，不导出数据
+        // AK(col36) 形审初评意见：只保留表头，不导出数据
+        // AO(col40) 申报人：只保留表头，不导出数据
+        // AP(col41) 申报人电话：只保留表头，不导出数据
+        setCellVal(row, 42, t == null ? "" : safe(t.getContactName()));  // AQ 单位联系人
+        setCellVal(row, 43, t == null ? "" : safe(t.getContactPhone())); // AR 单位联系人电话
     }
 
     private SurverDesignApplyTableInfoDO getDesignTable(Integer proId, Object taskId) {
@@ -585,7 +706,93 @@ public class SurverProController extends BaseSurverController {
         return list == null || list.isEmpty() ? null : list.get(0);
     }
 
+    /** 从"项目简介表"获取申报单位推荐等级 */
+    private String getRecommendedGrade(Integer proId, Object taskId, String subType) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("proId", proId);
+        p.put("taskId", taskId);
+        try {
+            switch (subType) {
+                case "design": {
+                    List<SurverDesignApplyProjectProfileDO> list = surverDesignApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverDesignApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getRecommendedGrade()) : "";
+                }
+                case "contribution": {
+                    List<SurverExcellentApplyProjectProfileDO> list = surverExcellentApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverExcellentApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getRecommendedGrade()) : "";
+                }
+                case "standard": {
+                    List<SurverStandardApplyProjectProfileDO> list = surverStandardApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverStandardApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getRecommendedGrade()) : "";
+                }
+                case "software": {
+                    List<SurverSoftApplyProjectProfileDO> list = surverSoftApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverSoftApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getRecommendedGrade()) : "";
+                }
+                default: return "";
+            }
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    /** 从"项目简介表"获取项目简介内容 */
+    private String getProjectDescription(Integer proId, Object taskId, String subType) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("proId", proId);
+        p.put("taskId", taskId);
+        try {
+            switch (subType) {
+                case "design": {
+                    List<SurverDesignApplyProjectProfileDO> list = surverDesignApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverDesignApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getProjectDescription()) : "";
+                }
+                case "contribution": {
+                    List<SurverExcellentApplyProjectProfileDO> list = surverExcellentApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverExcellentApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getProjectDescription()) : "";
+                }
+                case "standard": {
+                    List<SurverStandardApplyProjectProfileDO> list = surverStandardApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverStandardApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getProjectDescription()) : "";
+                }
+                case "software": {
+                    List<SurverSoftApplyProjectProfileDO> list = surverSoftApplyProjectProfileService.list(p);
+                    if ((list == null || list.isEmpty()) && taskId != null) { p.remove("taskId"); list = surverSoftApplyProjectProfileService.list(p); }
+                    return list != null && !list.isEmpty() ? safe(list.get(0).getProjectDescription()) : "";
+                }
+                default: return "";
+            }
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private String safe(Object val) {
         return val == null ? "" : val.toString();
+    }
+
+    /**
+     * 清理无意义值："无"、"暂无"、"没有"、纯符号等 → 返回空串
+     */
+    private String cleanMeaningless(String val) {
+        if (val == null) return "";
+        val = val.trim();
+        // 完全匹配常见无意义词
+        if ("无".equals(val) || "暂无".equals(val) || "没有".equals(val) || "无。".equals(val)
+                || "null".equalsIgnoreCase(val) || "N/A".equalsIgnoreCase(val)) {
+            return "";
+        }
+        // 纯符号（只含 -/—_.\ 、空格等），视为无意义
+        if (val.matches("^[\\-/—_.\\\\ \\s、，,。]+$")) {
+            return "";
+        }
+        return val;
     }
 }

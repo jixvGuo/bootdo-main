@@ -345,20 +345,29 @@ function printExcelPro() {
     window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId);
 }
 
+// ========== 原版 printDetailExcelPro（已注释，保留参考） ==========
+// function printDetailExcelPro() {
+//     var taskId = $("#taskId").val();
+//     var proSubType = $("#proSubType").val();
+//     if (!proSubType) { layer.msg("请在具体奖项页导出详情"); return; }
+//     var allowSubType = ['contribution', 'design', 'software', 'standard'];
+//     if (allowSubType.indexOf(proSubType) < 0) {
+//         layer.msg("仅支持优秀勘察奖、优秀设计奖、计算机软件奖、标准设计奖导出详情");
+//         return;
+//     }
+//     window.location.href = prefix + "/exportDetailExcel?taskId=" + encodeURIComponent(taskId)
+//         + "&proSubType=" + encodeURIComponent(proSubType);
+// }
+// ========== 原版 END ==========
+
+/** 新版：导出"申报项目基本信息一览表"（4 Sheet，沿用模板样式） */
 function printDetailExcelPro() {
     var taskId = $("#taskId").val();
-    var proSubType = $("#proSubType").val();
-    if (!proSubType) {
-        layer.msg("请在具体奖项页导出详情");
+    if (!taskId) {
+        layer.msg("缺少任务ID");
         return;
     }
-    var allowSubType = ['contribution', 'design', 'software', 'standard'];
-    if (allowSubType.indexOf(proSubType) < 0) {
-        layer.msg("仅支持优秀勘察奖、优秀设计奖、计算机软件奖、标准设计奖导出详情");
-        return;
-    }
-    window.location.href = prefix + "/exportDetailExcel?taskId=" + encodeURIComponent(taskId)
-        + "&proSubType=" + encodeURIComponent(proSubType);
+    window.location.href = prefix + "/exportDetailExcel?taskId=" + encodeURIComponent(taskId);
 }
 
 function importCheckResult() {

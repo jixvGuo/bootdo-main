@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <!--  3D旋转入口页面  -->
+    <!--  一开始进去  一进去  -->
 
     <!--<meta name="viewport" content="width=device-width, initial-scale=0.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>-->
     <title>中油建设协会数字化管理平台</title>
@@ -86,9 +87,12 @@
         //数据
         data: {
             itemList: [
-                { name:'工法奖', type:'blue', icon:'icon-renyuanguanli', },
-                { name:'科学技术奖', type:'blue', icon:'icon-GPS', },
-                { name:'勘察奖', type:'blue', icon:'icon-a-lujishigong2x', },
+                // { name:'工法奖', type:'blue', icon:'icon-renyuanguanli', },
+                // { name:'科学技术奖', type:'blue', icon:'icon-GPS', },
+                // { name:'勘察奖', type:'blue', icon:'icon-a-lujishigong2x', },
+                { name:'工法', type:'blue', icon:'icon-renyuanguanli', },
+                { name:'科学技术', type:'blue', icon:'icon-GPS', },
+                { name:'勘察', type:'blue', icon:'icon-a-lujishigong2x', },
                 { name:'QC', type:'blue', icon:'icon-shujufuwuzhongxin', },
                 { name:'优质工程', type:'blue', icon:'icon-liangchang', }
                 // { name:'咨询奖', type:'blue', icon:'icon-liangchang', }
@@ -106,18 +110,30 @@
         methods: {
             choice : function(){
 
-              if(this.CurrentlySelected == '工法奖') {
-                toLogin('/toLogin?award=gongfa&awardId=5', 5);
-                return;
-              }
-              if(this.CurrentlySelected == '科学技术奖') {
-                 toLogin('/toLogin?award=science&awardId=1', 1);
-                 return;
-              }
-              if(this.CurrentlySelected == '勘察奖') {
-                 toLogin('/toLogin?award=surver_pro&awardId=2', 2);
-                 return;
-              }
+              // if(this.CurrentlySelected == '工法奖') {
+              //   toLogin('/toLogin?award=gongfa&awardId=5', 5);
+              //   return;
+              // }
+              // if(this.CurrentlySelected == '科学技术奖') {
+              //    toLogin('/toLogin?award=science&awardId=1', 1);
+              //    return;
+              // }
+              // if(this.CurrentlySelected == '勘察奖') {
+              //    toLogin('/toLogin?award=surver_pro&awardId=2', 2);
+              //    return;
+              // }
+                if(this.CurrentlySelected == '工法') {
+                    toLogin('/toLogin?award=gongfa&awardId=5', 5);
+                    return;
+                }
+                if(this.CurrentlySelected == '科学技术') {
+                    toLogin('/toLogin?award=science&awardId=1', 1);
+                    return;
+                }
+                if(this.CurrentlySelected == '勘察') {
+                    toLogin('/toLogin?award=surver_pro&awardId=2', 2);
+                    return;
+                }
               if(this.CurrentlySelected == 'QC') {
                  //  点击 QC -> 登录后进入 /index?awardId=3，
                  //  加载 index_v1.html，左侧菜单由数据库菜单 + 角色权限决定（Shiro + sys_menu）

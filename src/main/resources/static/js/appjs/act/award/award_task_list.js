@@ -607,16 +607,24 @@ function load() {
 							let surverProListBtn = row.awardId == 2 ? s_surver_pro_list_btn : 'hidden';
 							var proListBtn =  '<a class="btn btn-success btn-sm ' + surverProListBtn + '" href="#" title="勘察奖项目列表"  mce_href="#" onclick="surverProList(\''
 								+ row.id
-								+ '\',\'design\')">勘察奖项目列表</a> ';
+								// + '\',\'design\')">勘察奖项目列表</a> ';
+								+ '\',\'design\')">勘察项目列表</a> ';
 
                             let readonly = row.isApply ? 0 : 1;
 							let applySurverBtn = row.isApply &&  row.awardId == 2 ? s_apply_surver_btn : 'hidden';
-							var applyAwardBtn = '<select class="btn btn-success btn-sm ' + applySurverBtn + '" onchange="applySurverAward(\''+row.id+'\',this.options[this.options.selectedIndex].value, ' + readonly + ')">' +
+							var applyAwardBtn = '<select class="btn btn-success btn-sm ' + applySurverBtn
+								+ '" onchange="applySurverAward(\''
+								+row.id
+								+'\',this.options[this.options.selectedIndex].value, ' + readonly + ')">' +
 								'  <option value="">选择申报项目</option>' +
-								'  <option value="excellent">石油工程建设优秀勘察奖</option>' +
-								'  <option value="design">石油工程建设优秀设计奖</option>' +
-								'  <option value="software">石油工程建设优秀勘察设计计算机软件奖</option>' +
-								'  <option value="standard">石油工程建设优秀标准设计奖</option>' +
+								// '  <option value="excellent">石油工程建设优秀勘察奖</option>' +
+								// '  <option value="design">石油工程建设优秀设计奖</option>' +
+								// '  <option value="software">石油工程建设优秀勘察设计计算机软件奖</option>' +
+								// '  <option value="standard">石油工程建设优秀标准设计奖</option>' +
+								'  <option value="excellent">勘察项目</option>' +
+								'  <option value="design">设计项目</option>' +
+								'  <option value="software">计算机软件项目</option>' +
+								'  <option value="standard">标准设计项目</option>' +
 								// '  <option value="consulting">石油工程建设优秀咨询奖</option>' +
 								'</select>';
 
@@ -1013,19 +1021,23 @@ function applySurverAward(taskId, awardType, readonly) {
 	let title = '';
 	if(awardType == 'design') {
 		url = '/surverApply/toApplyDesign?taskId=' + taskId;
-		title = '石油工程建设优秀设计奖';
+		// title = '石油工程建设优秀设计奖';
+		title = '设计项目';
 	}else if(awardType == 'software'){
 		url = '/surverSoftwareApply/toApplySoftware?taskId=' + taskId + '&readonly=' + readonly;
-		title = '石油工程建设优秀勘察设计计算机软件奖';
+		// title = '石油工程建设优秀勘察设计计算机软件奖';
+		title = '计算机软件项目';
 	}else if(awardType == 'consulting'){
 		url = '/surverConsultingApply/toApply?taskId=' + taskId + '&readonly=' + readonly;
 		title = '石油工程建设优秀咨询奖';
 	}else if(awardType == 'standard'){
 		url = '/surverStandardApply/toApply?taskId=' + taskId + '&readonly=' + readonly;
-		title = '石油工程建设优秀标准设计奖';
+		// title = '石油工程建设优秀标准设计奖';
+		title = '标准设计项目';
 	}else if(awardType == 'excellent') {
 		url = '/surverBaseExlentApply/toApply?taskId=' + taskId + '&readonly=' + readonly;
-		title = '石油工程建设优秀勘察奖';
+		// title = '石油工程建设优秀勘察奖';
+		title = '勘察项目';
 	}else {
 		return;
 	}
@@ -1074,7 +1086,8 @@ function applyExlentSurverAward(taskId, awardType) {
 	let title = '';
 	if(awardType == 'excellent') {
 		url = '/surverBaseExlentApply/toApply?taskId=' + taskId;
-		title = '石油工程建设优秀勘察奖';
+		// title = '石油工程建设优秀勘察奖';
+		title = '勘察项目';
 	}else {
 		layer.msg('申报奖项类型不存在-'+ awardType);
 		return;

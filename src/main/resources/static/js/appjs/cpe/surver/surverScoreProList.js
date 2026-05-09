@@ -9,6 +9,8 @@ var SURVER_EXPERT_AVOID_SET = {};   // proId -> true (已回避)
 var SURVER_EXPERT_LOCKED   = false; // 已确认提交后锁定
 
 $(function () {
+    // [DEBUG] 打印当前页面使用的 taskId，方便排查专家/管理员 taskId 不一致问题
+    console.log('[DEBUG-score] 专家打分页 taskId=' + $("#taskId").val());
     // 先拉取等级/回避/锁定状态，再加载表格（保证渲染时能正确填充下拉/按钮）
     loadExpertGradeContext(function() {
         load();
@@ -534,6 +536,7 @@ function openSurverGradeDialog(proId, proSubType, proCode) {
             if (!grade) { layer.msg('请选择评级', { icon: 2 }); return; }
             if (remark.length > maxLen) { layer.msg('评级理由超过' + maxLen + '字符限制', { icon: 2 }); return; }
             var taskId = $("#taskId").val();
+            console.log('[DEBUG-score] saveGrade taskId=' + taskId + ', proId=' + proId + ', grade=' + grade);
             $.ajax({
                 type: 'POST',
                 url: SURVER_ELIM_EXPERT_PREFIX + '/saveGrade',
