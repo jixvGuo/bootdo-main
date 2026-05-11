@@ -2,7 +2,7 @@ var prefix = "/surverPro"
 $(function () {
     load();
 });
-
+// 勘察奖奖项的项目列表展示页面，那个有点不好找，没直接引入的table
 function load() {
     $('#exampleTable')
         .bootstrapTable(
@@ -359,6 +359,85 @@ function printExcelPro() {
 //         + "&proSubType=" + encodeURIComponent(proSubType);
 // }
 // ========== 原版 END ==========
+
+// ========== 导出/导入确认淘汰名单 ==========
+
+/** 导出确认淘汰名单 Excel（含当前淘汰状态，可编辑后重新导入） */
+function exportEliminateConfirmedExcel() {
+    var taskId = $("#taskId").val();
+    window.location.href = prefix + "/exportEliminateExcel?taskId=" + encodeURIComponent(taskId);
+}
+
+/** 打开"导入确认淘汰名单"弹窗 */
+function triggerImportEliminateExcel() {
+    var modalHtml = [
+        '<div style="padding:20px 30px;">',
+        '  <div style="display:flex;align-items:center;margin-bottom:16px;">',
+        '    <label style="width:80px;flex-shrink:0;">表格文件：</label>',
+        '    <input id="elimImportDisplayName" type="text" class="form-control" style="flex:1;margin-right:8px;" placeholder="请输入..." readonly>',
+        '    <button type="button" class="btn btn-default" id="elimImportChooseBtn">选择</button>',
+        '    <input id="elimImportFileInput" type="file" accept=".xls,.xlsx" style="display:none;">',
+        '  </div>',
+        '  <div style="padding-left:80px;">',
+        '    <a href="javascript:void(0)" id="elimImportTplLink" style="color:#2196f3;cursor:pointer;">导出模板</a>',
+        '  </div>',
+        '</div>'
+    ].join("");
+
+    var layerIdx = layer.open({
+        type: 1,
+        title: "上传表格",
+        area: ["480px", "240px"],
+        content: modalHtml,
+        btn: ["确认", "取消"],
+        success: function (layero) {
+            // 绑定"选择"按钮
+            layero.find("#elimImportChooseBtn").on("click", function () {
+                layero.find("#elimImportFileInput").trigger("click");
+            });
+            // 文件选中后显示文件名
+            layero.find("#elimImportFileInput").on("change", function () {
+                var f = this.files[0];
+                layero.find("#elimImportDisplayName").val(f ? f.name : "");
+            });
+            // 导出模板链接
+            layero.find("#elimImportTplLink").on("click", function () {
+                exportEliminateConfirmedExcel();
+            });
+        },
+        yes: function (index, layero) {
+            var fileInput = layero.find("#elimImportFileInput")[0];
+            if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+                layer.msg("请先选择文件"); return;
+            }
+            var taskId = $("#taskId").val();
+            var formData = new FormData();
+            formData.append("file", fileInput.files[0]);
+            formData.append("taskId", taskId);
+            $.ajax({
+                url: prefix + "/importEliminateExcel",
+                type: "POST",
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function (r) {
+                    layer.close(index);
+                    if (r.code === 0) {
+                        layer.msg(r.msg || "导入成功", {icon: 1});
+                        // 刷新主表格（淘汰状态列同步更新）
+                        $('#exampleTable').bootstrapTable('refresh');
+                        if (typeof loadEliminateCandidates === "function") loadEliminateCandidates();
+                    } else {
+                        layer.msg(r.msg || "导入失败", {icon: 2});
+                    }
+                },
+                error: function () { layer.msg("请求失败，请重试", {icon: 2}); }
+            });
+        }
+    });
+}
+
+// ========== END 导入导出确认淘汰名单 ==========
 
 /** 新版：导出"申报项目基本信息一览表"（4 Sheet，沿用模板样式） */
 function printDetailExcelPro() {
@@ -1314,129 +1393,127 @@ function exportEliminateCandidatesExcel() {
     });
 }
 
-function exportEliminateConfirmedExcel() {
-    var taskId = $("#taskId").val();
-    var loadIdx = layer.load(1, { shade: [0.3, '#000'] });
-    $.ajax({
-        type: 'GET',
-        url: SURVER_ELIM_PREFIX + '/listConfirmed',
-        data: { taskId: taskId },
-        success: function(r) {
-            layer.close(loadIdx);
-            if (r.code !== 0) { layer.msg(r.msg || '加载失败', { icon: 2 }); return; }
-            _surverElimConfirmed = r.list || [];
-            if (!_surverElimConfirmed.length) {
-                layer.msg('暂无数据可导出', { icon: 0 }); return;
-            }
-            _surverElimEnsureXlsx(function() {
-                var header = ['序号', '类别', '申报编号', '项目名称', '申报单位', '申报账号', '分组', '专家分组'];
-                var aoa = [header];
-                _surverElimConfirmed.forEach(function(it, idx) {
-                    aoa.push([
-                        idx + 1,
-                        SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || ''),
-                        it.proCode || '',
-                        it.topicName || '',
-                        it.companyName || '',
-                        it.declareAccount || '',
-                        it.groupName || '',
-                        it.expertGroupName || ''
-                    ]);
-                });
-                var ws = XLSX.utils.aoa_to_sheet(aoa);
-                ws['!cols'] = [{wch:6},{wch:14},{wch:14},{wch:30},{wch:24},{wch:16},{wch:14},{wch:16}];
-                var wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, '已确认淘汰');
-                XLSX.writeFile(wb, '勘察奖_已确认淘汰名单.xlsx');
-            });
-        },
-        error: function() { layer.close(loadIdx); layer.msg('加载失败', { icon: 2 }); }
-    });
-}
+// ========== 原版 exportEliminateConfirmedExcel（已注释，保留参考）==========
+// 原版从 /listConfirmed 拉"已确认淘汰"列表后用 XLSX.js 前端生成，已被新版后端导出替代
+// function exportEliminateConfirmedExcel() {
+//     var taskId = $("#taskId").val();
+//     var loadIdx = layer.load(1, { shade: [0.3, '#000'] });
+//     $.ajax({
+//         type: 'GET',
+//         url: SURVER_ELIM_PREFIX + '/listConfirmed',
+//         data: { taskId: taskId },
+//         success: function(r) {
+//             layer.close(loadIdx);
+//             if (r.code !== 0) { layer.msg(r.msg || '加载失败', { icon: 2 }); return; }
+//             _surverElimConfirmed = r.list || [];
+//             if (!_surverElimConfirmed.length) {
+//                 layer.msg('暂无数据可导出', { icon: 0 }); return;
+//             }
+//             _surverElimEnsureXlsx(function() {
+//                 var header = ['序号', '类别', '申报编号', '项目名称', '申报单位', '申报账号', '分组', '专家分组'];
+//                 var aoa = [header];
+//                 _surverElimConfirmed.forEach(function(it, idx) {
+//                     aoa.push([
+//                         idx + 1,
+//                         SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || ''),
+//                         it.proCode || '',
+//                         it.topicName || '',
+//                         it.companyName || '',
+//                         it.declareAccount || '',
+//                         it.groupName || '',
+//                         it.expertGroupName || ''
+//                     ]);
+//                 });
+//                 var ws = XLSX.utils.aoa_to_sheet(aoa);
+//                 ws['!cols'] = [{wch:6},{wch:14},{wch:14},{wch:30},{wch:24},{wch:16},{wch:14},{wch:16}];
+//                 var wb = XLSX.utils.book_new();
+//                 XLSX.utils.book_append_sheet(wb, ws, '已确认淘汰');
+//                 XLSX.writeFile(wb, '勘察奖_已确认淘汰名单.xlsx');
+//             });
+//         },
+//         error: function() { layer.close(loadIdx); layer.msg('加载失败', { icon: 2 }); }
+//     });
+// }
+// ========== 原版 END ==========
 
-// ---------------- 导入（客户端解析 + 串行调 setEliminated）----------------
+// ---------------- 导入（客户端解析 + 串行调 setEliminated）原版已注释，替换为后端导入方式 ----------------
 
-function triggerImportEliminateExcel() {
-    $("#surverElimImportFile").val('');   // 清空，允许重复选同一文件
-    $("#surverElimImportFile").trigger('click');
-}
+// ========== 原版 triggerImportEliminateExcel（已注释，保留参考）==========
+// 原版通过前端 XLSX.js 解析 + 串行调 setEliminated，已被新版弹窗+后端批量导入替代
+// function triggerImportEliminateExcel() {
+//     $("#surverElimImportFile").val('');
+//     $("#surverElimImportFile").trigger('click');
+// }
+// ========== 原版 END ==========
 
-function onImportEliminateExcel(evt) {
-    var file = evt.target.files && evt.target.files[0];
-    if (!file) return;
-    _surverElimEnsureXlsx(function() {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                var wb = XLSX.read(e.target.result, { type: 'array' });
-                var ws = wb.Sheets[wb.SheetNames[0]];
-                var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-                // 跳过表头：自动判断第一行第 1 列是否为"申报编号"或"proCode"
-                var startIdx = 0;
-                if (rows.length && rows[0] && /(申报编号|proCode|编号|code)/i.test(String(rows[0][0]))) {
-                    startIdx = 1;
-                }
-                var proCodes = [];
-                for (var i = startIdx; i < rows.length; i++) {
-                    var c = rows[i] && rows[i][0];
-                    if (c == null) continue;
-                    c = String(c).trim();
-                    if (c) proCodes.push(c);
-                }
-                if (proCodes.length === 0) {
-                    layer.msg('未读取到任何申报编号', { icon: 2 });
-                    return;
-                }
-                _surverElimDoImport(proCodes);
-            } catch (err) {
-                console.error(err);
-                layer.msg('解析 Excel 失败：' + err.message, { icon: 2 });
-            }
-        };
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-function _surverElimDoImport(proCodes) {
-    var taskId = $("#taskId").val();
-    var loadIdx = layer.load(1, { shade: [0.3, '#000'] });
-    var success = 0, fail = 0, notFound = [];
-    var i = 0;
-    function next() {
-        if (i >= proCodes.length) {
-            layer.close(loadIdx);
-            var msg = '导入完成：成功 ' + success + ' 条，失败 ' + fail + ' 条';
-            if (notFound.length) msg += '；未找到：' + notFound.slice(0, 5).join(',') + (notFound.length > 5 ? '...' : '');
-            layer.alert(msg, { icon: success > 0 ? 1 : 2 });
-            loadEliminateCandidates();
-            return;
-        }
-        var code = proCodes[i++];
-        $.ajax({
-            type: 'GET',
-            url: SURVER_ELIM_PREFIX + '/findByProCode',
-            data: { taskId: taskId, proCode: code },
-            success: function(r) {
-                if (r.code !== 0 || !r.data) {
-                    fail++; notFound.push(code); next(); return;
-                }
-                var info = r.data;
-                $.ajax({
-                    type: 'POST',
-                    url: SURVER_ELIM_PREFIX + '/setEliminated',
-                    data: { proSubType: info.proSubType, proId: info.proId, eliminated: 1 },
-                    success: function(rr) {
-                        if (rr.code === 0) success++; else fail++;
-                        next();
-                    },
-                    error: function() { fail++; next(); }
-                });
-            },
-            error: function() { fail++; next(); }
-        });
-    }
-    next();
-}
+// ========== 原版 onImportEliminateExcel + _surverElimDoImport（已注释，保留参考）==========
+// 原版通过前端 XLSX.js 解析 proCode 列后串行调 setEliminated，已被后端批量导入替代
+// function onImportEliminateExcel(evt) {
+//     var file = evt.target.files && evt.target.files[0];
+//     if (!file) return;
+//     _surverElimEnsureXlsx(function() {
+//         var reader = new FileReader();
+//         reader.onload = function(e) {
+//             try {
+//                 var wb = XLSX.read(e.target.result, { type: 'array' });
+//                 var ws = wb.Sheets[wb.SheetNames[0]];
+//                 var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+//                 var startIdx = 0;
+//                 if (rows.length && rows[0] && /(申报编号|proCode|编号|code)/i.test(String(rows[0][0]))) {
+//                     startIdx = 1;
+//                 }
+//                 var proCodes = [];
+//                 for (var i = startIdx; i < rows.length; i++) {
+//                     var c = rows[i] && rows[i][0];
+//                     if (c == null) continue;
+//                     c = String(c).trim();
+//                     if (c) proCodes.push(c);
+//                 }
+//                 if (proCodes.length === 0) { layer.msg('未读取到任何申报编号', { icon: 2 }); return; }
+//                 _surverElimDoImport(proCodes);
+//             } catch (err) {
+//                 console.error(err);
+//                 layer.msg('解析 Excel 失败：' + err.message, { icon: 2 });
+//             }
+//         };
+//         reader.readAsArrayBuffer(file);
+//     });
+// }
+//
+// function _surverElimDoImport(proCodes) {
+//     var taskId = $("#taskId").val();
+//     var loadIdx = layer.load(1, { shade: [0.3, '#000'] });
+//     var success = 0, fail = 0, notFound = [];
+//     var i = 0;
+//     function next() {
+//         if (i >= proCodes.length) {
+//             layer.close(loadIdx);
+//             var msg = '导入完成：成功 ' + success + ' 条，失败 ' + fail + ' 条';
+//             if (notFound.length) msg += '；未找到：' + notFound.slice(0, 5).join(',') + (notFound.length > 5 ? '...' : '');
+//             layer.alert(msg, { icon: success > 0 ? 1 : 2 });
+//             loadEliminateCandidates();
+//             return;
+//         }
+//         var code = proCodes[i++];
+//         $.ajax({
+//             type: 'GET', url: SURVER_ELIM_PREFIX + '/findByProCode',
+//             data: { taskId: taskId, proCode: code },
+//             success: function(r) {
+//                 if (r.code !== 0 || !r.data) { fail++; notFound.push(code); next(); return; }
+//                 var info = r.data;
+//                 $.ajax({
+//                     type: 'POST', url: SURVER_ELIM_PREFIX + '/setEliminated',
+//                     data: { proSubType: info.proSubType, proId: info.proId, eliminated: 1 },
+//                     success: function(rr) { if (rr.code === 0) success++; else fail++; next(); },
+//                     error: function() { fail++; next(); }
+//                 });
+//             },
+//             error: function() { fail++; next(); }
+//         });
+//     }
+//     next();
+// }
+// ========== 原版 END ==========
 
 /* ============================================================
  * 高级筛选 - 应用 / 重置

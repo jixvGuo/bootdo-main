@@ -50,6 +50,7 @@
         pro.pro_stat,
         pro.pro_type proType,
         pro.create_uid createUid,
+        pro.declare_account declareAccount,
         (select association_userid from ass_award_publish_task where id = pro.publish_task_id) publish_task_user_id,
         (select sd.name from sys_dept sd join sys_user su on sd.dept_id = su.dept_id where su.user_id = pro.create_uid
         limit 1) enterprise_name

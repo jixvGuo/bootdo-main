@@ -48,4 +48,6 @@ public interface SurverExpertEliminateService {
     java.util.Map<String, Object> getProjectSnapshotInfo(Integer proId);
 
     java.util.Map<String, Object> findProInfoByProCode(String taskId, String proCode);
+
+    java.util.List<java.util.Map<String, Object>> listExpertEvalDetail(String taskId);
 }

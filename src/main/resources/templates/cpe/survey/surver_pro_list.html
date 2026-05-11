@@ -315,7 +315,9 @@
 				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()">
 					<i class="fa fa-upload"></i> 导入确认淘汰名单
 				</button>
-				<input type="file" id="surverElimImportFile" accept=".xlsx,.xls" style="display:none;" onchange="onImportEliminateExcel(event)">
+				<!-- 原file input已移至弹窗内部，此处保留注释
+			<input type="file" id="surverElimImportFile" accept=".xlsx,.xls" style="display:none;" onchange="onImportEliminateExcel(event)">
+			-->
 				<!-- 淘汰管理-导入导出按钮提示文字 -->
 <!--				<span style="color:#888;font-size:12px;margin-left:8px;">-->
 <!--					导入格式：第一列为申报编号(proCode)，将批量置为已淘汰-->
@@ -394,7 +396,7 @@
 <!-- <script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.4"></script> -->
 <!-- 新增专家分组联动后，提升版本号触发浏览器刷新缓存 -->
 <!-- Phase B 升级：新增"淘汰状态"列 + 淘汰管理弹窗逻辑 → v=2.6 -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.9"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=3.2"></script>
 <script>
 
     function reloadData() {

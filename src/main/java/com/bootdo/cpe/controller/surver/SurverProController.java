@@ -65,6 +65,8 @@ public class SurverProController extends BaseSurverController {
     private SurverStandardApplyProjectProfileService surverStandardApplyProjectProfileService;
     @Autowired
     private SurverSoftApplyProjectProfileService surverSoftApplyProjectProfileService;
+    @Autowired
+    private com.bootdo.cpe.service.SurverExpertEliminateService surverExpertEliminateService;
 
     @RequiresPermissions("surveraward:to:prolist")
     @RequestMapping("/toProListMain")
@@ -388,6 +390,180 @@ public class SurverProController extends BaseSurverController {
         }
     }
 
+    /**
+     * 导出"专家评审汇总"Excel
+     * 列：序号, 项目类别, 项目编号, 课题名称, 小组名称, 申报单位, 专家名称, 项目评级, 初审意见
+     * 全部项目，每位专家一行；无专家评级记录的项目后六列留空
+     */
+    @RequestMapping("/exportEliminateExcel")
+    public void exportEliminateExcel(HttpServletResponse response, @RequestParam Map<String, Object> params, ModelMap map) {
+        packageAwardTaskId(map, params);
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (taskId.isEmpty()) {
+            try { response.getWriter().write("暂无数据导出（未找到有效任务）"); } catch (Exception ignored) {}
+            return;
+        }
+
+        List<Map<String, Object>> dataList = surverExpertEliminateService.listExpertEvalDetail(taskId);
+        if (dataList == null || dataList.isEmpty()) {
+            try { response.getWriter().write("暂无数据导出"); } catch (Exception ignored) {}
+            return;
+        }
+
+        String[] header = {"序号", "项目类别", "项目编号", "课题名称", "小组名称", "申报单位", "专家名称", "项目评级", "初审意见"};
+        Map<String, String> subTypeMap = new java.util.LinkedHashMap<>();
+        subTypeMap.put("design",       "优秀设计奖");
+        subTypeMap.put("software",     "计算机软件奖");
+        subTypeMap.put("standard",     "标准设计奖");
+        subTypeMap.put("contribution", "优秀勘察奖");
+
+        try {
+            org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+            org.apache.poi.hssf.usermodel.HSSFSheet sheet = workbook.createSheet("专家评审汇总");
+            sheet.setDefaultColumnWidth(22);
+            // 最后一列（初审意见）宽一些
+            sheet.setColumnWidth(8, 50 * 256);
+            org.apache.poi.hssf.usermodel.HSSFCellStyle headerStyle = workbook.createCellStyle();
+            headerStyle.setFillForegroundColor(org.apache.poi.hssf.util.HSSFColor.HSSFColorPredefined.YELLOW.getIndex());
+            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+            org.apache.poi.hssf.usermodel.HSSFRow headRow = sheet.createRow(0);
+            for (int i = 0; i < header.length; i++) {
+                org.apache.poi.hssf.usermodel.HSSFCell cell = headRow.createCell(i);
+                cell.setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(header[i]));
+                cell.setCellStyle(headerStyle);
+            }
+            for (int i = 0; i < dataList.size(); i++) {
+                Map<String, Object> d = dataList.get(i);
+                String rawSubType = d.get("proSubType") != null ? d.get("proSubType").toString() : "";
+                String subTypeName = subTypeMap.getOrDefault(rawSubType, rawSubType);
+                String[] vals = {
+                    String.valueOf(i + 1),
+                    subTypeName,
+                    safe(d.get("proCode")),
+                    safe(d.get("topicName")),
+                    safe(d.get("groupName")),
+                    safe(d.get("companyName")),
+                    safe(d.get("expertName")),
+                    safe(d.get("grade")),
+                    safe(d.get("remark"))
+                };
+                org.apache.poi.hssf.usermodel.HSSFRow dataRow = sheet.createRow(i + 1);
+                for (int j = 0; j < vals.length; j++) {
+                    dataRow.createCell(j).setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(vals[j]));
+                }
+            }
+            String fileName = java.net.URLEncoder.encode("专家评审汇总.xls", "UTF-8").replaceAll("\\+", "%20");
+            response.setContentType("application/octet-stream");
+            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+            response.flushBuffer();
+            workbook.write(response.getOutputStream());
+            workbook.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * 导入"确认淘汰名单"Excel
+     * 通过 proid 列（第2列, index=1）识别项目，通过淘汰状态列（第11列, index=10）更新 eliminated
+     * 淘汰状态合法值：已淘汰(→1) / 未淘汰(→0)
+     */
+    @ResponseBody
+    @RequestMapping("/importEliminateExcel")
+    public R importEliminateExcel(@RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                  @RequestParam Map<String, Object> params,
+                                  ModelMap map) {
+        if (file == null || file.isEmpty()) {
+            return R.error("请选择要上传的文件");
+        }
+        packageAwardTaskId(map, params);
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+
+        // 批量查询 proId → proSubType 映射
+        Map<Integer, String> proSubTypeMap = new HashMap<>();
+        String[] exportSubTypes = {"contribution", "design", "software", "standard"};
+        for (String subType : exportSubTypes) {
+            Map<String, Object> qp = new HashMap<>(params);
+            qp.put("proSubType", subType);
+            qp.remove("offset");
+            qp.remove("limit");
+            List<SurverProjectInfo> sub = surverAwardService.listProInfo(qp);
+            if (sub != null) {
+                for (SurverProjectInfo p : sub) {
+                    proSubTypeMap.put(p.getProId(), subType);
+                }
+            }
+        }
+
+        int successCount = 0, skipCount = 0, noChangeCount = 0;
+        java.util.List<String> errors = new java.util.ArrayList<>();
+
+        try (java.io.InputStream is = file.getInputStream()) {
+            org.apache.poi.ss.usermodel.Workbook wb;
+            String originalName = file.getOriginalFilename() != null ? file.getOriginalFilename().toLowerCase() : "";
+            if (originalName.endsWith(".xlsx")) {
+                wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(is);
+            } else {
+                wb = new org.apache.poi.hssf.usermodel.HSSFWorkbook(is);
+            }
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            // 第1行(index=0)为表头，从第2行开始读数据
+            for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                if (row == null) continue;
+                // proid: 第2列(index=1)
+                org.apache.poi.ss.usermodel.Cell proIdCell = row.getCell(1);
+                // 淘汰状态: 第11列(index=10)
+                org.apache.poi.ss.usermodel.Cell statusCell = row.getCell(10);
+                if (proIdCell == null || statusCell == null) { skipCount++; continue; }
+
+                String proIdStr = getCellStr(proIdCell).trim();
+                String statusStr = getCellStr(statusCell).trim();
+                if (proIdStr.isEmpty() || statusStr.isEmpty()) { skipCount++; continue; }
+
+                Integer proId;
+                try { proId = Integer.parseInt(proIdStr); } catch (NumberFormatException e) {
+                    errors.add("第" + (r + 1) + "行 proid 非整数: " + proIdStr); continue;
+                }
+                if (!"已淘汰".equals(statusStr) && !"未淘汰".equals(statusStr)) {
+                    errors.add("第" + (r + 1) + "行淘汰状态值非法(仅允许'已淘汰'或'未淘汰'): " + statusStr); continue;
+                }
+
+                String proSubType = proSubTypeMap.get(proId);
+                if (proSubType == null) { errors.add("第" + (r + 1) + "行 proid=" + proId + " 未找到对应项目"); continue; }
+
+                int eliminated = "已淘汰".equals(statusStr) ? 1 : 0;
+                // 始终以默认值0新建记录（若已存在则不插入），确保 updateEliminatedBySubType 的
+                // 返回值准确反映"状态是否真正发生变化"，避免把"新建记录但值未变"误计为更新
+                surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, 0);
+                int updated  = surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
+                if (updated > 0) successCount++; else noChangeCount++;
+            }
+            wb.close();
+        } catch (Exception e) {
+            return R.error("文件解析失败: " + e.getMessage());
+        }
+
+        int totalRows = successCount + noChangeCount + skipCount + errors.size();
+        String msg = "导入完成（共 " + totalRows + " 行）：成功更新 " + successCount + " 条";
+        if (noChangeCount > 0) msg += "，状态未变 " + noChangeCount + " 条";
+        if (skipCount > 0) msg += "，跳过空行 " + skipCount + " 条";
+        if (!errors.isEmpty()) msg += "，异常 " + errors.size() + " 条: " + String.join("; ", errors.subList(0, Math.min(3, errors.size())));
+        return R.ok(msg);
+    }
+
+    /** 读取 POI 单元格为字符串 */
+    private String getCellStr(org.apache.poi.ss.usermodel.Cell cell) {
+        if (cell == null) return "";
+        switch (cell.getCellTypeEnum()) {
+            case NUMERIC: return String.valueOf((long) cell.getNumericCellValue());
+            case STRING:  return cell.getStringCellValue();
+            case BOOLEAN: return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA: try { return String.valueOf((long) cell.getNumericCellValue()); } catch (Exception e) { return cell.getStringCellValue(); }
+            default: return "";
+        }
+    }
+
     // ========================= 原版导出详情（已注释，保留参考） =========================
     // /**
     //  * 勘察奖项目列表导出详情（按当前分奖项导出申报表字段）- 旧版，单 Sheet 简单表头
@@ -462,7 +638,8 @@ public class SurverProController extends BaseSurverController {
                 {"设计", "design"}, {"勘察", "contribution"}, {"标准", "standard"}, {"软件", "software"}
             };
             // 各 Sheet 数据起始行（0-indexed）
-            int[] dataStartRows = {5, 5, 4, 4}; // 设计/勘察=row6, 标准/软件=row5
+            // int[] dataStartRows = {5, 5, 4, 4}; // 设计/勘察=row6, 标准/软件=row5
+            int[] dataStartRows = {5, 4, 4, 4}; // 勘察改为row5(index=4)，消除表头与数据间的空白行
 
             for (int si = 0; si < sheetMapping.length; si++) {
                 String sheetName = sheetMapping[si][0];
@@ -478,15 +655,16 @@ public class SurverProController extends BaseSurverController {
                     if (row != null) sheet.removeRow(row);
                 }
                 // 勘察sheet模板在startRow-1(第5行)也有示例数据，只清空单元格值，不删除行（保持合并区域完整）
-                if ("勘察".equals(sheetName)) {
-                    org.apache.poi.ss.usermodel.Row extraRow = sheet.getRow(startRow - 1);
-                    if (extraRow != null) {
-                        for (int c = extraRow.getLastCellNum() - 1; c >= 0; c--) {
-                            org.apache.poi.ss.usermodel.Cell cell = extraRow.getCell(c);
-                            if (cell != null) cell.setCellValue("");
-                        }
-                    }
-                }
+                // [已调整：勘察startRow改为4，清除循环已覆盖该行，无需单独处理]
+                // if ("勘察".equals(sheetName)) {
+                //     org.apache.poi.ss.usermodel.Row extraRow = sheet.getRow(startRow - 1);
+                //     if (extraRow != null) {
+                //         for (int c = extraRow.getLastCellNum() - 1; c >= 0; c--) {
+                //             org.apache.poi.ss.usermodel.Cell cell = extraRow.getCell(c);
+                //             if (cell != null) cell.setCellValue("");
+                //         }
+                //     }
+                // }
 
                 // 查询该子类型项目
                 Map<String, Object> qp = new HashMap<>(params);
@@ -561,7 +739,8 @@ public class SurverProController extends BaseSurverController {
         // AB(col27) 简单介绍：只保留表头，不导出数据
         // AT(col45) 曾获奖励级别：只保留表头，不导出数据
         // 尾部共用列
-        setCellVal(row, 57, getProjectDescription(pro.getProId(), taskIdObj, "design")); // BF 项目简介（来自项目简介表）
+        // setCellVal(row, 57, getProjectDescription(pro.getProId(), taskIdObj, "design")); // BF 项目简介（原版：导出全文，已注释保留）
+        setCellVal(row, 57, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "design")); // BF 项目简介（字数）
         // BG(col58) 形审初评发现问题汇总：只保留表头，不导出数据
         // BH(col59) 形审初评意见：只保留表头，不导出数据
         // BL(col63) 申报人：只保留表头，不导出数据
@@ -586,7 +765,8 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 24, t == null ? "" : safe(t.getSurveyAreaLength()));   // Y 勘察面积或线路长度
         // Z(col25) 简单介绍：只保留表头，不导出数据
         // 尾部共用列
-        setCellVal(row, 46, getProjectDescription(pro.getProId(), taskIdObj, "contribution")); // AU 项目简介（来自项目简介表）
+        // setCellVal(row, 46, getProjectDescription(pro.getProId(), taskIdObj, "contribution")); // AU 项目简介（原版：导出全文，已注释保留）
+        setCellVal(row, 46, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "contribution")); // AU 项目简介（字数）
         setCellVal(row, 47, safe(pro.getLatestReviewRemarks()));  // AV 形审初评发现问题汇总
         // AW(col48) 形审初评意见：只保留表头，不导出数据
         // BA(col52) 申报人：只保留表头，不导出数据
@@ -608,7 +788,8 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 20, t == null ? "" : safe(t.getApprovalDocumentNumber()));  // U 批准立项文件号
         setCellVal(row, 21, t == null ? "" : safe(t.getApprovedDocumentNumber())); // V 批准实施文件号
         // 尾部共用列
-        setCellVal(row, 28, getProjectDescription(pro.getProId(), taskIdObj, "standard")); // AC 项目简介（来自项目简介表）
+        // setCellVal(row, 28, getProjectDescription(pro.getProId(), taskIdObj, "standard")); // AC 项目简介（原版：导出全文，已注释保留）
+        setCellVal(row, 28, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "standard")); // AC 项目简介（字数）
         setCellVal(row, 29, safe(pro.getLatestReviewRemarks()));  // AD 形审初评发现问题汇总
         // AE(col30) 形审初评意见：只保留表头，不导出数据
         // AI(col34) 申报人：只保留表头，不导出数据
@@ -637,7 +818,8 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 26, t == null ? "" : safe(t.getEvaluationCompany()));   // AA 评测公司
         setCellVal(row, 27, t == null ? "" : safe(t.getEvaluationTime()));      // AB 评测时间
         // 尾部共用列
-        setCellVal(row, 34, getProjectDescription(pro.getProId(), taskIdObj, "software")); // AI 项目简介（来自项目简介表）
+        // setCellVal(row, 34, getProjectDescription(pro.getProId(), taskIdObj, "software")); // AI 项目简介（原版：导出全文，已注释保留）
+        setCellVal(row, 34, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "software")); // AI 项目简介（字数）
         // AJ(col35) 形审初评发现问题汇总：只保留表头，不导出数据
         // AK(col36) 形审初评意见：只保留表头，不导出数据
         // AO(col40) 申报人：只保留表头，不导出数据
@@ -738,6 +920,14 @@ public class SurverProController extends BaseSurverController {
         } catch (Exception e) {
             return "";
         }
+    }
+
+    /** 从"项目简介表"获取项目简介字数：每个非空白字符计1（含中文、字母、数字、标点），空格/换行不计 */
+    private String getProjectDescriptionWordCount(Integer proId, Object taskId, String subType) {
+        String content = getProjectDescription(proId, taskId, subType);
+        if (content == null || content.isEmpty()) return "0字";
+        int count = content.replaceAll("\\s", "").length();
+        return count + "字";
     }
 
     /** 从"项目简介表"获取项目简介内容 */

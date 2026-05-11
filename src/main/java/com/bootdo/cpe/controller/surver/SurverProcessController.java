@@ -1061,14 +1061,11 @@ public class SurverProcessController extends BaseSurverController {
         if (eliminated != 0 && eliminated != 1) {
             return R.error("eliminated 仅允许 0 或 1");
         }
-        // 先尝试插入最小记录（如果子表不存在该 proId 的记录）
-        surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, eliminated);
-        // 再更新 eliminated 字段
-        int rows = surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
-        if (rows > 0) {
-            return R.ok(eliminated == 1 ? "已确认淘汰" : "已取消淘汰");
-        }
-        return R.error("项目不存在或更新失败");
+        // 先确保子表存在记录（以默认值0插入，保证后续 UPDATE 的返回值能准确反映是否发生变化）
+        surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, 0);
+        // 再更新 eliminated 字段（SQL 含 AND eliminated != #{eliminated}，值相同时 rows=0 也属正常）
+        surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
+        return R.ok(eliminated == 1 ? "已确认淘汰" : "已取消淘汰");
     }
 
     /**

@@ -85,4 +85,10 @@ public interface SurverExpertEliminateDao {
      */
     Map<String, Object> findProInfoByProCode(@Param("taskId") String taskId,
                                              @Param("proCode") String proCode);
+
+    /**
+     * 专家评审汇总：全部项目 LEFT JOIN 专家评级，一行一个（项目+专家）组合，用于导出 Excel
+     * @return rows: { proSubType, proCode, topicName, groupName, companyName, expertName, grade, remark }
+     */
+    List<Map<String, Object>> listExpertEvalDetail(@Param("taskId") String taskId);
 }

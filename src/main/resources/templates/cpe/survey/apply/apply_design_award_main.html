@@ -17,6 +17,10 @@
         <div class="row">
             <div class="col-sm-12">
                 <div class="tabs-container">
+                    <div style="text-align:right; padding: 6px 10px; font-size:14px;">
+                        <span style="font-weight:bold;">申报账号：</span>
+                        <span th:text="${projectInfoDo != null ? projectInfoDo.declareAccount : ''}"></span>
+                    </div>
                     <ul class="nav nav-tabs">
                         <li class="active"><a data-toggle="tab" href="#basic-1" aria-expanded="true"> 石油工程建设优秀设计奖项目申报表表格</a> </li>
 <!--                        <li class=""><a data-toggle="tab" href="#basic-2" onclick="againload('basic-6')" aria-expanded="false">主要原材料消耗定额对比表列表</a> </li>-->

@@ -615,4 +615,14 @@ public class EnterpriseProjectInfoDo extends ScienceBaseProjectInfoDO implements
     public void setProGroupName(String proGroupName) {
         this.proGroupName = proGroupName;
     }
+
+    private String declareAccount;
+
+    public String getDeclareAccount() {
+        return declareAccount;
+    }
+
+    public void setDeclareAccount(String declareAccount) {
+        this.declareAccount = declareAccount;
+    }
 }

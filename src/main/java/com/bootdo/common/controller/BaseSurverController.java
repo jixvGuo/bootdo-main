@@ -114,11 +114,11 @@ public class BaseSurverController extends BaseController {
             //通过企业审查菜单进入的只能查看分派的项目信息
             params.put("ass_assign_uid", uid);
         }
-        // 勘察奖协会外聘人员(75)：查看全部项目，不按分派过滤（跳过 ass_assign_uid）
+        // 勘察奖协会外聘人员(75)：只能查看分派给自己的项目
         if (roleIds.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)) {
             params.remove("ass_worker_uid");
             params.remove("associationUserId");
-            params.remove("ass_assign_uid");
+            params.put("ass_assign_uid", uid);
             return params;
         }
 

@@ -94,4 +94,9 @@ public class SurverExpertEliminateServiceImpl implements SurverExpertEliminateSe
     public Map<String, Object> findProInfoByProCode(String taskId, String proCode) {
         return dao.findProInfoByProCode(taskId, proCode);
     }
+
+    @Override
+    public List<Map<String, Object>> listExpertEvalDetail(String taskId) {
+        return dao.listExpertEvalDetail(taskId);
+    }
 }
