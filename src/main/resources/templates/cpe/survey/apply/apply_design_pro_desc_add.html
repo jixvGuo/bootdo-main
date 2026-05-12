@@ -55,6 +55,20 @@
     <script type="text/javascript" src="/js/appjs/cpe/surverDesignApplyProjectProfile/add.js?v=1.1"></script>
     <script type="text/javascript" src="/js/appjs/cpe/petroleum_engineering_award/readonly.js"></script>
     <script>
+    // 申报账号自动填入：页面加载时，如果申报账号单元格为空，则从项目的 declare_account 自动获取并填入
+    $(function() {
+        var projectIdCell = $('#projectId');
+        if (!$.trim(projectIdCell.text())) {
+            var proId = $('#proId').val();
+            if (proId) {
+                $.get('/surverPro/getDeclareAccount', {proId: proId}, function(data) {
+                    if (data && data.code === 0 && data.declareAccount) {
+                        projectIdCell.text(data.declareAccount);
+                    }
+                });
+            }
+        }
+    });
     </script>
 </body>
 

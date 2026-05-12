@@ -28,6 +28,11 @@ public interface ProjectCommonDao {
      */
     public int updateProDeclareAccount(@Param("proId") int proId, @Param("declareAccount") String declareAccount);
 
+    /**
+     * 获取项目申报账号
+     */
+    public String getDeclareAccount(@Param("proId") int proId);
+
     public int removePros(String taskId);
     public int removeTask(String taskId);
 

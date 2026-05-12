@@ -144,6 +144,11 @@ public class QcAwardServiceImpl implements QcAwardService {
         return projectCommonDao.updateProDeclareAccount(proId, declareAccount);
     }
 
+    @Override
+    public String getDeclareAccount(int proId) {
+        return projectCommonDao.getDeclareAccount(proId);
+    }
+
     /**
      * 更新项目状态
      *

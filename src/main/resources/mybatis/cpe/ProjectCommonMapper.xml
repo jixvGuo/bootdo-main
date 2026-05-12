@@ -45,6 +45,11 @@
          WHERE
              id = #{proId}
      </update>
+
+    <select id="getDeclareAccount" resultType="java.lang.String">
+        SELECT declare_account FROM ass_award_enterprise_project WHERE id = #{proId}
+    </select>
+
     <update id="updateProGroupName">
         UPDATE ass_award_enterprise_project
         SET

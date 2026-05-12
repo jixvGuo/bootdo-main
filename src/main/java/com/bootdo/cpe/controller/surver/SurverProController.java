@@ -237,6 +237,16 @@ public class SurverProController extends BaseSurverController {
     }
 
     /**
+     * 获取项目申报账号
+     */
+    @RequestMapping("/getDeclareAccount")
+    @ResponseBody
+    public R getDeclareAccount(@RequestParam int proId) {
+        String account = qcAwardService.getDeclareAccount(proId);
+        return R.ok().put("declareAccount", account == null ? "" : account);
+    }
+
+    /**
      * 下载项目中的文件列表
      */
     @RequestMapping("/downloadProDocFiles")

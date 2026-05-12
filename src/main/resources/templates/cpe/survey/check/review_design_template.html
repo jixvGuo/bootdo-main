@@ -39,10 +39,10 @@
                 <!-- <input type="text" name="remarks" th:value="${reviewResult.major}" placeholder="专业"> -->
                 <input type="text" name="major" th:value="${reviewResult.major}" placeholder="专业">
             </div>
-            <div class="ui field">
+            <!-- <div class="ui field">
                 <label>备注</label>
                 <input type="text" name="remarks" th:value="${reviewResult.remarks}" placeholder="备注">
-            </div>
+            </div> -->
             <h4 class="ui red horizontal divider header">设计类一</h4>
             <div class="inline fields">
                 <label>是否申报单位承担</label>
@@ -721,6 +721,10 @@
                         <label>缓评</label>
                     </div>
                 </div>
+            </div>
+            <div class="ui field">
+                <label>备注</label>
+                <input type="text" name="remarks" th:value="${reviewResult.remarks}" placeholder="备注">
             </div>
 
             <div class="ui error message"></div>
