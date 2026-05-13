@@ -61,8 +61,8 @@ public class SurverExpertEliminateServiceImpl implements SurverExpertEliminateSe
     // ============================================================
 
     @Override
-    public List<Map<String, Object>> aggregateCandidates(String taskId, String proSubType) {
-        return dao.aggregateCandidates(taskId, proSubType);
+    public List<Map<String, Object>> aggregateCandidates(String taskId, String proSubType, Long contactUserId) {
+        return dao.aggregateCandidates(taskId, proSubType, contactUserId);
     }
 
     @Override
@@ -96,7 +96,24 @@ public class SurverExpertEliminateServiceImpl implements SurverExpertEliminateSe
     }
 
     @Override
-    public List<Map<String, Object>> listExpertEvalDetail(String taskId) {
-        return dao.listExpertEvalDetail(taskId);
+    public List<Map<String, Object>> listExpertEvalDetail(String taskId, Long contactUserId) {
+        return dao.listExpertEvalDetail(taskId, contactUserId);
+    }
+
+    @Override
+    public int countProInSurverContactScope(Integer proId, Long contactUserId) {
+        if (proId == null || contactUserId == null) {
+            return 0;
+        }
+        return dao.countProInSurverContactScope(proId, contactUserId);
+    }
+
+    @Override
+    public List<Integer> listProIdsVisibleToSurverContact(String taskId, Long contactUserId) {
+        if (taskId == null || taskId.isEmpty() || contactUserId == null) {
+            return java.util.Collections.emptyList();
+        }
+        List<Integer> ids = dao.listProIdsVisibleToSurverContact(taskId, contactUserId);
+        return ids == null ? java.util.Collections.emptyList() : ids;
     }
 }

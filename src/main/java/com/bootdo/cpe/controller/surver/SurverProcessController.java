@@ -53,6 +53,7 @@ import static com.bootdo.common.config.Constant.ROLE_SURVER_EXTERNAL_EMPLOYMENT_
 import static com.bootdo.common.config.Constant.ROLE_ASSOCIATION_LEADER;
 import static com.bootdo.common.config.Constant.ROLE_SURVER_ASSOCIATION_ID;
 import static com.bootdo.common.config.Constant.ROLE_SURVER_GROUP_CONTACT_ID;
+import static com.bootdo.common.config.Constant.ROLE_ADMIN_ID;
 // 新增：用于管理员（70角色）签章/工作单位列可见性控制（参考 QC 奖 isQcAssociationContactRole70）
 import static com.bootdo.common.config.Constant.ROLE_QC_ASSOCIATION_ID;
 // 新增：签章上传所需依赖
@@ -992,8 +993,25 @@ public class SurverProcessController extends BaseSurverController {
             return R.error("任务ID不能为空");
         }
         try {
-            List<Map<String, Object>> list = surverExpertEliminateService.aggregateCandidates(taskId, proSubType);
-            return R.ok().put("list", list == null ? Collections.emptyList() : list);
+            UserDO viewer = getUser();
+            Long contactScopeUid = resolveSurverElimContactScopeUserId(viewer);
+            List<Map<String, Object>> list = surverExpertEliminateService.aggregateCandidates(taskId, proSubType, contactScopeUid);
+            if (list == null) {
+                list = Collections.emptyList();
+            } else if (contactScopeUid != null) {
+                // 与导出 listExpertEvalDetail 一致：按「联络人可见项目 id」再过滤一遍，避免聚合 SQL 与主表 JOIN 边界导致漏过滤
+                list = new ArrayList<>(list);
+                Set<Integer> allowed = new HashSet<>(surverExpertEliminateService.listProIdsVisibleToSurverContact(taskId, contactScopeUid));
+                list.removeIf(row -> {
+                    Object pid = row.get("proId");
+                    if (pid == null) {
+                        return true;
+                    }
+                    int id = pid instanceof Number ? ((Number) pid).intValue() : Integer.parseInt(pid.toString());
+                    return !allowed.contains(id);
+                });
+            }
+            return R.ok().put("list", list);
         } catch (Exception e) {
             e.printStackTrace();
             return R.error("查询失败: " + e.getMessage());
@@ -1060,6 +1078,12 @@ public class SurverProcessController extends BaseSurverController {
         }
         if (eliminated != 0 && eliminated != 1) {
             return R.error("eliminated 仅允许 0 或 1");
+        }
+        Long contactScopeUid = resolveSurverElimContactScopeUserId(user);
+        if (contactScopeUid != null) {
+            if (surverExpertEliminateService.countProInSurverContactScope(proId, contactScopeUid) <= 0) {
+                return R.error("无权操作：该项目不在您绑定的专家组范围内");
+            }
         }
         // 先确保子表存在记录（以默认值0插入，保证后续 UPDATE 的返回值能准确反映是否发生变化）
         surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, 0);
@@ -1514,5 +1538,30 @@ public class SurverProcessController extends BaseSurverController {
 
         boolean ok = surverExpertAvoidanceService.cancelAvoidance(taskId, proId, expertUserId);
         return ok ? R.ok("已取消回避") : R.error("没有可取消的回避记录");
+    }
+
+    /**
+     * 勘察奖淘汰：纯「小组联络人」返回其 userId 用于服务端按 surver_view_scope 过滤；
+     * 含协会领导/管理员/协会联系人/协会外聘时返回 null（全任务）。
+     */
+    private Long resolveSurverElimContactScopeUserId(UserDO user) {
+        if (user == null) {
+            return null;
+        }
+        List<Long> roleIdList = user.getRoleIds();
+        if (roleIdList == null || roleIdList.isEmpty()) {
+            return null;
+        }
+        if (!roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
+            return null;
+        }
+        boolean fullAccess = roleIdList.contains(ROLE_ASSOCIATION_LEADER)
+                || roleIdList.contains(ROLE_ADMIN_ID)
+                || roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)
+                || roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID);
+        if (fullAccess) {
+            return null;
+        }
+        return user.getUserId();
     }
 }

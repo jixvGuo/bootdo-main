@@ -35,7 +35,7 @@ public interface SurverExpertEliminateService {
     // Phase B 新增 - 管理员淘汰管理
     // ============================================================
 
-    java.util.List<java.util.Map<String, Object>> aggregateCandidates(String taskId, String proSubType);
+    java.util.List<java.util.Map<String, Object>> aggregateCandidates(String taskId, String proSubType, Long contactUserId);
 
     int updateEliminatedBySubType(String proSubType, Integer proId, Integer eliminated);
 
@@ -49,5 +49,12 @@ public interface SurverExpertEliminateService {
 
     java.util.Map<String, Object> findProInfoByProCode(String taskId, String proCode);
 
-    java.util.List<java.util.Map<String, Object>> listExpertEvalDetail(String taskId);
+    java.util.List<java.util.Map<String, Object>> listExpertEvalDetail(String taskId, Long contactUserId);
+
+    int countProInSurverContactScope(Integer proId, Long contactUserId);
+
+    /**
+     * 勘察奖小组联络人：当前任务下 surver_view_scope 可见的项目 id 列表（与项目列表 contactUserId 过滤同源）
+     */
+    java.util.List<java.lang.Integer> listProIdsVisibleToSurverContact(String taskId, Long contactUserId);
 }

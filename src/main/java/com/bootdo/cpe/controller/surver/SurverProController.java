@@ -414,7 +414,9 @@ public class SurverProController extends BaseSurverController {
             return;
         }
 
-        List<Map<String, Object>> dataList = surverExpertEliminateService.listExpertEvalDetail(taskId);
+        UserDO exporter = getUser();
+        Long contactScopeUid = resolveSurverElimContactScopeUserId(exporter);
+        List<Map<String, Object>> dataList = surverExpertEliminateService.listExpertEvalDetail(taskId, contactScopeUid);
         if (dataList == null || dataList.isEmpty()) {
             try { response.getWriter().write("暂无数据导出"); } catch (Exception ignored) {}
             return;
@@ -426,6 +428,7 @@ public class SurverProController extends BaseSurverController {
         subTypeMap.put("software",     "计算机软件奖");
         subTypeMap.put("standard",     "标准设计奖");
         subTypeMap.put("contribution", "优秀勘察奖");
+        subTypeMap.put("consulting",   "优秀咨询奖");
 
         try {
             org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
@@ -488,6 +491,9 @@ public class SurverProController extends BaseSurverController {
         }
         packageAwardTaskId(map, params);
         String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (resolveSurverElimContactScopeUserId(getUser()) != null) {
+            return R.error("小组联络人无权批量导入淘汰名单，请在页面中逐项操作");
+        }
 
         // 批量查询 proId → proSubType 映射
         Map<Integer, String> proSubTypeMap = new HashMap<>();
@@ -560,6 +566,31 @@ public class SurverProController extends BaseSurverController {
         if (skipCount > 0) msg += "，跳过空行 " + skipCount + " 条";
         if (!errors.isEmpty()) msg += "，异常 " + errors.size() + " 条: " + String.join("; ", errors.subList(0, Math.min(3, errors.size())));
         return R.ok(msg);
+    }
+
+    /**
+     * 勘察奖淘汰导出/导入：纯「小组联络人」返回其 userId 用于按 surver_view_scope 过滤导出；
+     * 含协会领导/管理员/协会联系人/协会外聘时返回 null（全任务）。
+     */
+    private Long resolveSurverElimContactScopeUserId(UserDO user) {
+        if (user == null) {
+            return null;
+        }
+        List<Long> roleIdList = user.getRoleIds();
+        if (roleIdList == null || roleIdList.isEmpty()) {
+            return null;
+        }
+        if (!roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID)) {
+            return null;
+        }
+        boolean fullAccess = roleIdList.contains(ROLE_ASSOCIATION_LEADER)
+                || roleIdList.contains(ROLE_ADMIN_ID)
+                || roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)
+                || roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID);
+        if (fullAccess) {
+            return null;
+        }
+        return user.getUserId();
     }
 
     /** 读取 POI 单元格为字符串 */

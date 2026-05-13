@@ -1132,9 +1132,11 @@ function _surverElimEscape(s) {
 function openEliminateManage() {
     var taskId = $("#taskId").val();
     if (!taskId) { layer.msg('缺少任务ID'); return; }
+    var isContactOnly = $("#isSurverGroupContact").val() === '1' && $("#isAssociationLeader").val() !== '1';
+    var winTitle = isContactOnly ? '勘察奖 - 淘汰信息（本专家组范围）' : '勘察奖 - 淘汰管理';
     layer.open({
         type: 1,
-        title: '勘察奖 - 淘汰管理',
+        title: winTitle,
         area: ['1240px', '720px'],
         shadeClose: false,
         content: $('#surverEliminateModal'),

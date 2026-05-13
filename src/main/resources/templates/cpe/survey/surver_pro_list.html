@@ -25,9 +25,17 @@
 					<button class="btn btn-danger" onclick="toExpertGroupManage()" th:if="${isAssociationLeader}">
 						<i class="fa fa-users"></i>&nbsp;专家分组管理
 					</button>
-					<!-- Phase B 新增：淘汰管理按钮（协会管理员） -->
+					<!-- 原：仅协会领导/管理员可见「淘汰管理」
 					<button class="btn btn-warning" onclick="openEliminateManage()" th:if="${isAssociationLeader}">
 						<i class="fa fa-ban"></i>&nbsp;淘汰管理
+					</button>
+					-->
+					<button class="btn btn-warning" onclick="openEliminateManage()" th:if="${isAssociationLeader}">
+						<i class="fa fa-ban"></i>&nbsp;淘汰管理
+					</button>
+					<!-- 新增：勘察奖小组联络人 — 淘汰相关信息与导出（服务端按 surver_view_scope 限制为本绑定专家组，非全任务） -->
+					<button class="btn btn-warning" onclick="openEliminateManage()" th:if="${isSurverGroupContact && !isAssociationLeader}" title="仅展示与导出您绑定的专家组范围内的项目">
+						<i class="fa fa-ban"></i>&nbsp;淘汰信息
 					</button>
 					<!-- 新增：勘察奖小组联络人(86)返回任务列表 -->
 					<a class="btn btn-default" href="/cpe/suverProcess/toSurverContactTaskList" th:if="${isSurverGroupContact}">
@@ -41,6 +49,8 @@
 					<input id="proSubType" name="proSubType" th:value="${proSubType}"  type="hidden">
 					<input type="hidden" id="isAssociationLeader" th:value="${isAssociationLeader ? '1' : '0'}">
 					<input type="hidden" id="isEnterpriseUser" th:value="${isEnterpriseUser ? '1' : '0'}">
+					<!-- 新增：勘察奖小组联络人标志（淘汰弹窗标题与范围提示） -->
+					<input type="hidden" id="isSurverGroupContact" th:value="${isSurverGroupContact ? '1' : '0'}">
 <!--
 					<div class="columns ui pull-right action input">
 						<div class="ui floating dropdown  icon button">
@@ -309,7 +319,11 @@
 <!--				<button class="btn btn-warning btn-sm"  onclick="triggerImportEliminateExcel()">-->
 <!--					<i class="fa fa-upload"></i> 导入淘汰名单-->
 <!--				</button>-->
-				<button class="btn btn-success btn-sm" style="margin-right: 5px" onclick="exportEliminateConfirmedExcel()">
+<!--				<button class="btn btn-success btn-sm" style="margin-right: 5px" onclick="exportEliminateConfirmedExcel()">
+					<i class="fa fa-file-excel-o" ></i> 导出确认淘汰名单
+				</button>-->
+				<button class="btn btn-success btn-sm" style="margin-right: 5px" onclick="exportEliminateConfirmedExcel()"
+						th:title="${isSurverGroupContact && !isAssociationLeader} ? '仅导出您绑定的专家组范围内的专家评审汇总（非全任务）' : '导出当前任务专家评审汇总'">
 					<i class="fa fa-file-excel-o" ></i> 导出确认淘汰名单
 				</button>
 <!--				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()" disabled>-->
@@ -396,7 +410,7 @@
 <!-- <script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.4"></script> -->
 <!-- 新增专家分组联动后，提升版本号触发浏览器刷新缓存 -->
 <!-- Phase B 升级：新增"淘汰状态"列 + 淘汰管理弹窗逻辑 → v=2.6 -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=3.2"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=3.3"></script>
 <script>
 
     function reloadData() {

@@ -47,7 +47,8 @@ public interface SurverExpertEliminateDao {
      *               gradeA, gradeB, gradeC, gradeD, gradeEmpty, totalRows, expertGrades, eliminated }
      */
     List<Map<String, Object>> aggregateCandidates(@Param("taskId") String taskId,
-                                                  @Param("proSubType") String proSubType);
+                                                  @Param("proSubType") String proSubType,
+                                                  @Param("contactUserId") Long contactUserId);
 
     /**
      * 路由更新对应申报子表的 eliminated 字段（管理员持久化"淘汰状态"）
@@ -90,5 +91,18 @@ public interface SurverExpertEliminateDao {
      * 专家评审汇总：全部项目 LEFT JOIN 专家评级，一行一个（项目+专家）组合，用于导出 Excel
      * @return rows: { proSubType, proCode, topicName, groupName, companyName, expertName, grade, remark }
      */
-    List<Map<String, Object>> listExpertEvalDetail(@Param("taskId") String taskId);
+    List<Map<String, Object>> listExpertEvalDetail(@Param("taskId") String taskId,
+                                                  @Param("contactUserId") Long contactUserId);
+
+    /**
+     * 判断项目是否在指定小组联络人的 surver_view_scope 绑定专家组范围内
+     */
+    int countProInSurverContactScope(@Param("proId") Integer proId,
+                                     @Param("contactUserId") Long contactUserId);
+
+    /**
+     * 勘察奖小组联络人：当前任务下 surver_view_scope 可见的项目 id（与 listProInfo 同源）
+     */
+    List<Integer> listProIdsVisibleToSurverContact(@Param("taskId") String taskId,
+                                                  @Param("contactUserId") Long contactUserId);
 }

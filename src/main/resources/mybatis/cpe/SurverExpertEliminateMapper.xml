@@ -130,6 +130,19 @@
         <if test="proSubType != null and proSubType != ''">
           AND e.pro_sub_type = #{proSubType}
         </if>
+        <!-- 新增：勘察奖小组联络人仅看 surver_view_scope 绑定的专家组下的项目（与 SurverAwardMapper.listProInfo 一致） -->
+        <if test="contactUserId != null">
+          AND EXISTS (
+            SELECT 1 FROM ass_award_pro_expert_group cpeg
+            JOIN ass_award_expert_group ceg ON ceg.groupid = cpeg.groupid AND ceg.taskid = cpeg.taskid
+            JOIN add_special_info csi ON csi.group_name = ceg.name
+             AND csi.task_id  = cpeg.taskid
+             AND csi.user_id  = #{contactUserId}
+             AND csi.pro_type = 'surver_view_scope'
+             AND csi.deleted  = 0
+            WHERE cpeg.proid = e.pro_id
+          )
+        </if>
         GROUP BY e.task_id, e.pro_id, e.pro_sub_type
         ORDER BY gradeD DESC, gradeC DESC, e.pro_sub_type, e.pro_id
     </select>
@@ -267,8 +280,16 @@
     <select id="listExpertEvalDetail" resultType="java.util.HashMap">
         SELECT
             pro.pro_sub_type   AS proSubType,
-            pro.pro_result_code AS proCode,
-            pro.chengguo        AS topicName,
+            IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) AS proCode,
+            COALESCE(pro.chengguo,
+                CASE pro.pro_sub_type
+                    WHEN 'contribution' THEN (SELECT t.pro_name    FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'design'       THEN (SELECT t.pro_name    FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'software'     THEN (SELECT t.soft_name   FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'standard'     THEN (SELECT t.gallery_name FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                    WHEN 'consulting'   THEN (SELECT t.pro_name    FROM ass_surver_consult_apply_table_info   t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                END
+            ) AS topicName,
             (SELECT eg.name FROM ass_award_pro_expert_group peg
               JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid
              WHERE peg.proid = pro.id LIMIT 1) AS groupName,
@@ -277,15 +298,67 @@
             e.grade             AS grade,
             e.remark            AS remark
         FROM ass_award_enterprise_project pro
-        JOIN sys_user su ON su.user_id = pro.create_uid
-        JOIN sys_dept sd ON sd.dept_id = su.dept_id
+        <!-- 原实现：INNER JOIN 会导致 create_uid 或 dept_id 不存在时丢失项目数据 -->
+        <!-- JOIN sys_user su ON su.user_id = pro.create_uid -->
+        <!-- JOIN sys_dept sd ON sd.dept_id = su.dept_id -->
+        LEFT JOIN sys_user su ON su.user_id = pro.create_uid
+        LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
         LEFT JOIN ass_surver_expert_eliminate e
                ON e.pro_id = pro.id
               AND e.task_id = #{taskId}
               AND e.deleted = 0
         WHERE pro.publish_task_id = #{taskId}
           AND pro.pro_type = 'surver_pro'
-        ORDER BY pro.pro_sub_type, pro.id, e.expert_uid
+          AND pro.pro_sub_type IN ('contribution', 'design', 'software', 'standard', 'consulting')
+        <if test="contactUserId != null">
+          AND EXISTS (
+            SELECT 1 FROM ass_award_pro_expert_group cpeg
+            JOIN ass_award_expert_group ceg ON ceg.groupid = cpeg.groupid AND ceg.taskid = cpeg.taskid
+            JOIN add_special_info csi ON csi.group_name = ceg.name
+             AND csi.task_id  = cpeg.taskid
+             AND csi.user_id  = #{contactUserId}
+             AND csi.pro_type = 'surver_view_scope'
+             AND csi.deleted  = 0
+            WHERE cpeg.proid = pro.id
+          )
+        </if>
+        ORDER BY pro.pro_sub_type, IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code), e.expert_uid
+    </select>
+
+    <!-- 新增：判断项目是否在指定小组联络人的 surver_view_scope 绑定范围内 -->
+    <select id="countProInSurverContactScope" resultType="int">
+        SELECT COUNT(1)
+          FROM ass_award_enterprise_project pro
+         WHERE pro.id = #{proId}
+           AND pro.pro_type = 'surver_pro'
+           AND EXISTS (
+            SELECT 1 FROM ass_award_pro_expert_group cpeg
+            JOIN ass_award_expert_group ceg ON ceg.groupid = cpeg.groupid AND ceg.taskid = cpeg.taskid
+            JOIN add_special_info csi ON csi.group_name = ceg.name
+             AND csi.task_id  = cpeg.taskid
+             AND csi.user_id  = #{contactUserId}
+             AND csi.pro_type = 'surver_view_scope'
+             AND csi.deleted  = 0
+            WHERE cpeg.proid = pro.id
+          )
+    </select>
+
+    <!-- 勘察奖小组联络人：当前任务下 surver_view_scope 可见的项目 id（与 SurverAwardMapper.listProInfo 中 contactUserId 条件同源，用于淘汰候选表后过滤） -->
+    <select id="listProIdsVisibleToSurverContact" resultType="java.lang.Integer">
+        SELECT DISTINCT pro.id
+          FROM ass_award_enterprise_project pro
+         WHERE pro.publish_task_id = #{taskId}
+           AND pro.pro_type = 'surver_pro'
+           AND EXISTS (
+                SELECT 1 FROM ass_award_pro_expert_group cpeg
+                JOIN ass_award_expert_group ceg ON ceg.groupid = cpeg.groupid AND ceg.taskid = cpeg.taskid
+                JOIN add_special_info csi ON csi.group_name = ceg.name
+                 AND csi.task_id  = cpeg.taskid
+                 AND csi.user_id  = #{contactUserId}
+                 AND csi.pro_type = 'surver_view_scope'
+                 AND csi.deleted  = 0
+                WHERE cpeg.proid = pro.id
+               )
     </select>
 
     <!-- 按 proCode 反查 (taskId, proId, proSubType), 用于"按申报编号导入淘汰名单" -->
