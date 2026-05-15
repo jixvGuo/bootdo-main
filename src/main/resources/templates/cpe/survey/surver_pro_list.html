@@ -4,7 +4,7 @@
 <head th:include="include :: header"></head>
 <link rel="stylesheet" href="/js/semantic/semantic.min.css">
 <body class="gray-bg">
-<!-- 勘察奖 项目列表 -->
+<!-- 勘察奖项目列表页面 -->
 <div class="wrapper wrapper-content animated fadeInRight">
     <div class="row">
         <div class="col-sm-12">
@@ -129,6 +129,7 @@
 					<!-- 新增：可折叠筛选块（项目名称/申报单位/专业/申报账号/分组/    -->
 					<!--                     专家分组/淘汰状态/状态）                 -->
 					<!--   - 默认折叠；点击 "高级筛选" 切换展开                       -->
+					<!--   - 输入框回车、下拉框选中即自动筛选；仍可点「筛选」             -->
 					<!--   - 服务端筛选：参数名以 filter 开头，传给后端 listProInfo   -->
 					<!-- ============================================================ -->
 					<div style="margin:8px 0;">
@@ -411,7 +412,7 @@
 <!-- <script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.4"></script> -->
 <!-- 新增专家分组联动后，提升版本号触发浏览器刷新缓存 -->
 <!-- Phase B 升级：新增"淘汰状态"列 + 淘汰管理弹窗逻辑 → v=2.6 -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=4.0"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=4.4"></script>
 <script>
 
     function reloadData() {

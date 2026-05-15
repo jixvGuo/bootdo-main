@@ -792,7 +792,7 @@ public class SurverProController extends BaseSurverController {
         row.createCell(col).setCellValue(val);
     }
 
-    // ---------- 设计 Sheet（68 列）数据行填充 ----------
+    // ---------- 设计 Sheet（模板含「建设单位」与「其他」间 3 列仅表头；数据列较原 68 列右移 3）----------
     private void fillDesignRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
         SurverDesignApplyTableInfoDO t = getDesignTable(pro.getProId(), taskIdObj);
         setCellVal(row, 7,  t == null ? "" : safe(t.getMainDesignCompany()));     // H 主要设计单位
@@ -809,15 +809,16 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 26, t == null ? "" : safe(t.getOverestimated()));        // AA 超概算的原因
         // AB(col27) 简单介绍：只保留表头，不导出数据
         setCellVal(row, 45, t == null ? "" : cleanMeaningless(safe(t.getAwardLevel()))); // AT 曾获奖励、级别（模板 surver_detail_template「设计」sheet）
-        // 尾部共用列
-        // setCellVal(row, 57, getProjectDescription(pro.getProId(), taskIdObj, "design")); // BF 项目简介（原版：导出全文，已注释保留）
-        setCellVal(row, 57, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "design")); // BF 项目简介（字数）
-        // BG(col58) 形审初评发现问题汇总：只保留表头，不导出数据
-        // BH(col59) 形审初评意见：只保留表头，不导出数据
-        // BL(col63) 申报人：只保留表头，不导出数据
-        // BM(col64) 申报人电话：只保留表头，不导出数据
-        setCellVal(row, 65, t == null ? "" : safe(t.getApplyConcat()));   // BN 单位联系人
-        setCellVal(row, 66, t == null ? "" : safe(t.getApplyPhone()));    // BO 单位联系人电话
+        // BE～BG(col56～58)：「建设单位」与「其他」之间新增三列表头（仅模板，无数据导出）
+        // 尾部共用列（相对旧模板右移 3 列）
+        // setCellVal(row, 60, getProjectDescription(pro.getProId(), taskIdObj, "design")); // BI 项目简介（原版：导出全文，已注释保留）
+        setCellVal(row, 60, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "design")); // BI 项目简介（字数）
+        // BJ(col61) 形审初评发现问题汇总：只保留表头，不导出数据
+        // BK(col62) 形审初评意见：只保留表头，不导出数据
+        // BO(col66) 申报人：只保留表头，不导出数据
+        // BP(col67) 申报人电话：只保留表头，不导出数据
+        setCellVal(row, 68, t == null ? "" : safe(t.getApplyConcat()));   // BQ 单位联系人
+        setCellVal(row, 69, t == null ? "" : safe(t.getApplyPhone()));    // BR 单位联系人电话
     }
 
     // ---------- 勘察 Sheet（57 列）数据行填充 ----------

@@ -28,7 +28,8 @@
                 <div class="clearfix"></div>
 
                 <input type="hidden" id="isViewProCode"  th:value="${isViewProCode}" />
-                <!-- 新增：可折叠筛选块（参考 surver_pro_list.html） -->
+                <!-- 高级筛选：参考 surver_pro_list；localStorage 键为 cpe.surverScoreProList.advFilter.v1（按 taskId+子类型） -->
+                <!-- 默认折叠；输入框回车、下拉选中即筛；仅「重置」清空存储 -->
                 <div style="margin:8px 0;clear:both;">
                     <a data-toggle="collapse" href="#scoreProFilterPanel" aria-expanded="false"
                        style="display:inline-block;color:#337ab7;cursor:pointer;font-size:13px;">
@@ -112,7 +113,7 @@
 
 <div th:include="include :: footer"></div>
 <!-- Phase C 升级：列配置变更时请递增 v，避免浏览器沿用旧 JS 缓存 -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=3.0"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=3.1"></script>
 
 </body>
 </html>

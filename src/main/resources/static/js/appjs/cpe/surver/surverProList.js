@@ -123,7 +123,20 @@ function clearSurverProAdvFilterStorage() {
 $(function () {
     restoreSurverProAdvFilterFromStorage();
     load();
-    $("#surverProFilterPanel").on("input change", "input, select", schedulePersistSurverProAdvFilter);
+    // 原先：仅绑定持久化，刷新列表需手动点「筛选」
+    // $("#surverProFilterPanel").on("input change", "input, select", schedulePersistSurverProAdvFilter);
+    var $panel = $("#surverProFilterPanel");
+    $panel.on("input change", "input, select", schedulePersistSurverProAdvFilter);
+    // 高级筛选：输入框回车、下拉框选中即触发筛选（等同点「筛选」）
+    $panel.on("keydown", "input.form-control", function (e) {
+        if (e.which === 13 || e.keyCode === 13) {
+            e.preventDefault();
+            applySurverProFilter();
+        }
+    });
+    $panel.on("change", "select.form-control", function () {
+        applySurverProFilter();
+    });
 });
 // 勘察奖奖项的项目列表展示页面，那个有点不好找，没直接引入的table
 function load() {
@@ -265,7 +278,9 @@ function load() {
                             if (value == 1 || value === '1') {
                                 return '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span>';
                             }
-                            return '<span style="color:#999;">-</span>';
+                            // 原：未淘汰与其它非 1 值统一显示为「-」
+                            // return '<span style="color:#999;">-</span>';
+                            return '<span style="color:#999;">未淘汰</span>';
                         }
                     },
                     {

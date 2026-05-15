@@ -20,9 +20,105 @@ var SURVER_EXPERT_AUDIT_OPINION = {}; // proId -> 'agree' | 'disagree'
 var SURVER_MAIN_REVIEW_TEXT = {};     // proId -> 主评意见文本
 var SURVER_MAIN_REVIEW_DONE = {};     // proId -> 是否已提交主评意见
 
+/** 专家打分页高级筛选：独立 localStorage（cpe.surverScoreProList…），与项目列表互不覆盖 */
+var SURVER_SCORE_ADV_FILTER_KEY_PREFIX = "cpe.surverScoreProList.advFilter.v1";
+var _surverScoreAdvFilterSaveTimer = null;
+
+function getSurverScoreAdvFilterStorageKey() {
+    var tid = ($("#taskId").val() || "") + "";
+    var pst = ($("#proSubType").val() || "") + "";
+    return SURVER_SCORE_ADV_FILTER_KEY_PREFIX + ":" + tid + ":" + pst;
+}
+
+function readSurverScoreAdvFilterFromDom() {
+    return {
+        filterProName: ($("#filterProName").val() || "").trim(),
+        filterApplyCompany: ($("#filterApplyCompany").val() || "").trim(),
+        filterMajor: ($("#filterMajor").val() || "").trim(),
+        filterDeclareAccount: ($("#filterDeclareAccount").val() || "").trim(),
+        filterQcGroupName: ($("#filterQcGroupName").val() || "").trim(),
+        filterExpertGroupName: ($("#filterExpertGroupName").val() || "").trim(),
+        filterEliminated: ($("#filterEliminated").val() || "").trim(),
+        filterProStat: ($("#filterProStat").val() || "").trim()
+    };
+}
+
+function isSurverScoreAdvFilterEmpty(o) {
+    return !o.filterProName && !o.filterApplyCompany && !o.filterMajor && !o.filterDeclareAccount
+        && !o.filterQcGroupName && !o.filterExpertGroupName && !o.filterEliminated && !o.filterProStat;
+}
+
+function persistSurverScoreAdvFilterFromDom() {
+    try {
+        var key = getSurverScoreAdvFilterStorageKey();
+        var data = readSurverScoreAdvFilterFromDom();
+        if (isSurverScoreAdvFilterEmpty(data)) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function schedulePersistSurverScoreAdvFilter() {
+    if (_surverScoreAdvFilterSaveTimer) {
+        clearTimeout(_surverScoreAdvFilterSaveTimer);
+    }
+    _surverScoreAdvFilterSaveTimer = setTimeout(function () {
+        _surverScoreAdvFilterSaveTimer = null;
+        persistSurverScoreAdvFilterFromDom();
+    }, 400);
+}
+
+function restoreSurverScoreAdvFilterFromStorage() {
+    try {
+        var raw = localStorage.getItem(getSurverScoreAdvFilterStorageKey());
+        if (raw == null || raw === "") {
+            return;
+        }
+        var o = JSON.parse(raw);
+        if (!o || typeof o !== "object") {
+            return;
+        }
+        $("#filterProName").val(o.filterProName != null ? o.filterProName : "");
+        $("#filterApplyCompany").val(o.filterApplyCompany != null ? o.filterApplyCompany : "");
+        $("#filterMajor").val(o.filterMajor != null ? o.filterMajor : "");
+        $("#filterDeclareAccount").val(o.filterDeclareAccount != null ? o.filterDeclareAccount : "");
+        $("#filterQcGroupName").val(o.filterQcGroupName != null ? o.filterQcGroupName : "");
+        $("#filterExpertGroupName").val(o.filterExpertGroupName != null ? o.filterExpertGroupName : "");
+        $("#filterEliminated").val(o.filterEliminated != null ? o.filterEliminated : "");
+        $("#filterProStat").val(o.filterProStat != null ? o.filterProStat : "");
+        var filled = readSurverScoreAdvFilterFromDom();
+        if (!isSurverScoreAdvFilterEmpty(filled)) {
+            $("#scoreProFilterPanel").addClass("in");
+            $('a[href="#scoreProFilterPanel"]').attr("aria-expanded", "true");
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function clearSurverScoreAdvFilterStorage() {
+    try {
+        localStorage.removeItem(getSurverScoreAdvFilterStorageKey());
+    } catch (e) { /* ignore */ }
+}
+
 $(function () {
     // [DEBUG] 打印当前页面使用的 taskId，方便排查专家/管理员 taskId 不一致问题
     console.log('[DEBUG-score] 专家打分页 taskId=' + $("#taskId").val());
+    restoreSurverScoreAdvFilterFromStorage();
+    // 专家打分高级筛选：与 surverProList 一致 — 输入持久化、回车即筛、下拉选中即筛
+    // 原先：无事件绑定，仅靠按钮 applyScoreProFilter() 刷新表格
+    var $scoreFilterPanel = $("#scoreProFilterPanel");
+    $scoreFilterPanel.on("input change", "input, select", schedulePersistSurverScoreAdvFilter);
+    $scoreFilterPanel.on("keydown", "input.form-control", function (e) {
+        if (e.which === 13 || e.keyCode === 13) {
+            e.preventDefault();
+            applyScoreProFilter();
+        }
+    });
+    $scoreFilterPanel.on("change", "select.form-control", function () {
+        applyScoreProFilter();
+    });
     // 先拉取等级/回避/锁定状态，再加载表格（保证渲染时能正确填充下拉/按钮）
     loadExpertGradeContext(function() {
         load();
@@ -1002,8 +1098,18 @@ function onSurverCancelSubmitElim() {
     });
 }
 
+/**
+ * 专家打分页：高级筛选
+ * 行为与 surver_pro_list 一致：localStorage 按 taskId+子类型；文本框回车、下拉选中即筛；重置清空存储；
+ * 「淘汰状态」仅作服务端筛选用，主表仍不展示淘汰列（仅管理员侧展示）。
+ */
 function applyScoreProFilter() {
-    $('#exampleTable').bootstrapTable('refresh');
+    persistSurverScoreAdvFilterFromDom();
+    var $tbl = $('#exampleTable');
+    if ($tbl.data('bootstrap.table')) {
+        $tbl.bootstrapTable('selectPage', 1);
+        $tbl.bootstrapTable('refresh');
+    }
 }
 
 function resetScoreProFilter() {
@@ -1015,6 +1121,7 @@ function resetScoreProFilter() {
     $("#filterExpertGroupName").val('');
     $("#filterEliminated").val('');
     $("#filterProStat").val('');
+    clearSurverScoreAdvFilterStorage();
     applyScoreProFilter();
 }
 

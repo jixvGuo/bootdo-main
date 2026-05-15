@@ -65,14 +65,14 @@
                    )
                    else ''
                end memberList,
-               <!-- Phase B: 管理员淘汰标记，按 pro_sub_type 路由到对应申报子表的 eliminated 字段 -->
-               case pro.pro_sub_type
+               <!-- Phase B: 管理员淘汰标记；IFNULL 包裹 CASE：无申报子表行时内层标量子查询为 NULL，与筛选条件一致 -->
+               ifnull((case pro.pro_sub_type
                    when 'design'       then (select ifnull(t.eliminated,0) from ass_surver_design_apply_table_info    t where t.pro_id = pro.id order by t.id desc limit 1)
                    when 'software'     then (select ifnull(t.eliminated,0) from ass_surver_soft_apply_table_info      t where t.pro_id = pro.id order by t.id desc limit 1)
                    when 'standard'     then (select ifnull(t.eliminated,0) from ass_surver_standard_apply_table_info  t where t.pro_id = pro.id order by t.id desc limit 1)
                    when 'contribution' then (select ifnull(t.eliminated,0) from ass_surver_excellent_apply_table_info t where t.pro_id = pro.id order by t.id desc limit 1)
                    else 0
-               end eliminated,
+               end), 0) eliminated,
                <!-- 新增：专家分组名称（通过 ass_award_pro_expert_group + ass_award_expert_group 关联查询） -->
                (select egn.name from ass_award_pro_expert_group pegn
                 join ass_award_expert_group egn on egn.groupid = pegn.groupid and egn.taskid = pegn.taskid
@@ -180,14 +180,28 @@
                     WHERE peg2.proid = pro.id AND eg2.name LIKE concat('%', #{filterExpertGroupName}, '%')
                 )
             </if>
-            <if test="filterEliminated != null and filterEliminated != ''">
-                AND (CASE pro.pro_sub_type
-                    WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    ELSE 0
-                END) = #{filterEliminated}
+            <!-- 淘汰筛选：未淘汰 =「非已确认淘汰」(IFNULL 与列表列一致——无申报子表行时标量子查询为 NULL，原来用 =0 会把这些行全过滤掉) -->
+            <if test="filterEliminated != null and (filterEliminated == '0' or filterEliminated == 0 or filterEliminated == '1' or filterEliminated == 1)">
+                <choose>
+                    <when test="filterEliminated == '1' or filterEliminated == 1">
+                        AND IFNULL((CASE pro.pro_sub_type
+                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            ELSE 0
+                        END), 0) = 1
+                    </when>
+                    <otherwise>
+                        AND IFNULL((CASE pro.pro_sub_type
+                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            ELSE 0
+                        END), 0) &lt;&gt; 1
+                    </otherwise>
+                </choose>
             </if>
             <if test="filterProStat != null and filterProStat != ''">
                 AND pro.pro_stat = #{filterProStat}
@@ -321,14 +335,28 @@
                     WHERE peg2.proid = pro.id AND eg2.name LIKE concat('%', #{filterExpertGroupName}, '%')
                 )
             </if>
-            <if test="filterEliminated != null and filterEliminated != ''">
-                AND (CASE pro.pro_sub_type
-                    WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                    ELSE 0
-                END) = #{filterEliminated}
+            <!-- 淘汰筛选：未淘汰 =「非已确认淘汰」(IFNULL 与列表列一致——无申报子表行时标量子查询为 NULL，原来用 =0 会把这些行全过滤掉) -->
+            <if test="filterEliminated != null and (filterEliminated == '0' or filterEliminated == 0 or filterEliminated == '1' or filterEliminated == 1)">
+                <choose>
+                    <when test="filterEliminated == '1' or filterEliminated == 1">
+                        AND IFNULL((CASE pro.pro_sub_type
+                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            ELSE 0
+                        END), 0) = 1
+                    </when>
+                    <otherwise>
+                        AND IFNULL((CASE pro.pro_sub_type
+                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                            ELSE 0
+                        END), 0) &lt;&gt; 1
+                    </otherwise>
+                </choose>
             </if>
             <if test="filterProStat != null and filterProStat != ''">
                 AND pro.pro_stat = #{filterProStat}
