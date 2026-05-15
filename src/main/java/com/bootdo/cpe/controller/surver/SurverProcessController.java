@@ -1200,6 +1200,35 @@ public class SurverProcessController extends BaseSurverController {
     }
 
     /**
+     * 专家侧：下载淘汰评语 — 仅当前专家本人提交的评级及评语（不含其他专家）
+     * 入参: taskId(必填), proSubType(选填，与打分页子奖项一致)
+     * 出参: { code, list:[{ proSubType, proCode, topicName, companyName, declareAccount, groupName, expertGroupName,
+     *                       expertName, expertUid, grade, remark, eliminated }] }
+     */
+    @ResponseBody
+    @RequestMapping("/eliminate/expert/listGroupEliminateDetail")
+    public R listGroupEliminateDetailForExpert(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String proSubType = params.get("proSubType") != null ? params.get("proSubType").toString() : null;
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+        taskId = resolveExpertTaskId(uid, taskId);
+        if (StringUtils.isBlank(proSubType)) {
+            proSubType = null;
+        }
+        try {
+            List<Map<String, Object>> list = surverExpertEliminateService.listMyExpertGroupEliminateDetail(
+                    taskId, proSubType, uid);
+            return R.ok().put("list", list == null ? Collections.emptyList() : list);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("查询失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 保存/更新单条评级 (upsert)
      * 入参: taskId, proId, proSubType, grade(A/B/C/D), 可选: proCode/topicName/companyName/groupName/expertName/remark
      * 校验: 已确认提交后(快照表存在记录) 拒绝写入

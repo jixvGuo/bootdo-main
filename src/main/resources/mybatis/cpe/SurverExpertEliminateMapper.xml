@@ -371,4 +371,53 @@
          LIMIT 1
     </select>
 
+    <!-- 专家侧：仅本人淘汰评级；列与管理员「淘汰管理」候选池一致，另含评级理由 -->
+    <select id="listMyExpertGroupEliminateDetail" resultType="java.util.HashMap">
+        SELECT
+            e.pro_sub_type   AS proSubType,
+            IF(p.pro_result_code IS NULL OR p.pro_result_code = '', p.pro_code, p.pro_result_code) AS proCode,
+            COALESCE(NULLIF(TRIM(e.topic_name), ''), p.chengguo) AS topicName,
+            COALESCE(NULLIF(TRIM(e.company_name), ''), sd.name) AS companyName,
+            p.declare_account AS declareAccount,
+            (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName,
+            (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ')
+               FROM ass_award_pro_expert_group peg
+               JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid
+              WHERE peg.proid = e.pro_id AND peg.taskid = #{taskId}) AS expertGroupName,
+            e.expert_name    AS expertName,
+            e.expert_uid     AS expertUid,
+            IFNULL(e.grade, '') AS grade,
+            IFNULL(e.remark, '') AS remark,
+            CASE e.pro_sub_type
+                WHEN 'design'       THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'software'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                ELSE 0
+            END AS eliminated
+        FROM ass_surver_expert_eliminate e
+        LEFT JOIN ass_award_enterprise_project p ON p.id = e.pro_id
+        LEFT JOIN sys_user su ON su.user_id = p.create_uid
+        LEFT JOIN sys_dept sd ON sd.dept_id = su.dept_id
+        WHERE e.task_id = #{taskId}
+          AND e.deleted = 0
+          AND e.expert_uid = #{viewerUid}
+          AND EXISTS (
+                SELECT 1
+                  FROM ass_award_pro_expert_group peg2
+                  JOIN ass_award_expert_group eg2 ON eg2.groupid = peg2.groupid AND eg2.taskid = peg2.taskid
+                  JOIN add_special_info si2 ON si2.group_name = eg2.name
+                    AND si2.task_id = eg2.taskid
+                    AND si2.user_id = #{viewerUid}
+                    AND si2.pro_type = 'surver_pro_group'
+                    AND si2.deleted = 0
+                 WHERE peg2.proid = e.pro_id
+                   AND peg2.taskid = #{taskId}
+              )
+        <if test="proSubType != null and proSubType != ''">
+          AND e.pro_sub_type = #{proSubType}
+        </if>
+        ORDER BY e.pro_sub_type, IF(p.pro_result_code IS NULL OR p.pro_result_code = '', IFNULL(p.pro_code,''), p.pro_result_code)
+    </select>
+
 </mapper>

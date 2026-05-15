@@ -87,15 +87,15 @@ function initExpertTable() {
             { field: "groupName", title: "专业组" },
             { field: "loginAccount", title: "登录账号" },
             // 原列定义（v3）：
-            // { field: "expertName", title: "专家姓名" },
+            // { field: "expertName", title: "专家名称" },
             // 新列定义（v1.5）：暂存/编辑态展示 input；常态展示文本
             {
-                field: "expertName", title: "专家姓名",
+                field: "expertName", title: "专家名称",
                 formatter: function (v, row) {
                     var la = row.loginAccount;
                     if (PENDING_LOGINS[la] || EDITING_LOGINS[la]) {
                         return '<input type="text" class="form-control input-sm" id="edit_name_' + la
-                            + '" value="' + _surverEscapeHtml(v || '') + '" placeholder="专家姓名" style="min-width:120px;">';
+                            + '" value="' + _surverEscapeHtml(v || '') + '" placeholder="专家名称" style="min-width:120px;">';
                     }
                     return _surverEscapeHtml(v || '');
                 }
@@ -272,7 +272,7 @@ function reloadExperts() {
  * 新方案（v1.5，与 QC `add(major)` 完全对齐）：
  *   "添加专家" 按钮 → 仅前端 prepend 一行 "暂存"（PENDING）行：
  *     · 账号自动生成（YYYYMM_xxxxxxx，与 QC 同规则）
- *     · 专家姓名 / 工作单位 渲染为 input（formatter 根据 PENDING_LOGINS 切换）
+ *     · 专家名称 / 工作单位 渲染为 input（formatter 根据 PENDING_LOGINS 切换）
  *     · 操作列展示 [保存] [取消]
  *   用户填好点 [保存] 才真正调 /sys/user/savepro + /expert/save 落库。
  *   用户点 [取消] 则只从前端表格移除这一行，无后端副作用。
@@ -482,7 +482,7 @@ function submitAddExpert() {
     var isLeader     = $scope.find("#dlg_isGroupLeader").val() || "0";
 
     if (!groupName)  { layer.msg("请选择专业组"); return; }
-    if (!expertName) { layer.msg("请输入专家姓名"); return; }
+    if (!expertName) { layer.msg("请输入专家名称"); return; }
     if (!loginAccount) {
         loginAccount = generateSurverExpertLoginAccount();
     }

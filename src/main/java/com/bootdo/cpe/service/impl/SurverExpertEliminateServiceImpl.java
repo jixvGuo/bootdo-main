@@ -116,4 +116,13 @@ public class SurverExpertEliminateServiceImpl implements SurverExpertEliminateSe
         List<Integer> ids = dao.listProIdsVisibleToSurverContact(taskId, contactUserId);
         return ids == null ? java.util.Collections.emptyList() : ids;
     }
+
+    @Override
+    public List<Map<String, Object>> listMyExpertGroupEliminateDetail(String taskId, String proSubType, Long viewerUid) {
+        if (taskId == null || taskId.isEmpty() || viewerUid == null) {
+            return java.util.Collections.emptyList();
+        }
+        List<Map<String, Object>> list = dao.listMyExpertGroupEliminateDetail(taskId, proSubType, viewerUid);
+        return list == null ? java.util.Collections.emptyList() : list;
+    }
 }

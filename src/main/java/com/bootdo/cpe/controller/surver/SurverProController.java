@@ -387,8 +387,8 @@ public class SurverProController extends BaseSurverController {
             row.put("申报账号", safe(pro.getDeclareAccount()));
             row.put("申报联系方式", safe(pro.getApplyAccount()));
             row.put("分组", safe(pro.getQcGroupName()));
-            row.put("形审结果", safe(pro.getLatestReviewResult()));
-            row.put("形审评语", safe(pro.getLatestReviewRemarks()));
+            row.put("形审结果", stripHtmlTagsForExcel(safe(pro.getLatestReviewResult())));
+            row.put("形审评语", stripHtmlTagsForExcel(safe(pro.getLatestReviewRemarks())));
             row.put("状态", safe(pro.getApplyStat()));
             rows.add(row);
         }
@@ -462,7 +462,7 @@ public class SurverProController extends BaseSurverController {
                 };
                 org.apache.poi.hssf.usermodel.HSSFRow dataRow = sheet.createRow(i + 1);
                 for (int j = 0; j < vals.length; j++) {
-                    dataRow.createCell(j).setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(vals[j]));
+                    dataRow.createCell(j).setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(stripHtmlTagsForExcel(vals[j])));
                 }
             }
             String fileName = java.net.URLEncoder.encode("专家评审汇总.xls", "UTF-8").replaceAll("\\+", "%20");
@@ -756,9 +756,39 @@ public class SurverProController extends BaseSurverController {
         }
     }
 
-    /** 单元格赋值工具 */
+    /**
+     * 导出 Excel 时去掉富文本 HTML（如 &lt;p&gt;、&lt;br&gt;），避免单元格出现标签字面量。
+     * 块级结束标签换为换行，便于保留段落感；再做常见 HTML 实体还原（&amp; 最后处理）。
+     */
+    private static String stripHtmlTagsForExcel(String s) {
+        if (s == null || s.isEmpty()) {
+            return "";
+        }
+        String t = s;
+        t = t.replaceAll("(?is)<script[^>]*>.*?</script>", "");
+        t = t.replaceAll("(?is)<style[^>]*>.*?</style>", "");
+        t = t.replaceAll("(?i)<br\\s*/?>", "\n");
+        t = t.replaceAll("(?i)</p\\s*>", "\n");
+        t = t.replaceAll("(?i)</div\\s*>", "\n");
+        t = t.replaceAll("<[^>]+>", "");
+        t = t.replace('\u00A0', ' ');
+        t = t.replaceAll("(?i)&nbsp;|&#160;", " ");
+        t = t.replaceAll("&lt;", "<");
+        t = t.replaceAll("&gt;", ">");
+        t = t.replaceAll("&quot;", "\"");
+        t = t.replaceAll("&#39;", "'");
+        t = t.replaceAll("&amp;", "&");
+        t = t.replaceAll("[ \\t\\x0B\\f\\r]+", " ");
+        t = t.replaceAll("\\n\\s*\\n+", "\n");
+        return t.trim();
+    }
+
+    /** 单元格赋值工具（统一去 HTML，避免富文本字段导出带标签） */
     private void setCellVal(org.apache.poi.xssf.usermodel.XSSFRow row, int col, String val) {
-        if (val == null) val = "";
+        if (val == null) {
+            val = "";
+        }
+        val = stripHtmlTagsForExcel(val);
         row.createCell(col).setCellValue(val);
     }
 
@@ -778,7 +808,7 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 25, t == null ? "" : safe(t.getCompletionFinalAccounts())); // Z 竣工决算
         setCellVal(row, 26, t == null ? "" : safe(t.getOverestimated()));        // AA 超概算的原因
         // AB(col27) 简单介绍：只保留表头，不导出数据
-        // AT(col45) 曾获奖励级别：只保留表头，不导出数据
+        setCellVal(row, 45, t == null ? "" : cleanMeaningless(safe(t.getAwardLevel()))); // AT 曾获奖励、级别（模板 surver_detail_template「设计」sheet）
         // 尾部共用列
         // setCellVal(row, 57, getProjectDescription(pro.getProId(), taskIdObj, "design")); // BF 项目简介（原版：导出全文，已注释保留）
         setCellVal(row, 57, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "design")); // BF 项目简介（字数）
@@ -791,6 +821,7 @@ public class SurverProController extends BaseSurverController {
     }
 
     // ---------- 勘察 Sheet（57 列）数据行填充 ----------
+    // 模板列位: … Y=勘察面积; AM(col38)=曾获奖励级别; AU(col46)=项目简介字数
     private void fillContributionRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
         SurverBaseApplyTableInfoDO t = getContributionTable(pro.getProId(), taskIdObj);
         setCellVal(row, 7,  t == null ? "" : safe(t.getMainSurveyUnit()));     // H 主要勘察单位
@@ -805,6 +836,7 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 23, t == null ? "" : safe(t.getSurveyStartEnd()));     // X 勘察起止时间
         setCellVal(row, 24, t == null ? "" : safe(t.getSurveyAreaLength()));   // Y 勘察面积或线路长度
         // Z(col25) 简单介绍：只保留表头，不导出数据
+        setCellVal(row, 38, t == null ? "" : cleanMeaningless(safe(t.getAwardReceivedLevel()))); // AM 曾获奖励、级别（「勘察」sheet）
         // 尾部共用列
         // setCellVal(row, 46, getProjectDescription(pro.getProId(), taskIdObj, "contribution")); // AU 项目简介（原版：导出全文，已注释保留）
         setCellVal(row, 46, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "contribution")); // AU 项目简介（字数）
@@ -817,7 +849,7 @@ public class SurverProController extends BaseSurverController {
     }
 
     // ---------- 标准 Sheet（39 列）数据行填充 ----------
-    // 模板列位: R=图集名称, S=图集号, T=设计起止时间, U=批准立项文件号, V=批准实施文件号, AC=项目简介字数
+    // 模板列位: R=图集名称, S=图集号, T=设计起止时间, U=批准立项文件号, V=批准实施文件号, AA=曾获奖励级别, AC=项目简介字数
     private void fillStandardRow(org.apache.poi.xssf.usermodel.XSSFRow row, SurverProjectInfo pro, Object taskIdObj) {
         SurverStandardApplyTableInfoDO t = getStandardTable(pro.getProId(), taskIdObj);
         setCellVal(row, 7,  t == null ? "" : safe(t.getDditorChief()));        // H 主编单位
@@ -828,6 +860,7 @@ public class SurverProController extends BaseSurverController {
         setCellVal(row, 19, t == null ? "" : safe(t.getDesignStartEnd()));     // T 设计起止时间
         setCellVal(row, 20, t == null ? "" : safe(t.getApprovalDocumentNumber()));  // U 批准立项文件号
         setCellVal(row, 21, t == null ? "" : safe(t.getApprovedDocumentNumber())); // V 批准实施文件号
+        setCellVal(row, 26, t == null ? "" : cleanMeaningless(safe(t.getAwardReceived()))); // AA 曾获奖励、级别（「标准」sheet）
         // 尾部共用列
         // setCellVal(row, 28, getProjectDescription(pro.getProId(), taskIdObj, "standard")); // AC 项目简介（原版：导出全文，已注释保留）
         setCellVal(row, 28, getProjectDescriptionWordCount(pro.getProId(), taskIdObj, "standard")); // AC 项目简介（字数）
@@ -963,11 +996,105 @@ public class SurverProController extends BaseSurverController {
         }
     }
 
-    /** 从"项目简介表"获取项目简介字数：每个非空白字符计1（含中文、字母、数字、标点），空格/换行不计 */
+    /**
+     * 项目简介「字数」统计（业务口径）：
+     * <ul>
+     *   <li>中文汉字、中文标点：每 1 个字符计 1 字</li>
+     *   <li>英文、数字、英文标点：连续一段（仅 ASCII 可打印字符 33–126，不含空格）整体计 1 字</li>
+     *   <li>空格、换行、制表符及 Unicode 空白：不计入</li>
+     *   <li>其余非空白字符（如俄文、emoji）：每码点计 1 字</li>
+     * </ul>
+     */
+    private int countZiForProjectDescription(String s) {
+        if (s == null || s.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (int i = 0; i < s.length(); ) {
+            int cp = s.codePointAt(i);
+            int charCount = Character.charCount(cp);
+            if (isZiCountWhitespace(cp)) {
+                i += charCount;
+                continue;
+            }
+            if (Character.isIdeographic(cp)) {
+                count++;
+                i += charCount;
+                continue;
+            }
+            if (isChinesePunctuationForZiCount(cp)) {
+                count++;
+                i += charCount;
+                continue;
+            }
+            if (isAsciiEnglishRunCodePoint(cp)) {
+                i += charCount;
+                while (i < s.length()) {
+                    int cp2 = s.codePointAt(i);
+                    int cc2 = Character.charCount(cp2);
+                    if (isZiCountWhitespace(cp2) || Character.isIdeographic(cp2)
+                            || isChinesePunctuationForZiCount(cp2) || !isAsciiEnglishRunCodePoint(cp2)) {
+                        break;
+                    }
+                    i += cc2;
+                }
+                count++;
+                continue;
+            }
+            count++;
+            i += charCount;
+        }
+        return count;
+    }
+
+    /** 不计入字数的空白（含空格、换行、制表符及常见 Unicode 空白） */
+    private static boolean isZiCountWhitespace(int cp) {
+        if (cp == ' ' || cp == '\t' || cp == '\n' || cp == '\r' || cp == '\f' || cp == '\u000b') {
+            return true;
+        }
+        int t = Character.getType(cp);
+        return t == Character.SPACE_SEPARATOR
+                || t == Character.LINE_SEPARATOR
+                || t == Character.PARAGRAPH_SEPARATOR;
+    }
+
+    /** 中文标点区（不含 U+3000 表意空格，该空格按空白处理） */
+    private static boolean isChinesePunctuationForZiCount(int cp) {
+        if (cp == 0x3000) {
+            return false;
+        }
+        Character.UnicodeBlock b = Character.UnicodeBlock.of(cp);
+        if (b == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION) {
+            return true;
+        }
+        if (b == Character.UnicodeBlock.CJK_COMPATIBILITY_FORMS) {
+            return true;
+        }
+        if (b == Character.UnicodeBlock.VERTICAL_FORMS) {
+            return true;
+        }
+        if (b == Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS) {
+            // 全角字母、全角数字按「西文连续串」或单字处理，不归入中文标点块
+            if ((cp >= 0xFF21 && cp <= 0xFF3A) || (cp >= 0xFF41 && cp <= 0xFF5A) || (cp >= 0xFF10 && cp <= 0xFF19)) {
+                return false;
+            }
+            return cp >= 0xFF01 && cp <= 0xFF5E;
+        }
+        return false;
+    }
+
+    /** 英文/数字/英文标点连续串中的字符：可打印 ASCII（33–126），不含空格 */
+    private static boolean isAsciiEnglishRunCodePoint(int cp) {
+        return cp > 32 && cp < 127;
+    }
+
+    /** 从"项目简介表"获取项目简介字数（按业务「汉字/中文标点 + 英文连续串」规则） */
     private String getProjectDescriptionWordCount(Integer proId, Object taskId, String subType) {
-        String content = getProjectDescription(proId, taskId, subType);
-        if (content == null || content.isEmpty()) return "0字";
-        int count = content.replaceAll("\\s", "").length();
+        String content = stripHtmlTagsForExcel(getProjectDescription(proId, taskId, subType));
+        if (content == null || content.isEmpty()) {
+            return "0字";
+        }
+        int count = countZiForProjectDescription(content);
         return count + "字";
     }
 

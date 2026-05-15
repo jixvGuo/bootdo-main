@@ -105,4 +105,12 @@ public interface SurverExpertEliminateDao {
      */
     List<Integer> listProIdsVisibleToSurverContact(@Param("taskId") String taskId,
                                                   @Param("contactUserId") Long contactUserId);
+
+    /**
+     * 专家侧：仅本人淘汰评级及评语（用于「下载淘汰评语」）；项目须在本人专业组分派范围内。
+     * 列含：类别、项目编号、项目名称、申报单位、申报账号、分组(QC)、专家分组、专家、评级、淘汰状态、评级理由等
+     */
+    List<Map<String, Object>> listMyExpertGroupEliminateDetail(@Param("taskId") String taskId,
+                                                                @Param("proSubType") String proSubType,
+                                                                @Param("viewerUid") Long viewerUid);
 }

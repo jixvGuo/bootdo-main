@@ -57,4 +57,9 @@ public interface SurverExpertEliminateService {
      * 勘察奖小组联络人：当前任务下 surver_view_scope 可见的项目 id 列表（与项目列表 contactUserId 过滤同源）
      */
     java.util.List<java.lang.Integer> listProIdsVisibleToSurverContact(String taskId, Long contactUserId);
+
+    /**
+     * 专家侧：仅本人淘汰评级及评语（「下载淘汰评语」导出）
+     */
+    java.util.List<java.util.Map<String, Object>> listMyExpertGroupEliminateDetail(String taskId, String proSubType, Long viewerUid);
 }

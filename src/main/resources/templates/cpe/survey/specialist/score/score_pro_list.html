@@ -13,15 +13,15 @@
                         <input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
                         <input id="proSubType" name="proSubType" th:value="${proSubType}"  type="hidden">
 
-                        <button   type="button"
-                                class="btn  btn-primary" onclick="add()">
-                            <i class="fa fa-plus" aria-hidden="true"></i>提交最终打分结果
-                        </button>
+<!--                        <button   type="button"-->
+<!--                                class="btn  btn-primary" onclick="add()">-->
+<!--                            <i class="fa fa-plus" aria-hidden="true"></i>提交最终打分结果-->
+<!--                        </button>-->
 
-                        <button th:if="${scoreIsOver == 1}"  type="button"
-                                  class="btn  btn-primary" onclick="cancelSubmit()">
-                            撤回打分提交
-                        </button>
+<!--                        <button th:if="${scoreIsOver == 1}"  type="button"-->
+<!--                                  class="btn  btn-primary" onclick="cancelSubmit()">-->
+<!--                            撤回打分提交-->
+<!--                        </button>-->
 
                     </div>
                 </div>
@@ -111,8 +111,8 @@
 
 
 <div th:include="include :: footer"></div>
-<!-- Phase C 升级：新增"淘汰等级/回避/确认提交"功能 → v=1.7 -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=2.1"></script>
+<!-- Phase C 升级：列配置变更时请递增 v，避免浏览器沿用旧 JS 缓存 -->
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=3.0"></script>
 
 </body>
 </html>

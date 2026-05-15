@@ -1,6 +1,129 @@
 var prefix = "/surverPro"
+/**
+ * 每页条数（分页）
+ * - SURVER_PRO_LIST_PAGE_SIZE_OPTIONS：下拉可选值，须包含「默认条数」
+ * - SURVER_PRO_LIST_DEFAULT_PAGE_SIZE：无 localStorage、或保存值非法时的默认每页条数
+ *
+ * 若要默认每页 2 条：把 DEFAULT 改成 2，并在 OPTIONS 里加入 2，例如 [1, 2, 10, 25, 50, 100]
+ * 曾调试「默认 1」：把下面一行改成 1 即可（并保证 1 在 OPTIONS 里）
+ */
+var SURVER_PRO_LIST_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
+// var SURVER_PRO_LIST_DEFAULT_PAGE_SIZE = 1; // 调试：默认每页 1（需要时取消本行注释，并注释掉下一行）
+var SURVER_PRO_LIST_DEFAULT_PAGE_SIZE = 10;
+
+var SURVER_PRO_LIST_PAGE_SIZE_KEY = "cpe.surverProList.pageSize";
+
+function getSavedSurverProListPageSize() {
+    try {
+        var raw = localStorage.getItem(SURVER_PRO_LIST_PAGE_SIZE_KEY);
+        if (raw == null || raw === "") {
+            return SURVER_PRO_LIST_DEFAULT_PAGE_SIZE;
+        }
+        var n = parseInt(raw, 10);
+        if (isNaN(n) || SURVER_PRO_LIST_PAGE_SIZE_OPTIONS.indexOf(n) < 0) {
+            return SURVER_PRO_LIST_DEFAULT_PAGE_SIZE;
+        }
+        return n;
+    } catch (e) {
+        return SURVER_PRO_LIST_DEFAULT_PAGE_SIZE;
+    }
+}
+
+function persistSurverProListPageSize(size) {
+    try {
+        var n = parseInt(size, 10);
+        if (!isNaN(n) && SURVER_PRO_LIST_PAGE_SIZE_OPTIONS.indexOf(n) >= 0) {
+            localStorage.setItem(SURVER_PRO_LIST_PAGE_SIZE_KEY, String(n));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+/** 高级筛选：持久化到 localStorage，刷新/再次进入页面自动回填；仅「重置」清空并删存储 */
+var SURVER_PRO_ADV_FILTER_KEY_PREFIX = "cpe.surverProList.advFilter.v1";
+var _surverProAdvFilterSaveTimer = null;
+
+function getSurverProAdvFilterStorageKey() {
+    var tid = ($("#taskId").val() || "") + "";
+    var pst = ($("#proSubType").val() || "") + "";
+    return SURVER_PRO_ADV_FILTER_KEY_PREFIX + ":" + tid + ":" + pst;
+}
+
+function readSurverProAdvFilterFromDom() {
+    return {
+        filterProName: ($("#filterProName").val() || "").trim(),
+        filterApplyCompany: ($("#filterApplyCompany").val() || "").trim(),
+        filterMajor: ($("#filterMajor").val() || "").trim(),
+        filterDeclareAccount: ($("#filterDeclareAccount").val() || "").trim(),
+        filterQcGroupName: ($("#filterQcGroupName").val() || "").trim(),
+        filterExpertGroupName: ($("#filterExpertGroupName").val() || "").trim(),
+        filterEliminated: ($("#filterEliminated").val() || "").trim(),
+        filterProStat: ($("#filterProStat").val() || "").trim()
+    };
+}
+
+function isSurverProAdvFilterEmpty(o) {
+    return !o.filterProName && !o.filterApplyCompany && !o.filterMajor && !o.filterDeclareAccount
+        && !o.filterQcGroupName && !o.filterExpertGroupName && !o.filterEliminated && !o.filterProStat;
+}
+
+function persistSurverProAdvFilterFromDom() {
+    try {
+        var key = getSurverProAdvFilterStorageKey();
+        var data = readSurverProAdvFilterFromDom();
+        if (isSurverProAdvFilterEmpty(data)) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function schedulePersistSurverProAdvFilter() {
+    if (_surverProAdvFilterSaveTimer) {
+        clearTimeout(_surverProAdvFilterSaveTimer);
+    }
+    _surverProAdvFilterSaveTimer = setTimeout(function () {
+        _surverProAdvFilterSaveTimer = null;
+        persistSurverProAdvFilterFromDom();
+    }, 400);
+}
+
+function restoreSurverProAdvFilterFromStorage() {
+    try {
+        var raw = localStorage.getItem(getSurverProAdvFilterStorageKey());
+        if (raw == null || raw === "") {
+            return;
+        }
+        var o = JSON.parse(raw);
+        if (!o || typeof o !== "object") {
+            return;
+        }
+        $("#filterProName").val(o.filterProName != null ? o.filterProName : "");
+        $("#filterApplyCompany").val(o.filterApplyCompany != null ? o.filterApplyCompany : "");
+        $("#filterMajor").val(o.filterMajor != null ? o.filterMajor : "");
+        $("#filterDeclareAccount").val(o.filterDeclareAccount != null ? o.filterDeclareAccount : "");
+        $("#filterQcGroupName").val(o.filterQcGroupName != null ? o.filterQcGroupName : "");
+        $("#filterExpertGroupName").val(o.filterExpertGroupName != null ? o.filterExpertGroupName : "");
+        $("#filterEliminated").val(o.filterEliminated != null ? o.filterEliminated : "");
+        $("#filterProStat").val(o.filterProStat != null ? o.filterProStat : "");
+        var filled = readSurverProAdvFilterFromDom();
+        if (!isSurverProAdvFilterEmpty(filled)) {
+            $("#surverProFilterPanel").addClass("in");
+            $('a[href="#surverProFilterPanel"]').attr("aria-expanded", "true");
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function clearSurverProAdvFilterStorage() {
+    try {
+        localStorage.removeItem(getSurverProAdvFilterStorageKey());
+    } catch (e) { /* ignore */ }
+}
+
 $(function () {
+    restoreSurverProAdvFilterFromStorage();
     load();
+    $("#surverProFilterPanel").on("input change", "input, select", schedulePersistSurverProAdvFilter);
 });
 // 勘察奖奖项的项目列表展示页面，那个有点不好找，没直接引入的table
 function load() {
@@ -17,12 +140,15 @@ function load() {
                 striped: true, // 设置为true会有隔行变色效果
                 dataType: "json", // 服务器返回的数据类型
                 pagination: true, // 设置为true会在底部显示分页条
+                // 关闭智能隐藏：否则总条数较少时 pageList 里大于 total 的项不显示（例如共 8 条时只看到 1、10）
+                smartDisplay: false,
                 // queryParamsType : "limit",
                 // //设置为limit则会发送符合RESTFull格式的参数
                 singleSelect: false, // 设置为true将禁止多选
                 // contentType : "application/x-www-form-urlencoded",
                 // //发送到服务器的数据编码类型
-                pageSize: 10, // 如果设置了分页，每页数据条数
+                pageSize: getSavedSurverProListPageSize(),
+                pageList: SURVER_PRO_LIST_PAGE_SIZE_OPTIONS,
                 pageNumber: 1, // 如果设置了分布，首页页码
                 //search : true, // 是否显示搜索框
                 showColumns: false, // 是否显示内容下拉框（选择显示的列）
@@ -231,8 +357,20 @@ function load() {
 
                             let subCheckIsHide = row.isSubCheck == 1 ? '' : 'hidden';
                             var h = '<a class="btn btn-success ' + rs_edit_h + ' ' + subCheckIsHide + '" href="#" onclick="subCheck(' + row.proId + ')" title="提交审核"  mce_href="#">提交审核</a> ';
-                            var cancelBtnText = $("#isEnterpriseUser").val() === '1' ? '回收' : '驳回';
-                            var cancelCheck = '<a class="btn btn-success ' + rs_cancel_review_h + '" href="#" onclick="cancelCheck(' + row.proId + ')" title="表单审核' + cancelBtnText + '"  mce_href="#">' + cancelBtnText + '</a> ';
+                            // --- 最初实现：同一按钮按企业用户显示「回收」否则「驳回」---
+                            // var cancelBtnText = $("#isEnterpriseUser").val() === '1' ? '回收' : '驳回';
+                            // var cancelCheck = '<a class="btn btn-success ' + rs_cancel_review_h + '" href="#" onclick="cancelCheck(' + row.proId + ')" title="表单审核' + cancelBtnText + '"  mce_href="#">' + cancelBtnText + '</a> ';
+                            // --- 中间改动：回收与驳回整颗隐藏 ---
+                            // // 隐藏「回收 / 驳回」按钮（原实现保留在注释中，恢复时取消下行 var cancelCheck = '' 并解开下方两行）
+                            // var cancelCheck = '';
+                            // // var cancelBtnText = $("#isEnterpriseUser").val() === '1' ? '回收' : '驳回';
+                            // // var cancelCheck = '<a class="btn btn-success ' + rs_cancel_review_h + '" href="#" onclick="cancelCheck(' + row.proId + ')" title="表单审核' + cancelBtnText + '"  mce_href="#">' + cancelBtnText + '</a> ';
+                            // --- 当前：仅隐藏「回收」（企业用户不展示）；非企业用户仍显示「驳回」（仍受 rs_cancel_review_h 等控制）---
+                            var cancelCheck = '';
+                            if ($("#isEnterpriseUser").val() !== '1') {
+                                var cancelBtnText = '驳回';
+                                cancelCheck = '<a class="btn btn-success ' + rs_cancel_review_h + '" href="#" onclick="cancelCheck(' + row.proId + ')" title="表单审核' + cancelBtnText + '"  mce_href="#">' + cancelBtnText + '</a> ';
+                            }
 
                             var reviewHide = rs_review_h;
                             // 未提交状态不显示形式审查按钮
@@ -267,6 +405,9 @@ function load() {
                  * @param {点击列的整行数据} row
                  * @param {td 元素} $element
                  */
+                onPageChange: function (number, size) {
+                    persistSurverProListPageSize(size);
+                },
                 // 新增：表格数据加载完成后，批量拉取并填充专家分组归属
                 onLoadSuccess: function (data) {
                     if (typeof loadExpertGroupAssignments === 'function') {
@@ -1520,9 +1661,11 @@ function exportEliminateCandidatesExcel() {
 /* ============================================================
  * 高级筛选 - 应用 / 重置
  *   - 应用：跳到第 1 页并刷新；queryParams 会自动读取所有 #filterXxx 输入
- *   - 重置：清空所有 #filterXxx 输入，然后刷新到第 1 页
+ *   - 条件持久化到 localStorage（按 taskId+proSubType），刷新/再进页面不丢
+ *   - 重置：清空输入、删除存储，再刷新到第 1 页
  * ============================================================ */
 function applySurverProFilter() {
+    persistSurverProAdvFilterFromDom();
     var $tbl = $('#exampleTable');
     if ($tbl.data('bootstrap.table')) {
         $tbl.bootstrapTable('selectPage', 1);   // 回到第一页
@@ -1539,5 +1682,6 @@ function resetSurverProFilter() {
     $("#filterExpertGroupName").val('');
     $("#filterEliminated").val('');
     $("#filterProStat").val('');
+    clearSurverProAdvFilterStorage();
     applySurverProFilter();
 }
