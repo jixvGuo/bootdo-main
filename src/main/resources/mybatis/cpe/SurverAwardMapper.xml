@@ -3,6 +3,18 @@
 
 <mapper namespace="com.bootdo.cpe.dao.SurverAwardDao">
 
+    <!-- 与列表列 latestReviewResult 一致：按子类型取最新一条形审结果（咨询类兼容 need_is_vcd 历史字段） -->
+    <sql id="surverLatestReviewResultExpr">
+        (CASE pro.pro_sub_type
+            WHEN 'design' THEN (SELECT r.review_result FROM ass_surver_review_design_result r WHERE r.pro_id = pro.id ORDER BY r.id DESC LIMIT 1)
+            WHEN 'software' THEN (SELECT r.review_result FROM ass_surver_review_soft_result r WHERE r.pro_id = pro.id ORDER BY r.id DESC LIMIT 1)
+            WHEN 'standard' THEN (SELECT r.review_result FROM ass_surver_review_standard_result r WHERE r.pro_id = pro.id ORDER BY r.id DESC LIMIT 1)
+            WHEN 'consulting' THEN (SELECT COALESCE(NULLIF(TRIM(r.review_result), ''), NULLIF(TRIM(r.need_is_vcd), ''))
+                FROM ass_surver_review_consult_result r WHERE r.pro_id = pro.id ORDER BY r.id DESC LIMIT 1)
+            WHEN 'contribution' THEN (SELECT r.review_result FROM ass_surver_review_surver_result r WHERE r.pro_id = pro.id ORDER BY r.id DESC LIMIT 1)
+            ELSE NULL
+        END)
+    </sql>
 
     <select id="listProInfo" resultType="com.bootdo.cpe.domain.SurverProjectInfo">
         select pro.id pro_id,
@@ -26,14 +38,7 @@
                pro.pro_result_code proCode,
                pro.declare_account declareAccount,
                (select qg.name from ass_qc_group qg where qg.groupid = pro.group_id and qg.taskid = pro.publish_task_id limit 1) qcGroupName,
-               case pro.pro_sub_type
-                   when 'design' then (select r.review_result from ass_surver_review_design_result r where r.pro_id = pro.id order by r.id desc limit 1)
-                   when 'software' then (select r.review_result from ass_surver_review_soft_result r where r.pro_id = pro.id order by r.id desc limit 1)
-                   when 'standard' then (select r.review_result from ass_surver_review_standard_result r where r.pro_id = pro.id order by r.id desc limit 1)
-                   when 'consulting' then (select r.review_result from ass_surver_review_consult_result r where r.pro_id = pro.id order by r.id desc limit 1)
-                   when 'contribution' then (select r.review_result from ass_surver_review_surver_result r where r.pro_id = pro.id order by r.id desc limit 1)
-                   else ''
-               end latestReviewResult,
+               <include refid="surverLatestReviewResultExpr"/> latestReviewResult,
                case pro.pro_sub_type
                    when 'design' then (select r.remarks from ass_surver_review_design_result r where r.pro_id = pro.id order by r.id desc limit 1)
                    when 'software' then (select r.remarks from ass_surver_review_soft_result r where r.pro_id = pro.id order by r.id desc limit 1)
@@ -205,7 +210,41 @@
                 </choose>
             </if>
             <if test="filterProStat != null and filterProStat != ''">
-                AND pro.pro_stat = #{filterProStat}
+                <choose>
+                    <!-- 未提交：与列表 applyStat「未提交」一致（pro_stat 为空） -->
+                    <when test='"__NOT_SUBMITTED__".equals(filterProStat)'>
+                        AND (pro.pro_stat IS NULL OR TRIM(IFNULL(pro.pro_stat, '')) = '')
+                    </when>
+                    <!-- 审核中：与列表 applyStat「审核中」一致 -->
+                    <when test='"__CHECKING__".equals(filterProStat)'>
+                        AND pro.pro_stat IN ('check', 'to_validate', 'score', 'experts_score')
+                    </when>
+                    <!-- 原：单一 pro_stat 等值
+                    <otherwise>
+                        AND pro.pro_stat = #{filterProStat}
+                    </otherwise>
+                    -->
+                </choose>
+            </if>
+            <if test="filterReviewResult != null and filterReviewResult != ''">
+                <choose>
+                    <!-- 已取消「形审未开始」筛选项
+                    <when test="filterReviewResult == '__NOT_STARTED__'">
+                        AND (pt.check_start_time IS NULL OR pt.check_start_time = '')
+                    </when>
+                    -->
+                    <!-- 与列表「形审结果」列 formatter 一致：形审已开始 + 库中最新形审结论为空（不按 pro_stat 排除，避免列表显示暂无形审结果却筛不出） -->
+                    <when test='filterReviewResult != null and "__NO_RESULT__".equals(filterReviewResult)'>
+                        AND CHAR_LENGTH(TRIM(IFNULL(pt.check_start_time, ''))) &gt; 0
+                        AND (
+                            <include refid="surverLatestReviewResultExpr"/> IS NULL
+                            OR TRIM(IFNULL(<include refid="surverLatestReviewResultExpr"/>, '')) = ''
+                        )
+                    </when>
+                    <otherwise>
+                        AND TRIM(IFNULL(<include refid="surverLatestReviewResultExpr"/>, '')) = #{filterReviewResult}
+                    </otherwise>
+                </choose>
             </if>
         </where>
         <choose>
@@ -360,7 +399,33 @@
                 </choose>
             </if>
             <if test="filterProStat != null and filterProStat != ''">
-                AND pro.pro_stat = #{filterProStat}
+                <choose>
+                    <when test='"__NOT_SUBMITTED__".equals(filterProStat)'>
+                        AND (pro.pro_stat IS NULL OR TRIM(IFNULL(pro.pro_stat, '')) = '')
+                    </when>
+                    <when test='"__CHECKING__".equals(filterProStat)'>
+                        AND pro.pro_stat IN ('check', 'to_validate', 'score', 'experts_score')
+                    </when>
+                </choose>
+            </if>
+            <if test="filterReviewResult != null and filterReviewResult != ''">
+                <choose>
+                    <!-- 已取消「形审未开始」筛选项（同 listProInfo）
+                    <when test="filterReviewResult == '__NOT_STARTED__'">
+                        AND (pt.check_start_time IS NULL OR pt.check_start_time = '')
+                    </when>
+                    -->
+                    <when test='filterReviewResult != null and "__NO_RESULT__".equals(filterReviewResult)'>
+                        AND CHAR_LENGTH(TRIM(IFNULL(pt.check_start_time, ''))) &gt; 0
+                        AND (
+                            <include refid="surverLatestReviewResultExpr"/> IS NULL
+                            OR TRIM(IFNULL(<include refid="surverLatestReviewResultExpr"/>, '')) = ''
+                        )
+                    </when>
+                    <otherwise>
+                        AND TRIM(IFNULL(<include refid="surverLatestReviewResultExpr"/>, '')) = #{filterReviewResult}
+                    </otherwise>
+                </choose>
             </if>
         </where>
     </select>

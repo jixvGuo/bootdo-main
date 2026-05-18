@@ -127,7 +127,7 @@
 					<input type="hidden" id="isViewProCode"  th:value="${isViewProCode}" />
 					<!-- ============================================================ -->
 					<!-- 新增：可折叠筛选块（项目名称/申报单位/专业/申报账号/分组/    -->
-					<!--                     专家分组/淘汰状态/状态）                 -->
+					<!--                     专家分组/淘汰状态/状态/形审结果）           -->
 					<!--   - 默认折叠；点击 "高级筛选" 切换展开                       -->
 					<!--   - 输入框回车、下拉框选中即自动筛选；仍可点「筛选」             -->
 					<!--   - 服务端筛选：参数名以 filter 开头，传给后端 listProInfo   -->
@@ -179,6 +179,7 @@
 								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">状态</label>
 								<select class="form-control input-sm" id="filterProStat">
 									<option value="">全部</option>
+									<!-- 原：按 pro_stat 单值筛选，与列表「状态」列(applyStat)展示不一致
 									<option value="check">审核中</option>
 									<option value="to_validate">待审核</option>
 									<option value="to_assign_experts">分派专家</option>
@@ -190,6 +191,26 @@
 									<option value="reject">已驳回</option>
 									<option value="improve_partake">完善后参评</option>
 									<option value="eliminated">已淘汰</option>
+									-->
+									<!-- 与列表「状态」列一致：未提交=pro_stat 为空；审核中=check/to_validate/score/experts_score（initApplyStat 展示为审核中） -->
+									<option value="__NOT_SUBMITTED__">未提交</option>
+									<option value="__CHECKING__">审核中</option>
+								</select>
+							</div>
+						</div>
+						<div class="row" style="margin-bottom:8px;">
+							<div class="col-sm-3">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">形审结果</label>
+								<select class="form-control input-sm" id="filterReviewResult">
+									<option value="">全部</option>
+									<!-- 不需要按「形审未开始」筛选（由任务 check_start_time 推导，非 review_result 入库值）
+									<option value="__NOT_STARTED__">形审未开始</option>
+									-->
+									<option value="__NO_RESULT__">暂无形审结果</option>
+									<option value="参评">参评</option>
+									<option value="完善后参评">完善后参评</option>
+									<option value="不评">不评</option>
+									<option value="缓评">缓评</option>
 								</select>
 							</div>
 						</div>

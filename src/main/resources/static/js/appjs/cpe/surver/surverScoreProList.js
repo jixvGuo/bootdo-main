@@ -39,13 +39,15 @@ function readSurverScoreAdvFilterFromDom() {
         filterQcGroupName: ($("#filterQcGroupName").val() || "").trim(),
         filterExpertGroupName: ($("#filterExpertGroupName").val() || "").trim(),
         filterEliminated: ($("#filterEliminated").val() || "").trim(),
-        filterProStat: ($("#filterProStat").val() || "").trim()
+        filterProStat: ($("#filterProStat").val() || "").trim(),
+        filterReviewResult: ($("#filterReviewResult").val() || "").trim()
     };
 }
 
 function isSurverScoreAdvFilterEmpty(o) {
     return !o.filterProName && !o.filterApplyCompany && !o.filterMajor && !o.filterDeclareAccount
-        && !o.filterQcGroupName && !o.filterExpertGroupName && !o.filterEliminated && !o.filterProStat;
+        && !o.filterQcGroupName && !o.filterExpertGroupName && !o.filterEliminated && !o.filterProStat
+        && !o.filterReviewResult;
 }
 
 function persistSurverScoreAdvFilterFromDom() {
@@ -88,6 +90,7 @@ function restoreSurverScoreAdvFilterFromStorage() {
         $("#filterExpertGroupName").val(o.filterExpertGroupName != null ? o.filterExpertGroupName : "");
         $("#filterEliminated").val(o.filterEliminated != null ? o.filterEliminated : "");
         $("#filterProStat").val(o.filterProStat != null ? o.filterProStat : "");
+        $("#filterReviewResult").val(o.filterReviewResult != null ? o.filterReviewResult : "");
         var filled = readSurverScoreAdvFilterFromDom();
         if (!isSurverScoreAdvFilterEmpty(filled)) {
             $("#scoreProFilterPanel").addClass("in");
@@ -222,7 +225,8 @@ function load() {
                         filterQcGroupName:       $("#filterQcGroupName").val(),
                         filterExpertGroupName:   $("#filterExpertGroupName").val(),
                         filterEliminated:        $("#filterEliminated").val(),
-                        filterProStat:           $("#filterProStat").val()
+                        filterProStat:           $("#filterProStat").val(),
+                        filterReviewResult:      $("#filterReviewResult").val()
                     };
                     Object.keys(fmap).forEach(function(k) {
                         var v = fmap[k];
@@ -350,8 +354,9 @@ function load() {
                         title: '形审结果',
                         formatter: function (value, row, index) {
                             var text = value;
-                            if (!text || text === '') {
-                                if (!row.checkStartTime) {
+                            if (!text || String(text).trim() === '') {
+                                var checkStarted = row.checkStartTime && String(row.checkStartTime).trim() !== '';
+                                if (!checkStarted) {
                                     text = '形审未开始';
                                 } else {
                                     text = '暂无形审结果';
@@ -1202,6 +1207,7 @@ function resetScoreProFilter() {
     $("#filterExpertGroupName").val('');
     $("#filterEliminated").val('');
     $("#filterProStat").val('');
+    $("#filterReviewResult").val('');
     clearSurverScoreAdvFilterStorage();
     applyScoreProFilter();
 }
