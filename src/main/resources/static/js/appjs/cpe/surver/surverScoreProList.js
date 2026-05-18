@@ -15,7 +15,7 @@ var SURVER_EXPERT_GRADE_MAP = {};   // proId -> 'A|B|C|D'
 var SURVER_EXPERT_REMARK_MAP = {};  // proId -> '评级理由'
 var SURVER_EXPERT_AVOID_SET = {};   // proId -> true (已回避)
 var SURVER_EXPERT_LOCKED   = false; // 已确认提交后锁定
-// 前端演示：是否有查新 / 专家审核意见 / 主评意见（未对接后端）
+// 专家审核意见 / 主评意见（ass_surver_expert_review_opinion，与淘汰活动表解耦）
 var SURVER_EXPERT_AUDIT_OPINION = {}; // proId -> 'agree' | 'disagree'
 var SURVER_MAIN_REVIEW_TEXT = {};     // proId -> 主评意见文本
 var SURVER_MAIN_REVIEW_DONE = {};     // proId -> 是否已提交主评意见
@@ -126,7 +126,7 @@ $(function () {
     });
 });
 
-/** 拉取当前专家在该任务下的评级/回避/锁定状态，并渲染顶部按钮 */
+/** 拉取当前专家在该任务下的评级/回避/锁定状态，并渲染顶部按钮；随后加载审核意见/主评意见 */
 function loadExpertGradeContext(cb) {
     var taskId = $("#taskId").val();
     if (!taskId) { if (cb) cb(); return; }
@@ -147,6 +147,32 @@ function loadExpertGradeContext(cb) {
                     totalCount: r.totalCount || 0,
                     eliminateOver: SURVER_EXPERT_LOCKED ? 1 : 0
                 };
+            }
+            loadExpertReviewOpinions(cb);
+        },
+        error: function() { loadExpertReviewOpinions(cb); }
+    });
+}
+
+/** 从库加载专家审核意见 + 主评意见（与淘汰确认提交锁定无关，确认后由 save 接口拒绝写入） */
+function loadExpertReviewOpinions(cb) {
+    var taskId = $("#taskId").val();
+    if (!taskId) { if (cb) cb(); return; }
+    $.ajax({
+        type: 'GET',
+        url: SURVER_ELIM_EXPERT_PREFIX + '/review/listMy',
+        data: { taskId: taskId },
+        success: function(r) {
+            if (r && r.code === 0) {
+                SURVER_EXPERT_AUDIT_OPINION = r.auditOpinions || {};
+                SURVER_MAIN_REVIEW_TEXT = r.mainReviewTexts || {};
+                SURVER_MAIN_REVIEW_DONE = {};
+                var sub = r.mainReviewSubmitted || {};
+                Object.keys(sub).forEach(function(k) {
+                    if (sub[k] == 1 || sub[k] === true) {
+                        SURVER_MAIN_REVIEW_DONE[k] = true;
+                    }
+                });
             }
             if (cb) cb();
         },
@@ -233,17 +259,15 @@ function load() {
                         title: '项目名称'
                     },
                     {
-                        field: '_fakeNovelty',
+                        field: 'extSurverNovelty',
                         title: '是否有查新',
                         align: 'center',
                         formatter: function (value, row, index) {
-                            var pid = row.proId;
-                            var n = parseInt(pid, 10);
-                            var flag = !isNaN(n) ? (n % 2 === 0) : (index % 2 === 0);
-                            var txt = flag ? '是' : '否';
-                            return '<span style="font-size:12px;">' + txt + '</span>';
-                            // return '<span class="label label-info" style="font-size:12px;">' + txt + '</span>';
-                                // + ' <span style="color:#aaa;font-size:11px;">(演示)</span>';
+                            var v = (value || '').toString().trim();
+                            if (v === '是' || v === '否') {
+                                return '<span style="font-size:12px;">' + v + '</span>';
+                            }
+                            return '<span style="color:#bbb;">—</span>';
                         }
                     },
                     {
@@ -258,7 +282,7 @@ function load() {
                             var s1 = cur === 'agree' ? 'selected' : '';
                             var s2 = cur === 'disagree' ? 'selected' : '';
                             return '<select class="form-control input-sm" style="min-width:96px;max-width:120px;display:inline-block;" '
-                                + locked + ' onchange="onSurverExpertAuditOpinion(this, ' + pid + ')">'
+                                + locked + ' onchange="onSurverExpertAuditOpinion(this, ' + pid + ', \'' + (row.proSubType || '') + '\')">'
                                 + '<option value="" ' + s0 + '>请选择</option>'
                                 + '<option value="agree" ' + s1 + '>同意</option>'
                                 + '<option value="disagree" ' + s2 + '>不同意</option>'
@@ -393,13 +417,19 @@ function load() {
                         align: 'center',
                         formatter: function (value, row, index) {
                             var pid = row.proId;
+                            var sub = (row.proSubType || '').replace(/'/g, "\\'");
                             if (SURVER_MAIN_REVIEW_DONE[pid]) {
+                                var editL = !SURVER_EXPERT_LOCKED
+                                    ? ' <a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', false)">修改</a>'
+                                    : '';
                                 return '<span class="label label-success" style="font-size:12px;">已提交</span> '
-                                    + '<a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', true)">查看</a>';
+                                    + '<a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', true)">查看</a>'
+                                    + editL;
                             }
+                            var fill = SURVER_EXPERT_LOCKED ? 'disabled' : '';
                             return '<span style="color:#999;font-size:12px;margin-right:6px;">未填写</span>'
-                                + '<a href="javascript:void(0)" class="btn btn-primary btn-xs" '
-                                + 'onclick="openSurverMainReviewDialog(' + pid + ', false)">填写</a>';
+                                + '<a href="javascript:void(0)" class="btn btn-primary btn-xs ' + fill + '" '
+                                + 'onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', false)">填写</a>';
                         }
                     },
                     // Phase C 新增：回避（手动）
@@ -881,20 +911,51 @@ function exportSurverGroupElimDetailExcel() {
 //     });
 // }
 
-/** 专家审核意见（前端演示，未落库） */
-function onSurverExpertAuditOpinion(sel, proId) {
-    var v = $(sel).val();
-    if (!v) {
-        delete SURVER_EXPERT_AUDIT_OPINION[proId];
-    } else {
-        SURVER_EXPERT_AUDIT_OPINION[proId] = v;
+/** 专家审核意见 → ass_surver_expert_review_opinion.audit_opinion */
+function onSurverExpertAuditOpinion(sel, proId, proSubType) {
+    if (SURVER_EXPERT_LOCKED) {
+        layer.msg('已确认提交，无法再修改', { icon: 2 });
+        loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+        return;
     }
+    var v = $(sel).val();
+    var taskId = $("#taskId").val();
+    $.ajax({
+        type: 'POST',
+        url: SURVER_ELIM_EXPERT_PREFIX + '/review/saveAudit',
+        data: { taskId: taskId, proId: proId, proSubType: proSubType || '', auditOpinion: v },
+        success: function (r) {
+            if (r && r.code === 0) {
+                if (!v) {
+                    delete SURVER_EXPERT_AUDIT_OPINION[proId];
+                } else {
+                    SURVER_EXPERT_AUDIT_OPINION[proId] = v;
+                }
+                layer.msg('已保存', { icon: 1, time: 600 });
+            } else {
+                layer.msg(r.msg || '保存失败', { icon: 2 });
+                loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+            }
+        },
+        error: function () {
+            layer.msg('请求失败', { icon: 2 });
+            loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+        }
+    });
 }
 
-/** 主评意见：填写 / 查看（前端演示，未落库） */
-function openSurverMainReviewDialog(proId, readonly) {
+/**
+ * 主评意见
+ * @param viewOnly true=仅查看；false=编辑（未提交=首次提交 submitMain=true；已提交且未锁定=修改 submitMain=false）
+ */
+function openSurverMainReviewDialog(proId, proSubType, viewOnly) {
+    if (!viewOnly && SURVER_EXPERT_LOCKED) {
+        layer.msg('已确认提交，无法再修改', { icon: 2 });
+        return;
+    }
     var done = !!SURVER_MAIN_REVIEW_DONE[proId];
-    var ro = !!readonly || done;
+    var ro = !!viewOnly || (done && SURVER_EXPERT_LOCKED);
+    var amend = done && !viewOnly && !SURVER_EXPERT_LOCKED;
     var existing = SURVER_MAIN_REVIEW_TEXT[proId] || '';
     var maxLen = 2000;
     var escaped = (existing || '')
@@ -903,7 +964,7 @@ function openSurverMainReviewDialog(proId, readonly) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
     var dlgHtml = '<div style="padding:16px 20px;">'
-        + '<p style="color:#888;font-size:12px;margin:0 0 8px 0;">' + (ro ? '已提交的主评意见' : '请填写主评意见') + '</p>'
+        + '<p style="color:#888;font-size:12px;margin:0 0 8px 0;">' + (ro ? '主评意见' : (amend ? '修改主评意见' : '请填写主评意见')) + '</p>'
         + '<textarea id="_surverMainReviewTa" class="form-control" rows="10" maxlength="' + maxLen + '" '
         + (ro ? 'readonly ' : '')
         + 'style="resize:vertical;">' + escaped + '</textarea>'
@@ -926,18 +987,38 @@ function openSurverMainReviewDialog(proId, readonly) {
         area: ['520px', '420px'],
         shadeClose: false,
         content: dlgHtml,
-        btn: ['提交', '取消'],
+        btn: [amend ? '保存' : '提交', '取消'],
         yes: function (idx) {
             var text = ($('#_surverMainReviewTa').val() || '').trim();
             if (!text) {
                 layer.msg('请填写内容后再提交', { icon: 2 });
                 return;
             }
-            SURVER_MAIN_REVIEW_TEXT[proId] = text;
-            SURVER_MAIN_REVIEW_DONE[proId] = true;
-            layer.close(idx);
-            layer.msg('已提交', { icon: 1, time: 800 });
-            $('#exampleTable').bootstrapTable('refresh');
+            var taskId = $("#taskId").val();
+            var submitMain = !done;
+            $.ajax({
+                type: 'POST',
+                url: SURVER_ELIM_EXPERT_PREFIX + '/review/saveMain',
+                data: {
+                    taskId: taskId,
+                    proId: proId,
+                    proSubType: proSubType || '',
+                    mainReviewText: text,
+                    submitMain: submitMain ? '1' : '0'
+                },
+                success: function (r) {
+                    if (r && r.code === 0) {
+                        SURVER_MAIN_REVIEW_TEXT[proId] = text;
+                        SURVER_MAIN_REVIEW_DONE[proId] = true;
+                        layer.close(idx);
+                        layer.msg(submitMain ? '已提交' : '已保存', { icon: 1, time: 800 });
+                        $('#exampleTable').bootstrapTable('refresh');
+                    } else {
+                        layer.msg(r.msg || '保存失败', { icon: 2 });
+                    }
+                },
+                error: function () { layer.msg('请求失败', { icon: 2 }); }
+            });
         },
         btn2: function (idx) {
             layer.close(idx);

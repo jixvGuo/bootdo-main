@@ -145,6 +145,16 @@ public class QcAwardServiceImpl implements QcAwardService {
     }
 
     @Override
+    public int updateExtSurverNovelty(int proId, String value) {
+        return projectCommonDao.updateExtSurverNovelty(proId, value);
+    }
+
+    @Override
+    public String getExtSurverNovelty(int proId) {
+        return projectCommonDao.getExtSurverNovelty(proId);
+    }
+
+    @Override
     public String getDeclareAccount(int proId) {
         return projectCommonDao.getDeclareAccount(proId);
     }

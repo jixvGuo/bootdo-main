@@ -28,6 +28,11 @@ public interface ProjectCommonDao {
      */
     public int updateProDeclareAccount(@Param("proId") int proId, @Param("declareAccount") String declareAccount);
 
+    /** 勘察奖：是否有查新，仅允许 是/否；value 为 null 表示清空 */
+    int updateExtSurverNovelty(@Param("proId") int proId, @Param("value") String value);
+
+    String getExtSurverNovelty(@Param("proId") int proId);
+
     /**
      * 获取项目申报账号
      */

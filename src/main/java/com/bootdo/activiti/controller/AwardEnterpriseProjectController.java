@@ -62,6 +62,7 @@ import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.LinkedHashMap;
 import java.util.stream.Collectors;
+import java.util.Map.Entry;
 import com.bootdo.common.utils.*;
 import com.bootdo.cpe.domain.*;
 import com.bootdo.cpe.dto.QcProDataDto;
@@ -544,6 +545,7 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                             return R.error("Excel 文件格式错误，缺少表头");
                         }
 
+                        //列的位置不固定，所以需要根据表头名称来获取列的位置
                         Map<String, Integer> headerMap = new HashMap<>();
                         for (int h = 0; h < headerRow.getLastCellNum(); h++) {
                             String headerName = getCellValue(headerRow.getCell(h)).trim();
@@ -556,6 +558,8 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                         Integer qcGroupColIndex = headerMap.get("分组");
                         Integer reviewResultColIndex = headerMap.get("形审结果");
                         Integer reviewCommentColIndex = headerMap.get("形审评语");
+                        // 添加是否查新列
+                        Integer noveltyColIndex = resolveImportHeaderIndex(headerMap, "是否有查新");
 
                         if (proIdColIndex == null) {
                             workbook.close();
@@ -570,8 +574,15 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                             }
                         }
 
-                        int successCount = 0;
+                        // 导入前快照：仅当 Excel 与库中值不一致时才写入并计入更新条数
+                        Map<Integer, SurverProjectInfo> proSnapshotMap = buildSurverProSnapshotMap(taskId);
+
                         int failCount = 0;
+                        int proCodeUpdateCount = 0;
+                        int declareAccountUpdateCount = 0;
+                        int groupUpdateCount = 0;
+                        int reviewUpdateCount = 0;
+                        int noveltyUpdateCount = 0;
                         StringBuilder failMsg = new StringBuilder();
 
                         for (int rowNum = 1; rowNum <= lastRowNum; rowNum++) {
@@ -620,68 +631,121 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                             String qcGroupName = qcGroupColIndex == null ? "" : getCellValue(row.getCell(qcGroupColIndex)).trim();
                             String reviewResult = reviewResultColIndex == null ? "" : getCellValue(row.getCell(reviewResultColIndex)).trim();
                             String reviewComment = reviewCommentColIndex == null ? "" : getCellValue(row.getCell(reviewCommentColIndex)).trim();
+                            String noveltyValRaw = noveltyColIndex == null ? "" : getCellValue(row.getCell(noveltyColIndex));
+                            String noveltyVal = normalizeImportNovelty(noveltyValRaw);
 
-                            boolean rowHandled = false;
+                            SurverProjectInfo curPro = proSnapshotMap.get(importProId);
+                            boolean noveltyInvalid = false;
 
                             // 1) 更新项目编号
-                            if (StringUtils.isNotBlank(proCode)) {
+                            if (StringUtils.isNotBlank(proCode)
+                                    && curPro != null
+                                    && importCellChanged(proCode, curPro.getProCode())) {
                                 qcAwardService.updateProResultCode(importProId, proCode);
-                                rowHandled = true;
+                                proCodeUpdateCount++;
                             }
 
-                            // 2) 更新申报账号
-                            if (declareAccountColIndex != null) {
+                            // 2) 更新申报账号（仅值变化时写入）
+                            if (declareAccountColIndex != null
+                                    && curPro != null
+                                    && importCellChanged(declareAccount, curPro.getDeclareAccount())) {
                                 qcAwardService.updateProDeclareAccount(importProId, declareAccount);
-                                rowHandled = true;
+                                declareAccountUpdateCount++;
                             }
 
                             // 3) 更新分组
                             if (StringUtils.isNotBlank(qcGroupName)) {
                                 QcGroupDO targetGroup = groupNameToGroupMap.get(qcGroupName);
                                 if (targetGroup != null) {
-                                    Map<String, Object> updateGroupParams = new HashMap<>();
-                                    updateGroupParams.put("proId", importProId);
-                                    updateGroupParams.put("groupId", targetGroup.getGroupid());
-                                    awardEnterpriseProjectService.updateProGroup(updateGroupParams);
-                                    rowHandled = true;
+                                    String dbGroup = curPro != null ? curPro.getQcGroupName() : "";
+                                    if (importCellChanged(qcGroupName, dbGroup)) {
+                                        Map<String, Object> updateGroupParams = new HashMap<>();
+                                        updateGroupParams.put("proId", importProId);
+                                        updateGroupParams.put("groupId", targetGroup.getGroupid());
+                                        awardEnterpriseProjectService.updateProGroup(updateGroupParams);
+                                        groupUpdateCount++;
+                                    }
                                 } else {
                                     failCount++;
                                     failMsg.append("第" + (rowNum + 1) + "行分组'" + qcGroupName + "'不存在，已跳过分组更新; ");
                                 }
                             }
 
-                            // 4) 更新形审结果、形审评语（按项目子类型落库）
+                            // 4) 更新形审结果、形审评语（与库中最新记录比对，一致则不新增）
                             if (StringUtils.isNotBlank(reviewResult) || StringUtils.isNotBlank(reviewComment)) {
-                                String proSubType = findSurverProSubTypeByTaskAndProId(taskId, importProId);
-                                if (StringUtils.isBlank(proSubType)) {
-                                    failCount++;
-                                    failMsg.append("第" + (rowNum + 1) + "行未识别勘察奖项目类别，已跳过形审结果写入; ");
-                                } else {
-                                    saveSurverReviewRecord(proSubType, importProId, taskId, (int) uid, reviewResult, reviewComment);
-                                    rowHandled = true;
+                                String dbResult = curPro != null ? stripHtmlForImportCompare(curPro.getLatestReviewResult()) : "";
+                                String dbComment = curPro != null ? stripHtmlForImportCompare(curPro.getLatestReviewRemarks()) : "";
+                                boolean reviewChanged = importCellChanged(reviewResult, dbResult)
+                                        || importCellChanged(reviewComment, dbComment);
+                                if (reviewChanged) {
+                                    String proSubType = curPro != null ? curPro.getProSubType() : findSurverProSubTypeByTaskAndProId(taskId, importProId);
+                                    if (StringUtils.isBlank(proSubType)) {
+                                        failCount++;
+                                        failMsg.append("第" + (rowNum + 1) + "行未识别勘察奖项目类别，已跳过形审结果写入; ");
+                                    } else {
+                                        saveSurverReviewRecord(proSubType, importProId, taskId, (int) uid, reviewResult, reviewComment);
+                                        reviewUpdateCount++;
+                                    }
                                 }
                             }
 
-                            if (rowHandled) {
-                                successCount++;
-                            } else {
-                                failCount++;
-                                failMsg.append("第" + (rowNum + 1) + "行无可更新内容; ");
+                            // 5) 是否有查新（仅允许 是/否；列为空表示清空，仅与库中不一致时写入）
+                            if (noveltyColIndex != null) {
+                                String dbNovelty = normalizeImportNovelty(qcAwardService.getExtSurverNovelty(importProId));
+                                if (StringUtils.isBlank(noveltyVal)) {
+                                    if (StringUtils.isNotBlank(dbNovelty)) {
+                                        qcAwardService.updateExtSurverNovelty(importProId, null);
+                                        noveltyUpdateCount++;
+                                    }
+                                } else if (!isValidImportNovelty(noveltyVal)) {
+                                    failCount++;
+                                    noveltyInvalid = true;
+                                    failMsg.append("第" + (rowNum + 1) + "行「是否有查新」仅能填「是」或「否」，当前为: " + noveltyValRaw.trim() + "; ");
+                                } else if (!noveltyVal.equals(dbNovelty)) {
+                                    qcAwardService.updateExtSurverNovelty(importProId, noveltyVal);
+                                    noveltyUpdateCount++;
+                                }
                             }
                         }
 
                         workbook.close();
 
-                        String resultMsg = "导入完成！成功：" + successCount + "条";
+                        StringBuilder resultMsg = new StringBuilder();
+                        resultMsg.append("导入完成");
+                        List<String> updateParts = new ArrayList<>();
+                        if (proCodeUpdateCount > 0) {
+                            updateParts.add("项目编号 " + proCodeUpdateCount + " 条");
+                        }
+                        if (declareAccountUpdateCount > 0) {
+                            updateParts.add("申报账号 " + declareAccountUpdateCount + " 条");
+                        }
+                        if (groupUpdateCount > 0) {
+                            updateParts.add("分组 " + groupUpdateCount + " 条");
+                        }
+                        if (reviewUpdateCount > 0) {
+                            updateParts.add("形审结果/评语 " + reviewUpdateCount + " 条");
+                        }
+                        if (noveltyUpdateCount > 0) {
+                            updateParts.add("是否有查新 " + noveltyUpdateCount + " 条");
+                        }
+                        if (!updateParts.isEmpty()) {
+                            resultMsg.append("，已更新：").append(String.join("；", updateParts));
+                        } else if (failCount == 0) {
+                            resultMsg.append("，无数据被更新");
+                            if (noveltyColIndex == null) {
+                                resultMsg.append("（Excel 无「是否有查新」列时请使用最新导出模板）");
+                            }
+                        }
                         if (failCount > 0) {
-                            resultMsg += "，失败：" + failCount + "条";
+                            resultMsg.append("；失败 ").append(failCount).append(" 行");
                             if (failMsg.length() > 0) {
-                                resultMsg += "<br/>" + failMsg.toString();
+                                resultMsg.append("<br/>").append(failMsg.toString());
                             }
                         }
 
-                        R result = failCount > 0 ? R.error(resultMsg) : R.ok(resultMsg);
+                        R result = failCount > 0 ? R.error(resultMsg.toString()) : R.ok(resultMsg.toString());
                         result.put("showMsg", true);
+                        result.put("noveltyUpdateCount", noveltyUpdateCount);
                         return result;
                     } catch (FileNotFoundException e) {
                         e.printStackTrace();
@@ -1144,6 +1208,104 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
         }
         return R.error();
     }
+    /** 勘察奖导入：预加载当前任务下项目列表字段，用于与 Excel 比对是否真有变更 */
+    private Map<Integer, SurverProjectInfo> buildSurverProSnapshotMap(String taskId) {
+        List<SurverProjectInfo> list = surverAwardService.listProImportSnapshot(taskId);
+        Map<Integer, SurverProjectInfo> map = new HashMap<>();
+        if (list == null) {
+            return map;
+        }
+        for (SurverProjectInfo p : list) {
+            if (p.getProId() > 0) {
+                map.put(p.getProId(), p);
+            }
+        }
+        return map;
+    }
+
+    private static String importCellNorm(String s) {
+        return s == null ? "" : s.trim();
+    }
+
+    private static boolean importCellChanged(String excelVal, String dbVal) {
+        return !importCellNorm(excelVal).equals(importCellNorm(dbVal));
+    }
+
+    // 解析Excel表头列索引,容错匹配Excel表头名称
+    private static Integer resolveImportHeaderIndex(Map<String, Integer> headerMap, String headerName) {
+        // 如果headerMap为空或者headerName为空，则返回null
+        if (headerMap == null || StringUtils.isBlank(headerName)) {
+            return null;
+        }
+        // 从headerMap中通过表头列名获取索引idx
+        Integer idx = headerMap.get(headerName);
+        // 如果idx不为空，则返回idx
+        if (idx != null) {
+            return idx;
+        }
+        // 如果idx为空，则遍历headerMap进行精确匹配
+        // 完全限定名写法或者import  时间复杂度为O(n)而不是O(1)
+        for (Entry<String, Integer> entry : headerMap.entrySet()) {
+            if (entry.getKey() != null &&
+                    entry.getKey()
+                         //去除BOM标记: \uFEFF是UTF-8文件的字节顺序标记，可能导致字符串比较失败
+                         .replace("\uFEFF", "")
+                         .trim().equals(headerName)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    /** 规范「是否有查新」：是/否；无法识别时返回 trim 后原文供校验提示 */
+    private static String normalizeImportNovelty(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        String s = raw.replace("\uFEFF", "").replace('\u00A0', ' ').trim();
+        if (s.isEmpty()) {
+            return "";
+        }
+        if ("是".equals(s) || "Y".equalsIgnoreCase(s) || "YES".equalsIgnoreCase(s) || "1".equals(s) || "有".equals(s)) {
+            return "是";
+        }
+        if ("否".equals(s) || "N".equalsIgnoreCase(s) || "NO".equalsIgnoreCase(s) || "0".equals(s) || "无".equals(s)) {
+            return "否";
+        }
+        return s;
+    }
+
+    private static boolean isValidImportNovelty(String normalized) {
+        return "是".equals(normalized) || "否".equals(normalized);
+    }
+
+    private static final org.apache.poi.ss.usermodel.DataFormatter IMPORT_CELL_FORMATTER =
+            new org.apache.poi.ss.usermodel.DataFormatter();
+
+    /** 与导出 Excel 一致：形审字段去 HTML 后再比对 */
+    private static String stripHtmlForImportCompare(String s) {
+        if (s == null || s.isEmpty()) {
+            return "";
+        }
+        String t = s;
+        t = t.replaceAll("(?is)<script[^>]*>.*?</script>", "");
+        t = t.replaceAll("(?is)<style[^>]*>.*?</style>", "");
+        t = t.replaceAll("(?i)<br\\s*/?>", "\n");
+        t = t.replaceAll("(?i)</p\\s*>", "\n");
+        t = t.replaceAll("(?i)</div\\s*>", "\n");
+        t = t.replace('\u00A0', ' ');
+        t = t.replaceAll("<[^>]+>", "");
+        t = t.replaceAll("(?i)&nbsp;|&#160;", " ");
+        t = t.replaceAll("&lt;", "<");
+        t = t.replaceAll("&gt;", ">");
+        t = t.replaceAll("&quot;", "\"");
+        t = t.replaceAll("&#39;", "'");
+        t = t.replaceAll("&amp;", "&");
+        t = t.replaceAll("[ \\t\\x0B\\f\\r]+", " ");
+        t = t.replaceAll("\\n\\s*\\n+", "\n");
+        return t.trim();
+    }
+
     private String findSurverProSubTypeByTaskAndProId(String taskId, Integer proId) {
         if (StringUtils.isBlank(taskId) || proId == null) {
             return "";
@@ -1204,24 +1366,51 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
      * 获取单元格值
      */
     private String getCellValue(org.apache.poi.ss.usermodel.Cell cell) {
-        if(cell == null) {
+        if (cell == null) {
             return "";
         }
-        switch(cell.getCellType()) {
+        try {
+            String formatted = IMPORT_CELL_FORMATTER.formatCellValue(cell);
+            if (formatted != null) {
+                return formatted.trim();
+            }
+        } catch (Exception ignored) {
+            // fallback below
+        }
+        switch (cell.getCellType()) {
             case STRING:
                 return cell.getStringCellValue().trim();
             case NUMERIC:
-                if(org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
+                if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(cell)) {
                     return cell.getDateCellValue().toString();
-                } else {
-                    double numVal = cell.getNumericCellValue();
-                    if(numVal == (long)numVal) {
-                        return String.valueOf((long)numVal);
-                    }
-                    return String.valueOf(numVal);
                 }
+                double numVal = cell.getNumericCellValue();
+                if (numVal == (long) numVal) {
+                    return String.valueOf((long) numVal);
+                }
+                return String.valueOf(numVal);
             case BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
+            case FORMULA:
+                try {
+                    switch (cell.getCachedFormulaResultType()) {
+                        case STRING:
+                            return cell.getStringCellValue().trim();
+                        case NUMERIC:
+                            double fv = cell.getNumericCellValue();
+                            if (fv == (long) fv) {
+                                return String.valueOf((long) fv);
+                            }
+                            return String.valueOf(fv);
+                        case BOOLEAN:
+                            return String.valueOf(cell.getBooleanCellValue());
+                        default:
+                            return "";
+                    }
+                } catch (Exception e) {
+                    return "";
+                }
+            case BLANK:
             default:
                 return "";
         }

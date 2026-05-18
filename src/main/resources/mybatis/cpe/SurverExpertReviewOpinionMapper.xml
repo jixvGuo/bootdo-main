@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bootdo.cpe.dao.SurverExpertReviewOpinionDao">
+
+    <select id="getByUnique" resultType="com.bootdo.cpe.domain.SurverExpertReviewOpinionDO">
+        SELECT id, task_id AS taskId, pro_id AS proId, pro_sub_type AS proSubType, expert_uid AS expertUid,
+               audit_opinion AS auditOpinion, main_review_text AS mainReviewText,
+               main_review_submitted AS mainReviewSubmitted, created, updated
+        FROM ass_surver_expert_review_opinion
+        WHERE task_id = #{taskId} AND pro_id = #{proId} AND expert_uid = #{expertUid}
+        LIMIT 1
+    </select>
+
+    <select id="listByTaskAndExpert" resultType="com.bootdo.cpe.domain.SurverExpertReviewOpinionDO">
+        SELECT id, task_id AS taskId, pro_id AS proId, pro_sub_type AS proSubType, expert_uid AS expertUid,
+               audit_opinion AS auditOpinion, main_review_text AS mainReviewText,
+               main_review_submitted AS mainReviewSubmitted, created, updated
+        FROM ass_surver_expert_review_opinion
+        WHERE task_id = #{taskId} AND expert_uid = #{expertUid}
+        ORDER BY pro_id
+    </select>
+
+    <insert id="insert" parameterType="com.bootdo.cpe.domain.SurverExpertReviewOpinionDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ass_surver_expert_review_opinion
+        (`task_id`,`pro_id`,`pro_sub_type`,`expert_uid`,`audit_opinion`,`main_review_text`,`main_review_submitted`,`created`,`updated`)
+        VALUES
+        (#{taskId},#{proId},#{proSubType},#{expertUid},#{auditOpinion},#{mainReviewText},#{mainReviewSubmitted},NOW(),NOW())
+    </insert>
+
+    <update id="updateAudit">
+        UPDATE ass_surver_expert_review_opinion
+        SET audit_opinion = #{auditOpinion}, updated = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateMain">
+        UPDATE ass_surver_expert_review_opinion
+        SET main_review_text = #{mainReviewText},
+            main_review_submitted = #{mainReviewSubmitted},
+            updated = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 同源 SurverExpertEliminateMapper.countAssignedProjects，增加 pro.id 限定 -->
+    <select id="countExpertProAssigned" resultType="int">
+        SELECT COUNT(1)
+          FROM ass_award_enterprise_project pro
+          JOIN ass_award_pro_expert_group peg ON peg.proid = pro.id
+          JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid
+          JOIN add_special_info si ON si.group_name = eg.name
+               AND si.user_id = #{expertUid}
+               AND si.pro_type = 'surver_pro_group'
+               AND si.deleted = 0
+         WHERE pro.pro_type = 'surver_pro'
+           AND pro.publish_task_id = #{taskId}
+           AND pro.id = #{proId}
+    </select>
+</mapper>

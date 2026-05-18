@@ -82,6 +82,19 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
      */
     private String expertGroupName;
 
+    /**
+     * 勘察奖：是否有查新（是/否），来自 ass_award_enterprise_project.ext_surver_novelty
+     */
+    private String extSurverNovelty;
+
+    public String getExtSurverNovelty() {
+        return extSurverNovelty;
+    }
+
+    public void setExtSurverNovelty(String extSurverNovelty) {
+        this.extSurverNovelty = extSurverNovelty;
+    }
+
     public String getExpertGroupName() {
         return expertGroupName;
     }

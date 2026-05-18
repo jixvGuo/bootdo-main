@@ -18,6 +18,10 @@ import java.util.Map;
 public interface SurverAwardService {
 
     public List<SurverProjectInfo> listProInfo(Map<String, Object> params);
+
+    /** 勘察奖 Excel 导入比对用：不按 major 过滤，不覆盖序号字段 */
+    List<SurverProjectInfo> listProImportSnapshot(String taskId);
+
     public int countProInfo(Map<String, Object> params);
 
     public List<ApplyEnterpriseInfo> listEnterpriseInfo(Map<String, Object> params);

@@ -8,6 +8,7 @@ import com.bootdo.cpe.service.SurverAwardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,6 +31,20 @@ public class SurverAwardServiceImpl implements SurverAwardService {
             pro.initApplyStat();
             pro.setId(num.getAndIncrement());
         });
+        return list;
+    }
+
+    @Override
+    public List<SurverProjectInfo> listProImportSnapshot(String taskId) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("taskId", taskId);
+        params.put("importSnapshot", true);
+        params.put("offset", 0);
+        params.put("limit", 50000);
+        List<SurverProjectInfo> list = surverAwardDao.listProInfo(params);
+        if (list != null) {
+            list.forEach(SurverProjectInfo::initApplyStat);
+        }
         return list;
     }
 

@@ -41,6 +41,11 @@ public interface QcAwardService {
      */
     public int updateProDeclareAccount(int proId, String declareAccount);
 
+    /** 勘察奖项目：是否有查新（是/否），null 清空 */
+    int updateExtSurverNovelty(int proId, String value);
+
+    String getExtSurverNovelty(int proId);
+
     /**
      * 获取项目申报账号
      */

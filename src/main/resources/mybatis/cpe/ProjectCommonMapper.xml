@@ -46,6 +46,16 @@
              id = #{proId}
      </update>
 
+    <update id="updateExtSurverNovelty">
+        UPDATE ass_award_enterprise_project
+        SET ext_surver_novelty = #{value}
+        WHERE id = #{proId}
+    </update>
+
+    <select id="getExtSurverNovelty" resultType="java.lang.String">
+        SELECT ext_surver_novelty FROM ass_award_enterprise_project WHERE id = #{proId}
+    </select>
+
     <select id="getDeclareAccount" resultType="java.lang.String">
         SELECT declare_account FROM ass_award_enterprise_project WHERE id = #{proId}
     </select>

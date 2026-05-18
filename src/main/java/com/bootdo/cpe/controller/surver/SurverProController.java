@@ -35,6 +35,12 @@ import static com.bootdo.common.config.Constant.*;
 public class SurverProController extends BaseSurverController {
     private String prefix = "cpe/survey";
 
+    /** 勘察奖项目列表导出 Excel 表头（「是否有查新」固定为最后一列） */
+    private static final String[] SURVER_PRO_LIST_EXPORT_HEADERS = {
+            "序号", "proId", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单",
+            "申报账号", "申报联系方式", "分组", "形审结果", "形审评语", "状态", "是否有查新"
+    };
+
     @Autowired
     private SurverAwardService surverAwardService;
     @Autowired
@@ -369,9 +375,7 @@ public class SurverProController extends BaseSurverController {
             proList = surverAwardService.listProInfo(params);
         }
 
-        String[] header = {
-                "序号", "proId", "项目编号", "项目类别", "项目名称", "申报单位", "专业", "人员名单", "申报账号", "申报联系方式", "分组", "形审结果", "形审评语", "状态"
-        };
+        String[] header = SURVER_PRO_LIST_EXPORT_HEADERS;
 
         List<Map<String, String>> rows = new ArrayList<>();
         for (SurverProjectInfo pro : proList) {
@@ -390,6 +394,7 @@ public class SurverProController extends BaseSurverController {
             row.put("形审结果", stripHtmlTagsForExcel(safe(pro.getLatestReviewResult())));
             row.put("形审评语", stripHtmlTagsForExcel(safe(pro.getLatestReviewRemarks())));
             row.put("状态", safe(pro.getApplyStat()));
+            row.put("是否有查新", safe(pro.getExtSurverNovelty()));
             rows.add(row);
         }
 

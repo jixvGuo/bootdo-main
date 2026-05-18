@@ -1824,6 +1824,9 @@ public class PoiWordUtils {
         }
 
         response.setContentType("application/octet-stream");
+        response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
         response.setHeader("Content-disposition", "attachment;filename=勘察奖项目列表.xls");
         response.flushBuffer();
         workbook.write(response.getOutputStream());

@@ -76,7 +76,8 @@
                <!-- 新增：专家分组名称（通过 ass_award_pro_expert_group + ass_award_expert_group 关联查询） -->
                (select egn.name from ass_award_pro_expert_group pegn
                 join ass_award_expert_group egn on egn.groupid = pegn.groupid and egn.taskid = pegn.taskid
-                where pegn.proid = pro.id limit 1) expertGroupName
+                where pegn.proid = pro.id limit 1) expertGroupName,
+               pro.ext_surver_novelty extSurverNovelty
                from
                 boot_do.ass_award_enterprise_project pro
                    JOIN
@@ -124,7 +125,7 @@
 
         <where>
             pro.pro_type = 'surver_pro'
-            <if test="scoreSpecialistUid == null and contactUserId == null">AND pro.major IS NOT NULL</if>
+            <if test="importSnapshot != true and scoreSpecialistUid == null and contactUserId == null">AND pro.major IS NOT NULL</if>
             <if test="proSubType != null and proSubType != ''"> and pro.pro_sub_type = #{proSubType}</if>
             <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
             <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
@@ -279,7 +280,7 @@
 
         <where>
             pro.pro_type = 'surver_pro'
-            <if test="scoreSpecialistUid == null and contactUserId == null">AND pro.major IS NOT NULL</if>
+            <if test="importSnapshot != true and scoreSpecialistUid == null and contactUserId == null">AND pro.major IS NOT NULL</if>
             <if test="proSubType != null and proSubType != ''"> and pro.pro_sub_type = #{proSubType}</if>
             <if test="optUid != null and optUid != ''"> and opt_uid = #{optUid} </if>
             <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>

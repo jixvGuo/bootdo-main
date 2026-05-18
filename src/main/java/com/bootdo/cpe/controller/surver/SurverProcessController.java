@@ -146,6 +146,9 @@ public class SurverProcessController extends BaseSurverController {
     // 管理员回避管理：查询专家分配的项目列表
     @Autowired
     private com.bootdo.cpe.service.SurverAwardService surverAwardService;
+    /** 专家打分页：审核意见 / 主评意见（独立表） */
+    @Autowired
+    private com.bootdo.cpe.service.SurverExpertReviewOpinionService surverExpertReviewOpinionService;
 
 
     /**
@@ -274,6 +277,8 @@ public class SurverProcessController extends BaseSurverController {
     @RequestMapping("/toAssign")
     public String toAssignPro(@RequestParam Map<String, Object> params, ModelMap map) {
         long roleId = ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID;
+        // 解析并写入当前勘察奖任务ID：请求无 taskId 时取最新勘察任务；
+        // 同时补全 proType 等查询条件（见 BaseSurverController.packageAwardTaskId）
         packageAwardTaskId(map, params);
         params.put("roleId", roleId);
 
@@ -1168,6 +1173,131 @@ public class SurverProcessController extends BaseSurverController {
                 .put("grades", gradeMap)
                 .put("remarks", remarkMap)
                 .put("avoidances", avoidedProIds == null ? Collections.emptyList() : avoidedProIds);
+    }
+
+    /**
+     * 专家侧：当前任务下本人已保存的「专家审核意见 + 主评意见」
+     * 入参: taskId(必填)
+     * 出参: auditOpinions{proId→agree|disagree}, mainReviewTexts{proId→text}, mainReviewSubmitted{proId→0|1}
+     */
+    @ResponseBody
+    @RequestMapping("/eliminate/expert/review/listMy")
+    public R listMyReviewOpinions(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+        taskId = resolveExpertTaskId(uid, taskId);
+        List<com.bootdo.cpe.domain.SurverExpertReviewOpinionDO> rows =
+                surverExpertReviewOpinionService.listByTaskAndExpert(taskId, uid);
+        Map<Integer, String> auditMap = new HashMap<>();
+        Map<Integer, String> mainTextMap = new HashMap<>();
+        Map<Integer, Integer> mainSubmittedMap = new HashMap<>();
+        if (rows != null) {
+            for (com.bootdo.cpe.domain.SurverExpertReviewOpinionDO r : rows) {
+                if (r.getProId() == null) {
+                    continue;
+                }
+                int pid = r.getProId();
+                if (StringUtils.isNotBlank(r.getAuditOpinion())) {
+                    auditMap.put(pid, r.getAuditOpinion());
+                }
+                if (r.getMainReviewText() != null) {
+                    mainTextMap.put(pid, r.getMainReviewText());
+                }
+                int submitted = (r.getMainReviewSubmitted() != null && r.getMainReviewSubmitted() == 1) ? 1 : 0;
+                mainSubmittedMap.put(pid, submitted);
+            }
+        }
+        return R.ok()
+                .put("auditOpinions", auditMap)
+                .put("mainReviewTexts", mainTextMap)
+                .put("mainReviewSubmitted", mainSubmittedMap);
+    }
+
+    /**
+     * 专家侧：保存「专家审核意见」
+     * 入参: taskId, proId, proSubType, auditOpinion（空串表示清空）
+     */
+    @ResponseBody
+    @RequestMapping("/eliminate/expert/review/saveAudit")
+    public R saveExpertReviewAudit(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+        String proSubType = params.get("proSubType") != null ? params.get("proSubType").toString() : "";
+        String auditOpinion = params.get("auditOpinion") != null ? params.get("auditOpinion").toString() : "";
+        if (StringUtils.isBlank(taskId) || StringUtils.isBlank(proIdStr)) {
+            return R.error("缺少必填参数 taskId / proId");
+        }
+        taskId = resolveExpertTaskId(uid, taskId);
+        Map<String, Object> snapQ = new HashMap<>();
+        snapQ.put("expertUid", uid);
+        snapQ.put("taskId", taskId);
+        if (surverExpertEliminateConfirmedService.count(snapQ) > 0) {
+            return R.error("您已确认提交，无法再修改。");
+        }
+        Integer proId;
+        try {
+            proId = Integer.valueOf(proIdStr);
+        } catch (NumberFormatException e) {
+            return R.error("proId 必须是整数");
+        }
+        try {
+            surverExpertReviewOpinionService.saveAudit(taskId, uid, proId, proSubType, auditOpinion);
+            return R.ok();
+        } catch (IllegalArgumentException e) {
+            return R.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("保存失败");
+        }
+    }
+
+    /**
+     * 专家侧：保存「主评意见」
+     * 入参: taskId, proId, proSubType, mainReviewText, submitMain（默认 true：首次提交；false：已提交后仅改正文）
+     */
+    @ResponseBody
+    @RequestMapping("/eliminate/expert/review/saveMain")
+    public R saveExpertReviewMain(@RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        String proIdStr = params.get("proId") != null ? params.get("proId").toString() : "";
+        String proSubType = params.get("proSubType") != null ? params.get("proSubType").toString() : "";
+        String mainReviewText = params.get("mainReviewText") != null ? params.get("mainReviewText").toString() : "";
+        boolean submitMain = true;
+        Object sm = params.get("submitMain");
+        if (sm != null) {
+            String s = sm.toString().trim();
+            submitMain = "1".equals(s) || "true".equalsIgnoreCase(s);
+        }
+        if (StringUtils.isBlank(taskId) || StringUtils.isBlank(proIdStr)) {
+            return R.error("缺少必填参数 taskId / proId");
+        }
+        taskId = resolveExpertTaskId(uid, taskId);
+        Map<String, Object> snapQ = new HashMap<>();
+        snapQ.put("expertUid", uid);
+        snapQ.put("taskId", taskId);
+        if (surverExpertEliminateConfirmedService.count(snapQ) > 0) {
+            return R.error("您已确认提交，无法再修改。");
+        }
+        Integer proId;
+        try {
+            proId = Integer.valueOf(proIdStr);
+        } catch (NumberFormatException e) {
+            return R.error("proId 必须是整数");
+        }
+        try {
+            surverExpertReviewOpinionService.saveMain(taskId, uid, proId, proSubType, mainReviewText, submitMain);
+            return R.ok();
+        } catch (IllegalArgumentException e) {
+            return R.error(e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return R.error("保存失败");
+        }
     }
 
     /**

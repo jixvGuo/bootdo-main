@@ -303,6 +303,18 @@ function load() {
                         }
                     },
                     {
+                        field: 'extSurverNovelty',
+                        title: '是否有查新',
+                        align: 'center',
+                        formatter: function (value, row, index) {
+                            var v = (value || '').toString().trim();
+                            if (v === '是' || v === '否') {
+                                return '<span style="font-size:13px;">' + v + '</span>';
+                            }
+                            return '<span style="color:#bbb;">—</span>';
+                        }
+                    },
+                    {
                         title: '操作',
                         field: 'id',
                         align: 'center',
@@ -498,7 +510,7 @@ function subCheck(proId) {
 function printExcelPro() {
     var taskId = $("#taskId").val();
     // 不按当前标签分类，统一导出四个奖项
-    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId);
+    window.location.href = prefix + "/exportExcel?taskId=" + encodeURIComponent(taskId) + "&_t=" + Date.now();
 }
 
 // ========== 原版 printDetailExcelPro（已注释，保留参考） ==========
