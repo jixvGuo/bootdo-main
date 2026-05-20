@@ -22,7 +22,10 @@ var SURVER_MAIN_REVIEW_DONE = {};     // proId -> 是否已提交主评意见
 
 /** 专家打分页高级筛选：独立 localStorage（cpe.surverScoreProList…），与项目列表互不覆盖 */
 var SURVER_SCORE_ADV_FILTER_KEY_PREFIX = "cpe.surverScoreProList.advFilter.v1";
+/** Tab「勘察设计评级」独立高级筛选 localStorage */
+var SURVER_SCORE_RATING_ADV_FILTER_KEY_PREFIX = "cpe.surverScoreProList.ratingAdvFilter.v1";
 var _surverScoreAdvFilterSaveTimer = null;
+var _surverScoreRatingAdvFilterSaveTimer = null;
 
 function getSurverScoreAdvFilterStorageKey() {
     var tid = ($("#taskId").val() || "") + "";
@@ -105,12 +108,206 @@ function clearSurverScoreAdvFilterStorage() {
     } catch (e) { /* ignore */ }
 }
 
+function getSurverScoreRatingAdvFilterStorageKey() {
+    var tid = ($("#taskId").val() || "") + "";
+    var pst = ($("#proSubType").val() || "") + "";
+    return SURVER_SCORE_RATING_ADV_FILTER_KEY_PREFIX + ":" + tid + ":" + pst;
+}
+
+function readSurverScoreRatingAdvFilterFromDom() {
+    return {
+        filterProName: ($("#ratingFilterProName").val() || "").trim(),
+        filterApplyCompany: ($("#ratingFilterApplyCompany").val() || "").trim(),
+        filterMajor: ($("#ratingFilterMajor").val() || "").trim(),
+        filterDeclareAccount: ($("#ratingFilterDeclareAccount").val() || "").trim(),
+        filterQcGroupName: ($("#ratingFilterQcGroupName").val() || "").trim(),
+        filterExpertGroupName: ($("#ratingFilterExpertGroupName").val() || "").trim(),
+        filterEliminated: ($("#ratingFilterEliminated").val() || "").trim(),
+        filterProStat: ($("#ratingFilterProStat").val() || "").trim(),
+        filterReviewResult: ($("#ratingFilterReviewResult").val() || "").trim()
+    };
+}
+
+function isSurverScoreRatingAdvFilterEmpty(o) {
+    return !o.filterProName && !o.filterApplyCompany && !o.filterMajor && !o.filterDeclareAccount
+        && !o.filterQcGroupName && !o.filterExpertGroupName && !o.filterEliminated && !o.filterProStat
+        && !o.filterReviewResult;
+}
+
+function persistSurverScoreRatingAdvFilterFromDom() {
+    try {
+        var key = getSurverScoreRatingAdvFilterStorageKey();
+        var data = readSurverScoreRatingAdvFilterFromDom();
+        if (isSurverScoreRatingAdvFilterEmpty(data)) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function schedulePersistSurverScoreRatingAdvFilter() {
+    if (_surverScoreRatingAdvFilterSaveTimer) {
+        clearTimeout(_surverScoreRatingAdvFilterSaveTimer);
+    }
+    _surverScoreRatingAdvFilterSaveTimer = setTimeout(function () {
+        _surverScoreRatingAdvFilterSaveTimer = null;
+        persistSurverScoreRatingAdvFilterFromDom();
+    }, 400);
+}
+
+function restoreSurverScoreRatingAdvFilterFromStorage() {
+    try {
+        var raw = localStorage.getItem(getSurverScoreRatingAdvFilterStorageKey());
+        if (raw == null || raw === "") {
+            return;
+        }
+        var o = JSON.parse(raw);
+        if (!o || typeof o !== "object") {
+            return;
+        }
+        $("#ratingFilterProName").val(o.filterProName != null ? o.filterProName : "");
+        $("#ratingFilterApplyCompany").val(o.filterApplyCompany != null ? o.filterApplyCompany : "");
+        $("#ratingFilterMajor").val(o.filterMajor != null ? o.filterMajor : "");
+        $("#ratingFilterDeclareAccount").val(o.filterDeclareAccount != null ? o.filterDeclareAccount : "");
+        $("#ratingFilterQcGroupName").val(o.filterQcGroupName != null ? o.filterQcGroupName : "");
+        $("#ratingFilterExpertGroupName").val(o.filterExpertGroupName != null ? o.filterExpertGroupName : "");
+        $("#ratingFilterEliminated").val(o.filterEliminated != null ? o.filterEliminated : "");
+        $("#ratingFilterProStat").val(o.filterProStat != null ? o.filterProStat : "");
+        $("#ratingFilterReviewResult").val(o.filterReviewResult != null ? o.filterReviewResult : "");
+        var filled = readSurverScoreRatingAdvFilterFromDom();
+        if (!isSurverScoreRatingAdvFilterEmpty(filled)) {
+            $("#scoreRatingFilterPanel").addClass("in");
+            $('a[href="#scoreRatingFilterPanel"]').attr("aria-expanded", "true");
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function clearSurverScoreRatingAdvFilterStorage() {
+    try {
+        localStorage.removeItem(getSurverScoreRatingAdvFilterStorageKey());
+    } catch (e) { /* ignore */ }
+}
+
+/** 形审评语/结论：去 HTML 后纯文本展示 */
+function surverScoreStripHtml(html) {
+    if (html == null || html === undefined) {
+        return "";
+    }
+    var s = String(html);
+    if (typeof document !== "undefined") {
+        var el = document.createElement("div");
+        el.innerHTML = s;
+        s = el.textContent || el.innerText || s;
+    } else {
+        s = s.replace(/<[^>]+>/g, "");
+    }
+    return s.replace(/\s+/g, " ").trim();
+}
+
+/** 形式审查结论（原形审结果列逻辑，无链接） */
+function formatScoreReviewConclusionText(row) {
+    var text = surverScoreStripHtml(row.latestReviewResult);
+    if (!text) {
+        var checkStarted = row.checkStartTime && String(row.checkStartTime).trim() !== "";
+        text = checkStarted ? "暂无形审结果" : "形审未开始";
+    }
+    return text;
+}
+
+/** 形式审查问题（原形审评语；无记录为「暂无形审结果」） */
+function formatScoreReviewRemarksText(row) {
+    var text = surverScoreStripHtml(row.latestReviewRemarks);
+    if (!text) {
+        return "暂无形审结果";
+    }
+    return text;
+}
+
+function buildScoreTableQueryParams(params, useRatingFilter) {
+    var qp = {
+        limit: params.limit,
+        offset: params.offset,
+        proSubType: $("#proSubType").val(),
+        taskId: $("#taskId").val()
+    };
+    var prefix = useRatingFilter ? "ratingFilter" : "filter";
+    var fmap = {
+        filterProName: $("#" + prefix + "ProName").val(),
+        filterApplyCompany: $("#" + prefix + "ApplyCompany").val(),
+        filterMajor: $("#" + prefix + "Major").val(),
+        filterDeclareAccount: $("#" + prefix + "DeclareAccount").val(),
+        filterQcGroupName: $("#" + prefix + "QcGroupName").val(),
+        filterExpertGroupName: $("#" + prefix + "ExpertGroupName").val(),
+        filterEliminated: $("#" + prefix + "Eliminated").val(),
+        filterProStat: $("#" + prefix + "ProStat").val(),
+        filterReviewResult: $("#" + prefix + "ReviewResult").val()
+    };
+    Object.keys(fmap).forEach(function (k) {
+        var v = fmap[k];
+        if (v !== undefined && v !== null && (v + "").length > 0) {
+            qp[k] = (v + "").trim();
+        }
+    });
+    return qp;
+}
+
+function formatterScoreExpertGrade(row) {
+    if (SURVER_EXPERT_AVOID_SET[row.proId]) {
+        return '<span style="color:#d9534f;font-size:12px;">已回避</span>';
+    }
+    var current = SURVER_EXPERT_GRADE_MAP[row.proId] || '';
+    var btnLabel = current ? '已评级(' + current + ')' : '淘汰';
+    var btnClass = current ? 'btn-success' : 'btn-primary';
+    var disabled = SURVER_EXPERT_LOCKED ? 'disabled' : '';
+    return '<button class="btn btn-xs ' + btnClass + '" ' + disabled
+        + ' onclick="openSurverGradeDialog(' + row.proId + ', \'' + (row.proSubType || '')
+        + '\', \'' + (row.proCode || '') + '\')">'
+        + btnLabel + '</button>';
+}
+
+function formatterScoreMainReview(row) {
+    var pid = row.proId;
+    var sub = (row.proSubType || '').replace(/'/g, "\\'");
+    if (SURVER_MAIN_REVIEW_DONE[pid]) {
+        var editL = !SURVER_EXPERT_LOCKED
+            ? ' <a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', false)">修改</a>'
+            : '';
+        return '<span class="label label-success" style="font-size:12px;">已提交</span> '
+            + '<a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', true)">查看</a>'
+            + editL;
+    }
+    var fill = SURVER_EXPERT_LOCKED ? 'disabled' : '';
+    return '<span style="color:#999;font-size:12px;margin-right:6px;">未填写</span>'
+        + '<a href="javascript:void(0)" class="btn btn-primary btn-xs ' + fill + '" '
+        + 'onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', false)">填写</a>';
+}
+
+/** 顶部菜单栏打开「勘察设计评级」页（与「查看项目」一致，走 page/contabs） */
+function openSurverRatingTab() {
+    var taskId = ($('#taskId').val() || '') + '';
+    var proSubType = ($('#proSubType').val() || '') + '';
+    var url = '/surverScore/proRatingList?taskId=' + encodeURIComponent(taskId)
+        + '&proSubType=' + encodeURIComponent(proSubType);
+    // 原：页内 Bootstrap Tab（本项目加载了 semantic UI，.tab('show') 会报错）
+    // $('a[href="#tab-score-rating"]').tab('show');
+    if (typeof page === 'function') {
+        page(url, '勘察设计评级', 20220507);
+    } else {
+        window.location.href = url;
+    }
+}
+
+function getSurverScorePageMode() {
+    var m = ($('#surverScorePageMode').val() || 'main') + '';
+    return m === 'rating' ? 'rating' : 'main';
+}
+
 $(function () {
     // [DEBUG] 打印当前页面使用的 taskId，方便排查专家/管理员 taskId 不一致问题
     console.log('[DEBUG-score] 专家打分页 taskId=' + $("#taskId").val());
     restoreSurverScoreAdvFilterFromStorage();
-    // 专家打分高级筛选：与 surverProList 一致 — 输入持久化、回车即筛、下拉选中即筛
-    // 原先：无事件绑定，仅靠按钮 applyScoreProFilter() 刷新表格
+    restoreSurverScoreRatingAdvFilterFromStorage();
     var $scoreFilterPanel = $("#scoreProFilterPanel");
     $scoreFilterPanel.on("input change", "input, select", schedulePersistSurverScoreAdvFilter);
     $scoreFilterPanel.on("keydown", "input.form-control", function (e) {
@@ -122,10 +319,26 @@ $(function () {
     $scoreFilterPanel.on("change", "select.form-control", function () {
         applyScoreProFilter();
     });
-    // 先拉取等级/回避/锁定状态，再加载表格（保证渲染时能正确填充下拉/按钮）
-    loadExpertGradeContext(function() {
-        load();
-        renderExpertSubmitToolbar();
+    var $ratingFilterPanel = $("#scoreRatingFilterPanel");
+    $ratingFilterPanel.on("input change", "input, select", schedulePersistSurverScoreRatingAdvFilter);
+    $ratingFilterPanel.on("keydown", "input.form-control", function (e) {
+        if (e.which === 13 || e.keyCode === 13) {
+            e.preventDefault();
+            applyScoreRatingFilter();
+        }
+    });
+    $ratingFilterPanel.on("change", "select.form-control", function () {
+        applyScoreRatingFilter();
+    });
+    var pageMode = getSurverScorePageMode();
+    loadExpertGradeContext(function () {
+        if (pageMode === 'rating') {
+            loadScoreRatingTable();
+            renderExpertSubmitToolbar();
+        } else {
+            loadScoreMainTable();
+            // 原：同页加载评级 Tab 子表 loadScoreRatingTable();
+        }
     });
 });
 
@@ -183,7 +396,11 @@ function loadExpertReviewOpinions(cb) {
     });
 }
 
-function load() {
+/** Tab1「勘察奖项打分」列表 */
+function loadScoreMainTable() {
+    if ($('#exampleTable').data('bootstrap.table')) {
+        $('#exampleTable').bootstrapTable('destroy');
+    }
     $('#exampleTable')
         .bootstrapTable(
             {
@@ -208,33 +425,7 @@ function load() {
                 showColumns: false, // 是否显示内容下拉框（选择显示的列）
                 sidePagination: "server", // 设置在哪里进行分页，可选值为"client" 或者 "server"
                 queryParams: function (params) {
-                    // 基础参数
-                    var qp = {
-                        //说明：传入后台的参数包括offset开始索引，limit步长，sort排序列，order：desc或者,以及所有列的键值对
-                        limit: params.limit,
-                        offset: params.offset,
-                        proSubType: $("#proSubType").val(),
-                        taskId: $("#taskId").val(),
-                    };
-                    // 新增：高级筛选参数（与 surverProList.js 保持一致）
-                    var fmap = {
-                        filterProName:           $("#filterProName").val(),
-                        filterApplyCompany:      $("#filterApplyCompany").val(),
-                        filterMajor:             $("#filterMajor").val(),
-                        filterDeclareAccount:    $("#filterDeclareAccount").val(),
-                        filterQcGroupName:       $("#filterQcGroupName").val(),
-                        filterExpertGroupName:   $("#filterExpertGroupName").val(),
-                        filterEliminated:        $("#filterEliminated").val(),
-                        filterProStat:           $("#filterProStat").val(),
-                        filterReviewResult:      $("#filterReviewResult").val()
-                    };
-                    Object.keys(fmap).forEach(function(k) {
-                        var v = fmap[k];
-                        if (v !== undefined && v !== null && (v + "").length > 0) {
-                            qp[k] = (v + "").trim();
-                        }
-                    });
-                    return qp;
+                    return buildScoreTableQueryParams(params, false);
                 },
                 // //请求服务器数据时，你可以通过重写参数的方式添加一些额外的参数，例如 toolbar 中的参数 如果
                 // queryParamsType = 'limit' ,返回参数必须包含
@@ -243,30 +434,25 @@ function load() {
                 // sortOrder.
                 // 返回false将会终止请求
                 columns: [
-
-                    // {
-                    //     field: 'id',
-                    //     title: '序号'
-                    // },
-                    {
-                        field: 'proCode',
-
-                        title: '项目编号',
-
-                    },
-                    // {
-                    //     field: 'proSubTypeStr',
-                    //     title: '项目类别'
-                    // },
-                    {
-                        field: 'proName',
-                        title: '项目名称'
-                    },
+                    /* 原主表列配置（单页含形审结果/淘汰/主评），保留备查：
+                    { field: 'proCode', title: '项目编号' },
+                    { field: 'proName', title: '项目名称' },
+                    { field: 'extSurverNovelty', title: '是否有查新', ... },
+                    { field: '_expertAuditOpinion', title: '专家审核意见', ... },
+                    { field: 'declareAccount', title: '申报账号' },
+                    { field: 'latestReviewResult', title: '形审结果', formatter: 链接 showReviewRecordList },
+                    { field: '_elimGrade', title: '淘汰', ... openSurverGradeDialog },
+                    { field: '_mainReview', title: '主评意见', ... },
+                    { title: '操作', formatter: 仅「查看项目」 }
+                    */
+                    { field: 'declareAccount', title: '申报账号' },
+                    { field: 'proCode', title: '项目编号' },
+                    { field: 'proName', title: '项目名称' },
                     {
                         field: 'extSurverNovelty',
                         title: '是否有查新',
                         align: 'center',
-                        formatter: function (value, row, index) {
+                        formatter: function (value) {
                             var v = (value || '').toString().trim();
                             if (v === '是' || v === '否') {
                                 return '<span style="font-size:12px;">' + v + '</span>';
@@ -275,10 +461,24 @@ function load() {
                         }
                     },
                     {
+                        field: 'latestReviewRemarks',
+                        title: '形式审查问题',
+                        formatter: function (value, row) {
+                            return formatScoreReviewRemarksText(row);
+                        }
+                    },
+                    {
+                        field: 'latestReviewResult',
+                        title: '形式审查结论',
+                        formatter: function (value, row) {
+                            return formatScoreReviewConclusionText(row);
+                        }
+                    },
+                    {
                         field: '_expertAuditOpinion',
                         title: '专家审核意见',
                         align: 'center',
-                        formatter: function (value, row, index) {
+                        formatter: function (value, row) {
                             var pid = row.proId;
                             var cur = SURVER_EXPERT_AUDIT_OPINION[pid] || '';
                             var locked = SURVER_EXPERT_LOCKED ? 'disabled' : '';
@@ -293,210 +493,78 @@ function load() {
                                 + '</select>';
                         }
                     },
-                    // {
-                    //     field: 'applyCompany',
-                    //     title: '申报单位'
-                    // },
-                    // {
-                    //     field: 'major',
-                    //     title: '专业'
-                    // },
-
-                    // === 修复：申报账号 字段应为 declareAccount（与 surverProList.js 一致），
-                    //          原 applyAccount 在数据模型里是"申报联系方式"
-                    // {
-                    //     field: 'applyAccount',
-                    //     title: '申报账号'
-                    // },
-                    {
-                        field: 'declareAccount',
-                        title: '申报账号'
-                    },
-                    // 新增：申报联系方式列
-                    // {
-                    //     field: 'applyAccount',
-                    //     title: '申报联系方式'
-                    // },
-                    // 新增：分组列（纯展示，不显示选择按钮）
-                    // {
-                    //     field: 'qcGroupName',
-                    //     title: '分组',
-                    //     formatter: function(value, row, index) {
-                    //         return value || '未分组';
-                    //     }
-                    // },
-                    // 新增：专家分组列（纯展示，不显示选择按钮）
-                    // {
-                    //     field: 'expertGroupName',
-                    //     title: '专家分组',
-                    //     formatter: function(value, row, index) {
-                    //         return value || '未分组';
-                    //     }
-                    // },
-                    // 新增：淘汰状态列
-                    // {
-                    //     field: 'eliminated',
-                    //     title: '淘汰状态',
-                    //     formatter: function(value, row, index) {
-                    //         if (value == 1 || value === '1') {
-                    //             return '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span>';
-                    //         }
-                    //         return '<span style="color:#999;">未淘汰</span>';
-                    //     }
-                    // },
-                    // {
-                    //     field: 'applyStat',
-                    //     title: '状态'
-                    // },
-                    // 新增形审结果列
-                    {
-                        field: 'latestReviewResult',
-                        title: '形审结果',
-                        formatter: function (value, row, index) {
-                            var text = value;
-                            if (!text || String(text).trim() === '') {
-                                var checkStarted = row.checkStartTime && String(row.checkStartTime).trim() !== '';
-                                if (!checkStarted) {
-                                    text = '形审未开始';
-                                } else {
-                                    text = '暂无形审结果';
-                                }
-                            }
-                            return '<a href="javascript:void(0)" onclick="showReviewRecordList(' + row.proId + ',\'' + (row.proSubType || '') + '\')">' + text + '</a>';
-                        }
-                    },
-
-                    // Phase C 原代码：淘汰等级（内联下拉）- 已注释
-                    // {
-                    //     field: '_elimGrade',
-                    //     title: '淘汰等级',
-                    //     align: 'center',
-                    //     formatter: function (value, row, index) {
-                    //         if (row.proSubType === 'consulting') {
-                    //             return '<span style="color:#bbb;font-size:12px;">不参与</span>';
-                    //         }
-                    //         if (SURVER_EXPERT_AVOID_SET[row.proId]) {
-                    //             return '<span style="color:#d9534f;font-size:12px;">已回避(无需评级)</span>';
-                    //         }
-                    //         var current = SURVER_EXPERT_GRADE_MAP[row.proId] || '';
-                    //         var disabled = SURVER_EXPERT_LOCKED ? 'disabled' : '';
-                    //         var opts = ['', 'A', 'B', 'C', 'D'].map(function(g) {
-                    //             var sel = (g === current) ? 'selected' : '';
-                    //             var label = g === '' ? '请选择' : g;
-                    //             return '<option value="' + g + '" ' + sel + '>' + label + '</option>';
-                    //         }).join('');
-                    //         return '<select class="form-control input-sm" style="width:90px;display:inline-block;" '
-                    //             + disabled
-                    //             + ' onchange="onSurverGradeChange(this, ' + row.proId + ', \'' + row.proSubType + '\', \''
-                    //             + (row.proCode || '') + '\')">'
-                    //             + opts
-                    //             + '</select>'
-                    //             + (current ? ' <span class="label label-success" style="margin-left:4px;">' + current + '</span>' : '');
-                    //     }
-                    // },
-                    // Phase C 改造：淘汰按钮 + 弹窗（含评级下拉 + 评级理由）
-                    {
-                        field: '_elimGrade',
-                        title: '淘汰',
-                        align: 'center',
-                        formatter: function (value, row, index) {
-                            if (row.proSubType === 'consulting') {
-                                return '<span style="color:#bbb;font-size:12px;">不参与</span>';
-                            }
-                            if (SURVER_EXPERT_AVOID_SET[row.proId]) {
-                                return '<span style="color:#d9534f;font-size:12px;">已回避</span>';
-                            }
-                            var current = SURVER_EXPERT_GRADE_MAP[row.proId] || '';
-                            var btnLabel = current ? '已评级(' + current + ')' : '淘汰';
-                            var btnClass = current ? 'btn-success' : 'btn-primary';
-                            var disabled = SURVER_EXPERT_LOCKED ? 'disabled' : '';
-                            return '<button class="btn btn-xs ' + btnClass + '" ' + disabled
-                                + ' onclick="openSurverGradeDialog(' + row.proId + ', \'' + (row.proSubType || '')
-                                + '\', \'' + (row.proCode || '') + '\')">'
-                                + btnLabel + '</button>';
-                        }
-                    },
-                    {
-                        field: '_mainReview',
-                        title: '主评意见',
-                        align: 'center',
-                        formatter: function (value, row, index) {
-                            var pid = row.proId;
-                            var sub = (row.proSubType || '').replace(/'/g, "\\'");
-                            if (SURVER_MAIN_REVIEW_DONE[pid]) {
-                                var editL = !SURVER_EXPERT_LOCKED
-                                    ? ' <a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', false)">修改</a>'
-                                    : '';
-                                return '<span class="label label-success" style="font-size:12px;">已提交</span> '
-                                    + '<a href="javascript:void(0)" onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', true)">查看</a>'
-                                    + editL;
-                            }
-                            var fill = SURVER_EXPERT_LOCKED ? 'disabled' : '';
-                            return '<span style="color:#999;font-size:12px;margin-right:6px;">未填写</span>'
-                                + '<a href="javascript:void(0)" class="btn btn-primary btn-xs ' + fill + '" '
-                                + 'onclick="openSurverMainReviewDialog(' + pid + ', \'' + sub + '\', false)">填写</a>';
-                        }
-                    },
-                    // Phase C 新增：回避（手动）
-                    // {
-                    //     field: '_elimAvoid',
-                    //     title: '回避',
-                    //     align: 'center',
-                    //     formatter: function (value, row, index) {
-                    //         if (row.proSubType === 'consulting') {
-                    //             return '<span style="color:#bbb;">-</span>';
-                    //         }
-                    //         var locked = SURVER_EXPERT_LOCKED ? 'disabled' : '';
-                    //         if (SURVER_EXPERT_AVOID_SET[row.proId]) {
-                    //             return '<button class="btn btn-default btn-xs" ' + locked + ' onclick="onSurverCancelAvoid(' + row.proId + ')">取消回避</button>';
-                    //         }
-                    //         return '<button class="btn btn-warning btn-xs" ' + locked + ' onclick="onSurverAvoid(' + row.proId + ')">回避</button>';
-                    //     }
-                    // },
                     {
                         title: '操作',
                         field: 'id',
                         align: 'center',
-                        formatter: function (value, row, index) {
-                            // var e = '<a class="btn btn-primary btn-sm " href="#" mce_href="#" title="评分标准" onclick="openstard()">评分标准</a> ';
-                            var d = '<a class="btn btn-warning btn-sm  " href="#" title=" "  mce_href="#" onclick="onwatch (\''
-                            	+ row.proId
-                            	+ '\',\''
-                            	+ row.proSubType
-                            	+ '\')"">查看项目</a> ';
-                                
-
-                            // 勘察奖专家评分
-                            // var f = '<a class="btn btn-success btn-sm" href="#" title="评分"  mce_href="#" onclick="onscore(\''
-                            //      + row.proId
-                            //      + '\',\''
-                            //      + row.taskId
-                            //      + '\',\''
-                            //      + row.major
-                            //      + '\')">评分</a> ';
-                            
-                            // var f = '<a class="btn btn-success btn-sm" href="#" title="评分">评分</a>';
-                            
-
-                            // 勘察奖：回避项目显示回避标记，不显示评分按钮（参考 QC 奖 qcExpertProList.js）
-                            // var f = '';
-                            // if (SURVER_EXPERT_AVOID_SET[row.proId]) {
-                            //     f = '<span class="label label-danger" style="font-size:12px;padding:4px 8px;border-radius:3px;"><i class="fa fa-ban"></i> 回避</span> ';
-                            // } else {
-                            //     f = '<a class="btn btn-success btn-sm" href="#" title="评分">评分</a> ';
-                            // }
-                            return d ;
-                            // return d + f;
-                            // return e + d + f;
+                        formatter: function (value, row) {
+                            var d = '<a class="btn btn-warning btn-sm" href="#" onclick="onwatch(\''
+                                + row.proId + '\',\'' + row.proSubType + '\')">查看项目</a> ';
+                            var r = '<a class="btn btn-primary btn-sm" href="#" style="margin-left:4px;" onclick="openSurverRatingTab()">评级</a> ';
+                            return d + r;
                         }
-                    }],
-
+                    }
+                    // 原列配置（形审结果链接、淘汰、主评意见等）已迁至 Tab「勘察设计评级」
+                ]
             });
-    // === 修复：原逻辑会在 isViewProCode==='false' 时隐藏"项目编号"列，
-    //          导致专家打分页看不到 proCode；按需求保留显示，注释隐藏逻辑。
-    // if($("#isViewProCode").val() == 'false') {
-    //    $('#exampleTable').bootstrapTable('hideColumn', 'proCode');
-    // }
+}
+
+/** Tab2「勘察设计评级」列表 */
+function loadScoreRatingTable() {
+    if ($('#ratingTable').data('bootstrap.table')) {
+        $('#ratingTable').bootstrapTable('destroy');
+    }
+    $('#ratingTable').bootstrapTable({
+        method: 'get',
+        url: "/surverPro/get/proList",
+        iconSize: 'outline',
+        striped: true,
+        dataType: "json",
+        pagination: true,
+        singleSelect: false,
+        pageSize: 10,
+        pageNumber: 1,
+        showColumns: false,
+        sidePagination: "server",
+        queryParams: function (params) {
+            return buildScoreTableQueryParams(params, true);
+        },
+        columns: [
+            { field: 'declareAccount', title: '申报账号' },
+            { field: 'proCode', title: '项目编号' },
+            { field: 'proName', title: '项目名称' },
+            {
+                field: '_elimGrade',
+                title: '专家评级',
+                align: 'center',
+                formatter: function (value, row) {
+                    return formatterScoreExpertGrade(row);
+                }
+            },
+            {
+                field: '_mainReview',
+                title: '主评意见',
+                align: 'center',
+                formatter: function (value, row) {
+                    return formatterScoreMainReview(row);
+                }
+            },
+            {
+                title: '操作',
+                field: 'id',
+                align: 'center',
+                formatter: function (value, row) {
+                    return '<a class="btn btn-warning btn-sm" href="#" onclick="onwatch(\''
+                        + row.proId + '\',\'' + row.proSubType + '\')">查看</a> ';
+                }
+            }
+        ]
+    });
+}
+
+/** 兼容旧调用 */
+function load() {
+    loadScoreMainTable();
 }
 
 
@@ -630,11 +698,13 @@ function cancelSubmit(){
 }
 
 function reLoad() {
-    $('#exampleTable').bootstrapTable('refresh');
-    // === 修复：刷新时同样不再隐藏"项目编号"列
-    // if($("#isViewProCode").val() == 'false') {
-    //    $('#exampleTable').bootstrapTable('hideColumn', 'proCode');
-    // }
+    if ($('#exampleTable').data('bootstrap.table')) {
+        // $('#exampleTable').bootstrapTable('refresh');
+        $('#exampleTable').bootstrapTable('refresh');
+    }
+    if ($('#ratingTable').data('bootstrap.table')) {
+        $('#ratingTable').bootstrapTable('refresh');
+    }
 }
 
 // =====================================================================
@@ -658,31 +728,41 @@ function renderExpertSubmitToolbar() {
         // + (remaining > 0 ? '<span style="margin-right:16px;">剩余 <b style="color:#f0ad4e;">' + remaining + '</b> 项未处理</span>' : '')
         + '<span style="margin-right:16px;">';
     if (!locked) {
-        html += '<button class="btn btn-danger btn-sm" ' +
-            'style="font-size:13px;padding:4px 10px;vertical-align:middle;" ' +
-            'onclick="onSurverConfirmSubmitElim()">'
-            + '确认提交淘汰评级名单</button>';
-            // + '<i class="fa fa-check"></i> 确认提交淘汰评级名单</button>';
-        html += '<button class="btn btn-primary btn-sm" ' +
-            'style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" ' +
-            'onclick="openSurverDownloadElimRemarks()">'
-            + '<i class="fa fa-download"></i> 下载淘汰评语</button>';
+        // html += '确认提交淘汰评级名单';
+        html += '<button class="btn btn-danger btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;" '
+            + 'onclick="onSurverConfirmSubmitElim()">确认淘汰结果</button>';
+        html += '<button class="btn btn-primary btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
+            + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
     } else {
-        html += '<span style="display:inline-block;' +
-            'padding:4px 10px;' +
-            'font-size:13px;border-radius:3px;' +
-            'background:#5cb85c;color:#fff;vertical-align:middle;">'
+        html += '<span style="display:inline-block;padding:4px 10px;font-size:13px;border-radius:3px;background:#5cb85c;color:#fff;vertical-align:middle;">'
             + '已确认提交（不可撤回）</span>';
-            // + '<i class="fa fa-lock"></i> 已确认提交（不可撤回）</span>';
-        html += '<button class="btn btn-default btn-sm" ' +
-            'style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" ' +
-            'onclick="openSurverDownloadElimRemarks()">'
-            + '<i class="fa fa-download"></i> 下载淘汰评语</button>';
+        html += '<button class="btn btn-default btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
+            + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
     }
-    html += '</div>';
-    var $existing = $('#surverElimExpertToolbar');
-    if ($existing.length) { $existing.replaceWith(html); }
-    else { $('#exampleTable').before(html); }
+    html += '<button class="btn btn-success btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
+        + 'onclick="downloadSurverMainReviewZip()"><i class="fa fa-download"></i> 下载主评意见</button>';
+    html += '</span></div>';
+    var $mount = $('#surverRatingToolbar');
+    if ($mount.length) {
+        $mount.html(html);
+    }
+    // 原：插入主表上方 $('#exampleTable').before(html);
+}
+
+function downloadSurverMainReviewZip() {
+    var taskId = $('#taskId').val();
+    if (!taskId) {
+        layer.msg('缺少任务ID', { icon: 2 });
+        return;
+    }
+    var qp = buildScoreTableQueryParams({ limit: 1, offset: 0 }, true);
+    var parts = [];
+    Object.keys(qp).forEach(function (k) {
+        if (qp[k] !== undefined && qp[k] !== null && (qp[k] + '').length > 0) {
+            parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(qp[k]));
+        }
+    });
+    window.location.href = SURVER_ELIM_EXPERT_PREFIX + '/review/downloadMainReviewZip?' + parts.join('&');
 }
 
 /** 淘汰评语：加载 SheetJS（与管理员淘汰导出一致） */
@@ -920,7 +1000,8 @@ function exportSurverGroupElimDetailExcel() {
 function onSurverExpertAuditOpinion(sel, proId, proSubType) {
     if (SURVER_EXPERT_LOCKED) {
         layer.msg('已确认提交，无法再修改', { icon: 2 });
-        loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+        // loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+        loadExpertReviewOpinions(function () { reLoad(); });
         return;
     }
     var v = $(sel).val();
@@ -939,12 +1020,14 @@ function onSurverExpertAuditOpinion(sel, proId, proSubType) {
                 layer.msg('已保存', { icon: 1, time: 600 });
             } else {
                 layer.msg(r.msg || '保存失败', { icon: 2 });
-                loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+                // loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+                loadExpertReviewOpinions(function () { reLoad(); });
             }
         },
         error: function () {
             layer.msg('请求失败', { icon: 2 });
-            loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+            // loadExpertReviewOpinions(function () { $('#exampleTable').bootstrapTable('refresh'); });
+            loadExpertReviewOpinions(function () { reLoad(); });
         }
     });
 }
@@ -1017,7 +1100,8 @@ function openSurverMainReviewDialog(proId, proSubType, viewOnly) {
                         SURVER_MAIN_REVIEW_DONE[proId] = true;
                         layer.close(idx);
                         layer.msg(submitMain ? '已提交' : '已保存', { icon: 1, time: 800 });
-                        $('#exampleTable').bootstrapTable('refresh');
+                        // $('#exampleTable').bootstrapTable('refresh');
+                        reLoad();
                     } else {
                         layer.msg(r.msg || '保存失败', { icon: 2 });
                     }
@@ -1084,7 +1168,8 @@ function openSurverGradeDialog(proId, proSubType, proCode) {
                         SURVER_EXPERT_REMARK_MAP[proId] = remark;
                         loadExpertGradeContext(function() {
                             renderExpertSubmitToolbar();
-                            $('#exampleTable').bootstrapTable('refresh');
+                            // $('#exampleTable').bootstrapTable('refresh');
+                        reLoad();
                         });
                     } else { layer.msg(r.msg || '保存失败', { icon: 2 }); }
                 },
@@ -1108,7 +1193,8 @@ function onSurverAvoid(proId) {
                     layer.msg(r.msg || '已回避', { icon: 1 });
                     loadExpertGradeContext(function() {
                         renderExpertSubmitToolbar();
-                        $('#exampleTable').bootstrapTable('refresh');
+                        // $('#exampleTable').bootstrapTable('refresh');
+                        reLoad();
                     });
                 } else { layer.msg(r.msg || '操作失败', { icon: 2 }); }
             },
@@ -1131,7 +1217,8 @@ function onSurverCancelAvoid(proId) {
                     layer.msg(r.msg || '已取消回避', { icon: 1 });
                     loadExpertGradeContext(function() {
                         renderExpertSubmitToolbar();
-                        $('#exampleTable').bootstrapTable('refresh');
+                        // $('#exampleTable').bootstrapTable('refresh');
+                        reLoad();
                     });
                 } else { layer.msg(r.msg || '操作失败', { icon: 2 }); }
             },
@@ -1141,7 +1228,8 @@ function onSurverCancelAvoid(proId) {
 }
 
 function onSurverConfirmSubmitElim() {
-    layer.confirm('确认提交淘汰评级名单？提交后不可撤回，请确保所有项目已评级或已回避。', { btn: ['确定', '取消'] }, function(idx) {
+    // layer.confirm('确认提交淘汰评级名单？提交后不可撤回，请确保所有项目已评级或已回避。', ...
+    layer.confirm('确认淘汰结果？提交后不可撤回，请确保所有项目已评级或已回避。', { btn: ['确定', '取消'] }, function(idx) {
         layer.close(idx);
         var taskId = $("#taskId").val();
         $.ajax({
@@ -1153,7 +1241,8 @@ function onSurverConfirmSubmitElim() {
                     layer.msg(r.msg || '已提交', { icon: 1 });
                     loadExpertGradeContext(function() {
                         renderExpertSubmitToolbar();
-                        $('#exampleTable').bootstrapTable('refresh');
+                        // $('#exampleTable').bootstrapTable('refresh');
+                        reLoad();
                     });
                 } else { layer.msg(r.msg || '提交失败', { icon: 2 }); }
             },
@@ -1175,7 +1264,8 @@ function onSurverCancelSubmitElim() {
                     layer.msg(r.msg || '已撤回', { icon: 1 });
                     loadExpertGradeContext(function() {
                         renderExpertSubmitToolbar();
-                        $('#exampleTable').bootstrapTable('refresh');
+                        // $('#exampleTable').bootstrapTable('refresh');
+                        reLoad();
                     });
                 } else { layer.msg(r.msg || '撤回失败', { icon: 2 }); }
             },
@@ -1210,6 +1300,29 @@ function resetScoreProFilter() {
     $("#filterReviewResult").val('');
     clearSurverScoreAdvFilterStorage();
     applyScoreProFilter();
+}
+
+function applyScoreRatingFilter() {
+    persistSurverScoreRatingAdvFilterFromDom();
+    var $tbl = $('#ratingTable');
+    if ($tbl.data('bootstrap.table')) {
+        $tbl.bootstrapTable('selectPage', 1);
+        $tbl.bootstrapTable('refresh');
+    }
+}
+
+function resetScoreRatingFilter() {
+    $("#ratingFilterProName").val('');
+    $("#ratingFilterApplyCompany").val('');
+    $("#ratingFilterMajor").val('');
+    $("#ratingFilterDeclareAccount").val('');
+    $("#ratingFilterQcGroupName").val('');
+    $("#ratingFilterExpertGroupName").val('');
+    $("#ratingFilterEliminated").val('');
+    $("#ratingFilterProStat").val('');
+    $("#ratingFilterReviewResult").val('');
+    clearSurverScoreRatingAdvFilterStorage();
+    applyScoreRatingFilter();
 }
 
 function showReviewRecordList(proId, proSubType) {

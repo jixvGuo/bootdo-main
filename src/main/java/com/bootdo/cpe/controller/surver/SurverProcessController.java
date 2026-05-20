@@ -30,6 +30,7 @@ import com.bootdo.cpe.service.SurverReviewSoftResultService;
 import com.bootdo.cpe.service.SurverReviewStandardResultService;
 import com.bootdo.cpe.service.SurverReviewConsultResultService;
 import com.bootdo.cpe.service.SurverReviewSurverResultService;
+import com.bootdo.cpe.utils.PoiWordSurverMainReviewUtils;
 import com.bootdo.system.domain.UserDO;
 import com.bootdo.system.service.UserService;
 import org.apache.shiro.authz.annotation.Logical;
@@ -47,6 +48,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import static com.bootdo.common.config.Constant.ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID;
 // 新增：用于"小组联络人绑定"按钮可见性 & 该角色仅看到绑定专业组
@@ -1297,6 +1305,204 @@ public class SurverProcessController extends BaseSurverController {
         } catch (Exception e) {
             e.printStackTrace();
             return R.error("保存失败");
+        }
+    }
+
+    /**
+     * 专家侧：批量导出主评意见 Word（每项目一份，zip 打包）
+     * 筛选参数与 /surverPro/get/proList 一致；导出当前任务+子类型下专家可见的全部项目（不受分页限制）
+     */
+    @RequestMapping("/eliminate/expert/review/downloadMainReviewZip")
+    public void downloadMainReviewZip(HttpServletResponse response, @RequestParam Map<String, Object> params) {
+        Long uid = getUserId();
+        String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+        if (StringUtils.isBlank(taskId)) {
+            writeDownloadError(response, "任务ID不能为空");
+            return;
+        }
+        taskId = resolveExpertTaskId(uid, taskId);
+        params.put("taskId", taskId);
+        params.put("scoreSpecialistUid", uid);
+        params.remove("offset");
+        params.remove("limit");
+        params.put("offset", 0);
+        params.put("limit", 99999);
+        Object pstObj = params.get("proSubType");
+        if (pstObj != null && "consulting".equalsIgnoreCase(pstObj.toString().trim())) {
+            writeDownloadError(response, "咨询奖不参与勘察设计评级导出");
+            return;
+        }
+        // 原：英文文件名 surver_main_review_2026.zip，业务侧不便识别
+        // String zipName = "surver_main_review_2026.zip";
+        String zipName = buildMainReviewZipFileName(pstObj);
+        try {
+            Query query = new Query(params);
+            List<SurverProjectInfo> proList = surverAwardService.listProInfo(query);
+            if (proList == null) {
+                proList = Collections.emptyList();
+            }
+            Map<Integer, String> mainTextMap = new HashMap<>();
+            List<com.bootdo.cpe.domain.SurverExpertReviewOpinionDO> opinionRows =
+                    surverExpertReviewOpinionService.listByTaskAndExpert(taskId, uid);
+            if (opinionRows != null) {
+                for (com.bootdo.cpe.domain.SurverExpertReviewOpinionDO r : opinionRows) {
+                    if (r.getProId() != null && r.getMainReviewText() != null) {
+                        mainTextMap.put(r.getProId(), stripHtmlForExport(r.getMainReviewText()));
+                    }
+                }
+            }
+            byte[] zipBytes = buildMainReviewZipBytes(proList, mainTextMap);
+            writeZipAttachment(response, zipBytes, zipName);
+        } catch (Exception e) {
+            e.printStackTrace();
+            writeDownloadError(response, "导出失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 在内存中完整生成 zip，避免边写响应边失败导致「能下载但无法解压」的损坏包。
+     */
+    private byte[] buildMainReviewZipBytes(List<SurverProjectInfo> proList, Map<Integer, String> mainTextMap)
+            throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int seq = 0;
+        int failCount = 0;
+        String lastFailMsg = null;
+        try (ZipOutputStream zos = new ZipOutputStream(baos, StandardCharsets.UTF_8)) {
+            if (proList != null) {
+                for (SurverProjectInfo pro : proList) {
+                    if (pro == null || pro.getProId() <= 0) {
+                        continue;
+                    }
+                    if ("consulting".equalsIgnoreCase(String.valueOf(pro.getProSubType()))) {
+                        continue;
+                    }
+                    String mainText = mainTextMap.getOrDefault(pro.getProId(), "");
+                    byte[] docx;
+                    try {
+                        docx = PoiWordSurverMainReviewUtils.renderOneDocx(pro, mainText);
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                        failCount++;
+                        lastFailMsg = ex.getMessage();
+                        continue;
+                    }
+                    if (docx == null || docx.length < 4) {
+                        failCount++;
+                        continue;
+                    }
+                    seq++;
+                    String entryName = buildMainReviewDocxEntryName(seq, pro.getProCode(), pro.getProName());
+                    ZipEntry entry = new ZipEntry(entryName);
+                    zos.putNextEntry(entry);
+                    zos.write(docx);
+                    zos.closeEntry();
+                }
+            }
+            if (seq == 0) {
+                if (failCount > 0) {
+                    throw new IOException("主评意见 Word 生成失败"
+                            + (lastFailMsg != null ? "：" + lastFailMsg : "，请执行 mvn clean compile 后重启服务"));
+                }
+                ZipEntry empty = new ZipEntry("readme.txt");
+                zos.putNextEntry(empty);
+                zos.write("当前筛选条件下无项目可导出。".getBytes(StandardCharsets.UTF_8));
+                zos.closeEntry();
+            }
+        }
+        return baos.toByteArray();
+    }
+
+    private void writeZipAttachment(HttpServletResponse response, byte[] zipBytes, String zipName) throws IOException {
+        if (zipBytes == null || zipBytes.length < 4) {
+            writeDownloadError(response, "导出失败：生成的压缩包为空");
+            return;
+        }
+        String encoded = URLEncoder.encode(zipName, StandardCharsets.UTF_8.name()).replaceAll("\\+", "%20");
+        response.setContentType("application/zip");
+        response.setCharacterEncoding(null);
+        // filename 为 ASCII 兜底；filename* 为 UTF-8 中文名（现代浏览器优先使用）
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"main_review.zip\"; filename*=UTF-8''" + encoded);
+        response.setContentLength(zipBytes.length);
+        response.getOutputStream().write(zipBytes);
+        response.getOutputStream().flush();
+    }
+
+    /** 主评意见 zip 下载文件名，如：优秀勘察奖_主评意见_2026.zip */
+    private static String buildMainReviewZipFileName(Object proSubTypeObj) {
+        String label = resolveMainReviewSubTypeLabel(proSubTypeObj);
+        return label + "_主评意见_2026.zip";
+    }
+
+    private static String resolveMainReviewSubTypeLabel(Object proSubTypeObj) {
+        if (proSubTypeObj == null || StringUtils.isBlank(proSubTypeObj.toString())) {
+            return "勘察设计奖";
+        }
+        String key = proSubTypeObj.toString().trim();
+        switch (key) {
+            case "contribution":
+                return "优秀勘察奖";
+            case "design":
+                return "优秀设计奖";
+            case "software":
+                return "计算机软件奖";
+            case "standard":
+                return "标准设计奖";
+            case "consulting":
+                return "咨询奖";
+            default:
+                return "勘察设计奖";
+        }
+    }
+
+    private static String stripHtmlForExport(String html) {
+        if (html == null) {
+            return "";
+        }
+        String s = html.replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n")
+                .replaceAll("<[^>]+>", "")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"");
+        return s.trim();
+    }
+
+    private static String buildMainReviewDocxEntryName(int seq, String proCode, String proName) {
+        String code = safeZipFilePart(proCode, "项目" + seq);
+        String name = safeZipFilePart(proName, "");
+        String base = code;
+        if (StringUtils.isNotBlank(name)) {
+            base = base + "_" + name;
+        }
+        if (base.length() > 80) {
+            base = base.substring(0, 80);
+        }
+        // 原：{编号}_{名称}_review.docx
+        // return base + "_review.docx";
+        return base + "_评价意见表.docx";
+    }
+
+    private static String safeZipFilePart(String raw, String fallback) {
+        String s = raw == null ? "" : raw.trim();
+        if (s.isEmpty()) {
+            return fallback;
+        }
+        return s.replaceAll("[\\\\/:*?\"<>|]", "_");
+    }
+
+    private void writeDownloadError(HttpServletResponse response, String msg) {
+        try {
+            if (response.isCommitted()) {
+                return;
+            }
+            response.resetBuffer();
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write(msg);
+        } catch (IOException ignored) {
         }
     }
 

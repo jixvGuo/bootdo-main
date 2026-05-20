@@ -43,6 +43,18 @@ public class SurverScoreController extends BaseSurverController {
     }
 
     /**
+     * 勘察设计评级（专家打分页点击「评级」后在顶部菜单栏打开的独立 Tab）
+     */
+    @RequestMapping("/proRatingList")
+    @RequiresPermissions("surveraward:score:prolist")
+    public String toSurverScoreProRating(@RequestParam Map<String, Object> params, ModelMap map) {
+        packageAwardTaskId(map, params);
+        Object proSubType = params.get("proSubType");
+        map.put("proSubType", proSubType);
+        return prefix + "/specialist/score/score_pro_rating_list";
+    }
+
+    /**
      * 评分标准表格
      * @return
      */

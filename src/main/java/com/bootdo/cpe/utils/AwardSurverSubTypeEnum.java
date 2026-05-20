@@ -10,6 +10,7 @@ import java.util.List;
  * @version 1.0
  * @date 2022-03-28 23:19
  */
+// 要求去奖字
 public enum AwardSurverSubTypeEnum {
     CONTRIBUTION("contribution",
 //            "石油工程建设优秀勘察奖",

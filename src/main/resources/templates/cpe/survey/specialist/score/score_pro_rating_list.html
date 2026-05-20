@@ -12,49 +12,50 @@
                         <input type="hidden" name="scoreType" th:value="${scoreType}"/>
                         <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
                         <input id="proSubType" name="proSubType" th:value="${proSubType}" type="hidden">
-                        <input type="hidden" id="surverScorePageMode" value="main"/>
+                        <input type="hidden" id="surverScorePageMode" value="rating"/>
                     </div>
                 </div>
                 <div class="clearfix"></div>
                 <input type="hidden" id="isViewProCode" th:value="${isViewProCode}"/>
-                <div style="margin:8px 0;clear:both;">
-                    <a data-toggle="collapse" href="#scoreProFilterPanel" aria-expanded="false"
+                <div id="surverRatingToolbar"></div>
+                <div style="margin: 12px 2px; padding: 12px; clear:both;">
+                    <a data-toggle="collapse" href="#scoreRatingFilterPanel" aria-expanded="false"
                        style="display:inline-block;color:#337ab7;cursor:pointer;font-size:13px;">
                         <i class="fa fa-filter"></i>&nbsp;高级筛选&nbsp;<i class="fa fa-chevron-down" style="font-size:10px;"></i>
                     </a>
                 </div>
-                <div id="scoreProFilterPanel" class="collapse"
+                <div id="scoreRatingFilterPanel" class="collapse"
                      style="margin:0 0 12px 0;padding:12px;background:#f9fafc;border:1px solid #e5e5e5;border-radius:4px;">
                     <div class="row" style="margin-bottom:8px;">
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">项目名称</label>
-                            <input type="text" class="form-control input-sm" id="filterProName" placeholder="支持模糊匹配">
+                            <input type="text" class="form-control input-sm" id="ratingFilterProName" placeholder="支持模糊匹配">
                         </div>
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">申报单位</label>
-                            <input type="text" class="form-control input-sm" id="filterApplyCompany" placeholder="支持模糊匹配">
+                            <input type="text" class="form-control input-sm" id="ratingFilterApplyCompany" placeholder="支持模糊匹配">
                         </div>
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">专业</label>
-                            <input type="text" class="form-control input-sm" id="filterMajor" placeholder="支持模糊匹配">
+                            <input type="text" class="form-control input-sm" id="ratingFilterMajor" placeholder="支持模糊匹配">
                         </div>
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">申报账号</label>
-                            <input type="text" class="form-control input-sm" id="filterDeclareAccount" placeholder="支持模糊匹配">
+                            <input type="text" class="form-control input-sm" id="ratingFilterDeclareAccount" placeholder="支持模糊匹配">
                         </div>
                     </div>
                     <div class="row" style="margin-bottom:8px;">
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">分组</label>
-                            <input type="text" class="form-control input-sm" id="filterQcGroupName" placeholder="支持模糊匹配">
+                            <input type="text" class="form-control input-sm" id="ratingFilterQcGroupName" placeholder="支持模糊匹配">
                         </div>
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">专家分组</label>
-                            <input type="text" class="form-control input-sm" id="filterExpertGroupName" placeholder="支持模糊匹配">
+                            <input type="text" class="form-control input-sm" id="ratingFilterExpertGroupName" placeholder="支持模糊匹配">
                         </div>
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">淘汰状态</label>
-                            <select class="form-control input-sm" id="filterEliminated">
+                            <select class="form-control input-sm" id="ratingFilterEliminated">
                                 <option value="">全部</option>
                                 <option value="0">未淘汰</option>
                                 <option value="1">已淘汰</option>
@@ -62,7 +63,7 @@
                         </div>
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">状态</label>
-                            <select class="form-control input-sm" id="filterProStat">
+                            <select class="form-control input-sm" id="ratingFilterProStat">
                                 <option value="">全部</option>
                                 <option value="__NOT_SUBMITTED__">未提交</option>
                                 <option value="__CHECKING__">审核中</option>
@@ -72,7 +73,7 @@
                     <div class="row" style="margin-bottom:8px;">
                         <div class="col-sm-3">
                             <label style="font-weight:normal;font-size:12px;margin-bottom:2px;">形审结果</label>
-                            <select class="form-control input-sm" id="filterReviewResult">
+                            <select class="form-control input-sm" id="ratingFilterReviewResult">
                                 <option value="">全部</option>
                                 <option value="__NO_RESULT__">暂无形审结果</option>
                                 <option value="参评">参评</option>
@@ -83,16 +84,16 @@
                         </div>
                     </div>
                     <div style="text-align:right;">
-                        <button class="btn btn-primary btn-sm" type="button" onclick="applyScoreProFilter()">
+                        <button class="btn btn-primary btn-sm" type="button" onclick="applyScoreRatingFilter()">
                             <i class="fa fa-search"></i>&nbsp;筛选
                         </button>
-                        <button class="btn btn-default btn-sm" type="button" onclick="resetScoreProFilter()">
+                        <button class="btn btn-default btn-sm" type="button" onclick="resetScoreRatingFilter()">
                             <i class="fa fa-undo"></i>&nbsp;重置
                         </button>
                     </div>
                 </div>
 
-                <table id="exampleTable" data-mobile-responsive="true"></table>
+                <table id="ratingTable" data-mobile-responsive="true"></table>
 
             </div>
         </div>
