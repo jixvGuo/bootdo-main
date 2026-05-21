@@ -133,7 +133,11 @@
 	</insert>
 
 	<insert id="saveEnterpriseDoc" parameterType="com.bootdo.activiti.domain.EnterpriseDocUploadDo" useGeneratedKeys = "true" keyProperty = "id">
-		insert into ass_enterprise_docs(pro_id,file_id,file_type) values(#{proId},#{fileId},#{fileType})
+		insert into ass_enterprise_docs(pro_id,file_id,file_type
+		<if test="taskId != null and taskId != ''">,task_id</if>
+		) values(#{proId},#{fileId},#{fileType}
+		<if test="taskId != null and taskId != ''">,#{taskId}</if>
+		)
 	</insert>
 	 
 	<update id="update" parameterType="com.bootdo.common.domain.FileDO">
@@ -172,7 +176,9 @@
 	</delete>
 
 	<update id="cleanTaskEnterpriseDoc" parameterType="String">
-		 update ass_enterprise_docs set task_id = '' where task_id = #{taskId}
+		 update ass_enterprise_docs set task_id = ''
+		 where task_id = #{taskId}
+		   and (file_type is null or file_type != 'surver_score_standard_file')
 	</update>
 
 

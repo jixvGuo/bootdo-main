@@ -109,40 +109,124 @@
                             </div>
                         </div>
 
-                        <div id="task_file" style="display:block; margin-top: 20px" class="updocss_b col-sm-9">
-                            <div class="ibox float-e-margins">
-                                <div class="ibox-content">
-                                    <button type="button" onclick="openUpload()" style="width: 100%"
-                                            class="btn btn-primary" fileType="task_file">
-                                        上传文件
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-sm-12" id="upload_div">
-
-                                    <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'task_file'"
-                                         class="file-box">
-                                        <div class="file">
-                                            <input type="hidden" name="upDocId" th:value="${doc.id}"/>
-                                            <a href="javascript:void(0)"
-                                               th:onclick="'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
-                                                <span class="corner"></span>
-
-                                                <div class="icon">
-                                                    <i class="fa fa-file"></i>
-                                                </div>
-                                                <div class="file-name">
-                                                    <span th:text="${doc.fileName}"/>
-                                                    <br/>
-                                                    <small>添加时间：<span
-                                                            th:text="${#dates.format(doc.created,'yyyy-MM-dd')}"></span>
-                                                    </small>
-                                                </div>
-                                            </a>
+                        <!-- 原布局：两个 width:100% 大按钮 + 多层 ibox，视觉过重 -->
+                        <div class="form-group" style="margin-top: 12px;">
+                            <label class="col-sm-1 control-label">任务附件：</label>
+                            <div id="task_file" class="col-sm-8 updocss_b">
+                                <div class="ibox float-e-margins" style="margin-bottom: 0;">
+<!--                                    <div class="ibox-title" style="min-height: 36px; padding: 10px 15px;">-->
+<!--                                        <h5 style="margin: 0;">附件资料</h5>-->
+<!--                                    </div>-->
+                                    <div class="ibox-content">
+                                        <div class="row" style="margin-bottom: 15px;">
+                                            <div class="col-sm-4 col-xs-12" style="margin-bottom: 8px;">
+                                                <button type="button" onclick="openUpload()" class="btn btn-primary btn-sm btn-block"
+                                                        fileType="task_file">
+                                                    <i class="fa fa-upload"></i> 上传文件
+                                                </button>
+                                            </div>
+                                            <!-- 勘察奖(awardTypeId=2)：评分标准 -->
+                                            <div th:if="${awardTypeId != null and awardTypeId == 2}"
+                                                 class="col-sm-4 col-xs-12" style="margin-bottom: 8px;">
+                                                <button type="button" onclick="openScoreStandardUpload()"
+                                                        class="btn btn-info btn-sm btn-block" fileType="surver_score_standard_file">
+                                                    <i class="fa fa-upload"></i> 上传评分标准
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
+                                        <p class="help-block m-b-sm" style="margin-top: 0;">
+<!--                                            <i class="fa fa-info-circle"></i> 上传后显示在下方；评分标准可点击预览，任务文件仅展示不可预览-->
+<!--                                            <i class="fa fa-info-circle"></i> 上传后显示在下方，评分标准可预览；可删除后重新上传以更换文件（专家下载最新一份）。-->
+                                            <i class="fa fa-info-circle"></i> 上传后显示在下方，评分标准可预览。
+                                        </p>
+                                        <div th:if="${awardTypeId != null and awardTypeId == 2}"
+                                             id="surver_score_standard_file"
+                                             style="margin-bottom: 12px;">
+<!--                                            <div class="text-muted" style="font-size: 12px; margin-bottom: 6px;">-->
+<!--                                                <b>评分标准</b>-->
+<!--                                            </div>-->
+                                            <div class="row">
+                                                <div class="col-sm-12" id="upload_div_score_standard">
+                                                    <div th:each="doc:${docUploadDoList}"
+                                                         th:if="${doc.fileType} eq 'surver_score_standard_file'"
+                                                         class="file-box">
+                                                        <div class="file">
+                                                            <input type="hidden" name="upDocId" th:value="${doc.id}"/>
+                                                            <a href="javascript:void(0)"
+                                                               th:onclick="'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                                <span class="corner"></span>
+                                                                <div class="icon">
+                                                                    <i class="fa fa-file"></i>
+                                                                </div>
+                                                                <div class="file-name">
+                                                                    <span th:text="${doc.fileName}"/>
+                                                                    <br/>
+                                                                      <small>添加时间：<span
+                                                                            th:text="${#dates.format(doc.created,'yyyy-MM-dd')}"></span>
+                                                                    </small>
+                                                                </div>
+                                                            </a>
+                                                            <div style="margin-top:6px;text-align:center;">
+                                                                <button type="button" class="btn btn-danger btn-xs"
+                                                                        th:onclick="'removeSurverScoreStandardDoc('+${doc.id}+', this)'">
+                                                                    <i class="fa fa-trash"></i> 删除
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+<!--                                        <div class="text-muted" style="font-size: 12px; margin-bottom: 6px;">-->
+<!--                                            <b>任务文件</b>-->
+<!--                                        </div>-->
 
+
+<!--                                        <div class="row">-->
+<!--                                            <div class="col-sm-12" id="upload_div">-->
+<!--                                                <div th:each="doc:${docUploadDoList}" th:if="${doc.fileType} eq 'task_file'"-->
+<!--                                                     class="file-box">-->
+<!--                                                    <div class="file">-->
+<!--                                                        <input type="hidden" name="upDocId" th:value="${doc.id}"/>-->
+
+
+                                                        <!-- 原：任务文件支持点击预览 -->
+                                                        <!--
+                                                        <a href="javascript:void(0)"
+                                                           th:onclick="'javascript:toViewUploadDoc(\''+${doc.fileName}+'\',\''+${doc.url}+'\')'">
+                                                            <span class="corner"></span>
+                                                            <div class="icon">
+                                                                <i class="fa fa-file"></i>
+                                                            </div>
+                                                            <div class="file-name">
+                                                                <span th:text="${doc.fileName}"/>
+                                                                <br/>
+                                                                <small>添加时间：<span
+                                                                        th:text="${#dates.format(doc.created,'yyyy-MM-dd')}"></span>
+                                                                </small>
+                                                            </div>
+                                                        </a>
+                                                        -->
+
+
+<!--                                                        <div class="file-static" style="cursor: default;">-->
+<!--                                                            <span class="corner"></span>-->
+<!--                                                            <div class="icon">-->
+<!--                                                                <i class="fa fa-file"></i>-->
+<!--                                                            </div>-->
+<!--                                                            <div class="file-name">-->
+<!--                                                                <span th:text="${doc.fileName}"/>-->
+<!--                                                                <br/>-->
+<!--                                                                <small>添加时间：<span-->
+<!--                                                                        th:text="${#dates.format(doc.created,'yyyy-MM-dd')}"></span>-->
+<!--                                                                </small>-->
+<!--                                                            </div>-->
+<!--                                                        </div>-->
+<!--                                                    </div>-->
+<!--                                                </div>-->
+<!--                                            </div>-->
+<!--                                        </div>-->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -291,6 +375,34 @@
             shadeClose: false, // 点击遮罩关闭层
             area: ['800px', '520px'],
             content: url  // iframe的url
+        });
+    }
+
+    /** 删除已上传的评分标准（撤回后专家端不可下载，可再点「上传评分标准」） */
+    function removeSurverScoreStandardDoc(docId, btn) {
+        var taskId = $('#id').val();
+        if (!taskId) {
+            layer.alert('缺少任务ID');
+            return;
+        }
+        layer.confirm('确定删除该评分标准？删除后专家将无法下载，可重新上传新文件。', {icon: 3, title: '提示'}, function (idx) {
+            layer.close(idx);
+            $.ajax({
+                type: 'POST',
+                url: '/award_flow/remove_task_enterprise_doc',
+                data: {docId: docId, taskId: taskId},
+                success: function (r) {
+                    if (r && r.code === 0) {
+                        $(btn).closest('.file-box').remove();
+                        layer.msg('已删除');
+                    } else {
+                        layer.alert((r && r.msg) ? r.msg : '删除失败');
+                    }
+                },
+                error: function () {
+                    layer.alert('删除失败，请稍后重试');
+                }
+            });
         });
     }
 

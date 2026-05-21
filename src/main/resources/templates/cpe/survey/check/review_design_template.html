@@ -736,7 +736,14 @@
 </div>
 
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/surverReviewDesignResult/add.js?v=1.1"></script>
+<script type="text/javascript">
+    window.SURVER_REVIEW_FORM_CFG = {
+        saveUrl: '/cpe/surverReviewDesignResult/save',
+        updateUrl: '/cpe/surverReviewDesignResult/update'
+    };
+</script>
+<script type="text/javascript" src="/js/appjs/cpe/surver_review_form_common.js?v=1.0"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surverReviewDesignResult/add.js?v=1.2"></script>
 <script type="text/javascript" src="/js/appjs/cpe/petroleum_engineering_award/readonly.js"></script>
 
 <script>

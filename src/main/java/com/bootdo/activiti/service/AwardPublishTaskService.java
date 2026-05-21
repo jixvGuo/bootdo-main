@@ -44,6 +44,12 @@ public interface AwardPublishTaskService {
      */
     String getTaskIdByProId(int proId);
 
+    /**
+     * 专家已分派项目所属任务 ID（未传 taskId 时优先于「全奖种最新任务」）
+     */
+    String getLatestTaskIdForExpertAssign(long uid, String awardType);
+
+    String getExpertAssignTaskIdWithScoreStandard(long uid, String awardType, String scoreStandardFileType);
 
     boolean isAuthByMenuIds(long uid, List<Integer> menuIds);
 }

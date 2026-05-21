@@ -56,6 +56,17 @@ public interface AwardPublishTaskDao {
 	String getTaskIdByProId(int proId);
 
 	/**
+	 * 专家已分派项目所属任务中，按发布日期取最新一条（用于未传 taskId 时与协会上传的任务对齐）
+	 */
+	String getLatestTaskIdForExpertAssign(@Param("uid") long uid, @Param("awardType") String awardType);
+
+	/**
+	 * 专家分派任务中，已上传勘察评分标准文件的任务（优先用于专家下载，与协会上传 taskId 对齐）
+	 */
+	String getExpertAssignTaskIdWithScoreStandard(@Param("uid") long uid, @Param("awardType") String awardType,
+												  @Param("scoreStandardFileType") String scoreStandardFileType);
+
+	/**
 	 * 是否有菜单操作的权限
 	 * @param uid
 	 * @param menuIds

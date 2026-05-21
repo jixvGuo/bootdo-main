@@ -14,6 +14,7 @@
         <div class="col-sm-12">
             <div class="ibox float-e-margins">
                 <div class="ibox-content">
+                    <input type="hidden" id="taskId" th:value="${taskId}"/>
                     <form class="form-horizontal">
                         <div class="form-group">
                             <label class="col-sm-2 control-label">奖项选择：</label>
@@ -107,13 +108,25 @@
     $(document).ready(function () { $(".i-checks").iCheck({ checkboxClass: "icheckbox_square-green", radioClass: "iradio_square-green", }) });
     function selAwardChange () {
             var awardSubType = $("#awardSubType").val();
-            window.location.href = '/surverScore/associationViewScore?proSubType=' + awardSubType
+            var taskId = $("#taskId").val() || '';
+            var q = 'proSubType=' + encodeURIComponent(awardSubType);
+            if (taskId) {
+                q += '&taskId=' + encodeURIComponent(taskId);
+            }
+            window.location.href = '/surverScore/associationViewScore?' + q;
     }
     /***
        * 查看打分表
        */
     function onScoreSheet(account,major,proType) {
-       page('/surverScore/toCheckScoreProList?account='+ account + '&major=' + major + '&proSubType=' + proType, '打分记录', 20220509);
+       var taskId = $("#taskId").val() || '';
+       var url = '/surverScore/toCheckScoreProList?account=' + encodeURIComponent(account)
+           + '&major=' + encodeURIComponent(major)
+           + '&proSubType=' + encodeURIComponent(proType);
+       if (taskId) {
+           url += '&taskId=' + encodeURIComponent(taskId);
+       }
+       page(url, '打分记录', 20220509);
     }
 </script>
 </body>

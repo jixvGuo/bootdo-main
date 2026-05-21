@@ -13,6 +13,8 @@
                         <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
                         <input id="proSubType" name="proSubType" th:value="${proSubType}" type="hidden">
                         <input type="hidden" id="surverScorePageMode" value="rating"/>
+                        <!-- 评级 Tab 仅专家入口，用于工具条显示「下载评分标准」 -->
+                        <input type="hidden" id="surverExpertScorePage" value="1"/>
                     </div>
                 </div>
                 <div class="clearfix"></div>
@@ -100,6 +102,6 @@
     </div>
 </div>
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=3.7"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverScoreProList.js?v=3.9"></script>
 </body>
 </html>

@@ -130,6 +130,16 @@ public class AwardPublishTaskServiceImpl implements AwardPublishTaskService {
     }
 
     @Override
+    public String getLatestTaskIdForExpertAssign(long uid, String awardType) {
+        return publishTaskDao.getLatestTaskIdForExpertAssign(uid, awardType);
+    }
+
+    @Override
+    public String getExpertAssignTaskIdWithScoreStandard(long uid, String awardType, String scoreStandardFileType) {
+        return publishTaskDao.getExpertAssignTaskIdWithScoreStandard(uid, awardType, scoreStandardFileType);
+    }
+
+    @Override
     public boolean isAuthByMenuIds(long uid, List<Integer> menuIds) {
         return publishTaskDao.isMenuAuth(uid, menuIds) > 0;
     }

@@ -123,9 +123,276 @@ function clearSurverProAdvFilterStorage() {
     } catch (e) { /* ignore */ }
 }
 
+/**
+ * 列表行定位（查看 / 形审 / 修改返回后滚回离开前那一行）
+ * - 页码由 bootstrap-table 自己保持；这里只记 proId + 当时页码，刷新后滚到对应 tr
+ * - 用 sessionStorage，按 taskId + proSubType 区分（与高级筛选 key 规则一致）
+ */
+var SURVER_PRO_LIST_ROW_ANCHOR_KEY_PREFIX = "cpe.surverProList.rowAnchor.v1";
+/** 形审提交后延迟刷新列表（等列表 iframe 重新可见再 refresh，避免锚点被提前清掉） */
+var SURVER_PRO_LIST_PENDING_REFRESH_PREFIX = "cpe.surverProList.pendingRefresh.v1";
+/** 内存一份，避免仅 refresh、未关页时读不到 session */
+var _surverProListPendingRowAnchor = null;
+
+function getSurverProListRowAnchorStorageKey() {
+    var tid = ($("#taskId").val() || "") + "";
+    var pst = ($("#proSubType").val() || "") + "";
+    return SURVER_PRO_LIST_ROW_ANCHOR_KEY_PREFIX + ":" + tid + ":" + pst;
+}
+
+function ensureSurverProListAnchorStyle() {
+    if (document.getElementById("surver-pro-row-anchor-style")) {
+        return;
+    }
+    var style = document.createElement("style");
+    style.id = "surver-pro-row-anchor-style";
+    style.textContent = ".surver-pro-row-anchor-flash td { background-color: #fff8e6 !important; }";
+    document.head.appendChild(style);
+}
+
+/** 进入查看 / 形审 / 修改前调用：记下当前页码与项目 proId */
+function rememberSurverProListRowAnchor(proId) {
+    if (proId === undefined || proId === null || (proId + "") === "") {
+        return;
+    }
+    var $tbl = $("#exampleTable");
+    var pageNumber = 1;
+    if ($tbl.length && $tbl.data("bootstrap.table")) {
+        var opts = $tbl.bootstrapTable("getOptions") || {};
+        pageNumber = opts.pageNumber || 1;
+    }
+    var anchor = {
+        proId: String(proId),
+        pageNumber: pageNumber,
+        taskId: ($("#taskId").val() || "") + "",
+        proSubType: ($("#proSubType").val() || "") + ""
+    };
+    _surverProListPendingRowAnchor = anchor;
+    try {
+        sessionStorage.setItem(getSurverProListRowAnchorStorageKey(), JSON.stringify(anchor));
+    } catch (e) { /* ignore */ }
+}
+
+function readSurverProListRowAnchor() {
+    if (_surverProListPendingRowAnchor) {
+        return _surverProListPendingRowAnchor;
+    }
+    try {
+        var raw = sessionStorage.getItem(getSurverProListRowAnchorStorageKey());
+        if (raw == null || raw === "") {
+            return null;
+        }
+        return JSON.parse(raw);
+    } catch (e) {
+        return null;
+    }
+}
+
+function clearSurverProListRowAnchor() {
+    _surverProListPendingRowAnchor = null;
+    try {
+        sessionStorage.removeItem(getSurverProListRowAnchorStorageKey());
+    } catch (e) { /* ignore */ }
+}
+
+function getSurverProListPendingRefreshStorageKey() {
+    var tid = ($("#taskId").val() || "") + "";
+    var pst = ($("#proSubType").val() || "") + "";
+    return SURVER_PRO_LIST_PENDING_REFRESH_PREFIX + ":" + tid + ":" + pst;
+}
+
+function markSurverProListPendingRefresh() {
+    try {
+        sessionStorage.setItem(getSurverProListPendingRefreshStorageKey(), "1");
+    } catch (e) { /* ignore */ }
+}
+
+function clearSurverProListPendingRefresh() {
+    try {
+        sessionStorage.removeItem(getSurverProListPendingRefreshStorageKey());
+    } catch (e) { /* ignore */ }
+}
+
+function hasSurverProListPendingRefresh() {
+    try {
+        return sessionStorage.getItem(getSurverProListPendingRefreshStorageKey()) === "1";
+    } catch (e) {
+        return false;
+    }
+}
+
+function isSurverProListRowAnchorForCurrentTab(anchor) {
+    if (!anchor) {
+        return false;
+    }
+    var tid = ($("#taskId").val() || "") + "";
+    var pst = ($("#proSubType").val() || "") + "";
+    return String(anchor.taskId) === tid && String(anchor.proSubType) === pst;
+}
+
+/** 将表格滚动到指定 proId 所在行，并短暂高亮 */
+function scrollSurverProListToProId(proId) {
+    ensureSurverProListAnchorStyle();
+    var $tbl = $("#exampleTable");
+    if (!$tbl.length || !$tbl.data("bootstrap.table")) {
+        return false;
+    }
+    var pid = String(proId);
+    var $wrap = $tbl.closest(".bootstrap-table");
+    var $body = $wrap.find(".fixed-table-body");
+    if (!$body.length) {
+        $body = $wrap.find(".fixed-table-container");
+    }
+    if (!$body.length) {
+        $body = $tbl.parent();
+    }
+
+    // 优先：行上的 data-surver-pro-id（load 里 rowAttributes 写入）
+    var $tr = $body.find('tbody tr[data-surver-pro-id="' + pid + '"]');
+    if (!$tr.length) {
+        var data = $tbl.bootstrapTable("getData") || [];
+        var rowIndex = -1;
+        for (var i = 0; i < data.length; i++) {
+            if (String(data[i].proId) === pid) {
+                rowIndex = i;
+                break;
+            }
+        }
+        if (rowIndex < 0) {
+            return false;
+        }
+        // 原：仅用 offsetTop，在部分浏览器/嵌套 iframe 下不准
+        // $tr = $body.find('tbody tr[data-index="' + rowIndex + '"]');
+        $tr = $body.find('tbody tr[data-index="' + rowIndex + '"]');
+        if (!$tr.length) {
+            $tr = $body.find("tbody tr").eq(rowIndex);
+        }
+    }
+    if (!$tr.length) {
+        return false;
+    }
+
+    var trEl = $tr[0];
+    // 使用 scrollIntoView，在 Tab 切换、iframe 重新显示时更可靠
+    try {
+        trEl.scrollIntoView({ block: "center", inline: "nearest" });
+    } catch (e1) {
+        try {
+            trEl.scrollIntoView(true);
+        } catch (e2) { /* ignore */ }
+    }
+    var bodyEl = $body[0];
+    if (bodyEl && trEl) {
+        var trRect = trEl.getBoundingClientRect();
+        var bodyRect = bodyEl.getBoundingClientRect();
+        var delta = (trRect.top - bodyRect.top) - (bodyEl.clientHeight / 2) + (trRect.height / 2);
+        bodyEl.scrollTop = Math.max(0, bodyEl.scrollTop + delta);
+    }
+
+    $tr.addClass("surver-pro-row-anchor-flash");
+    setTimeout(function () {
+        $tr.removeClass("surver-pro-row-anchor-flash");
+    }, 2500);
+    return true;
+}
+
+/**
+ * 表格数据加载完成后：若存在「离开前记录的行」，则切回对应页并滚动到该行
+ */
+function restoreSurverProListRowAnchor() {
+    var anchor = readSurverProListRowAnchor();
+    if (!isSurverProListRowAnchorForCurrentTab(anchor)) {
+        clearSurverProListRowAnchor();
+        return;
+    }
+    var $tbl = $("#exampleTable");
+    if (!$tbl.length || !$tbl.data("bootstrap.table")) {
+        return;
+    }
+    var opts = $tbl.bootstrapTable("getOptions") || {};
+    var curPage = opts.pageNumber || 1;
+    if (anchor.pageNumber && anchor.pageNumber !== curPage) {
+        $tbl.bootstrapTable("selectPage", anchor.pageNumber);
+        return;
+    }
+    if (scrollSurverProListToProId(anchor.proId)) {
+        clearSurverProListRowAnchor();
+    }
+}
+
+var _surverProListAnchorRestoreAttempts = 0;
+var SURVER_PRO_LIST_ANCHOR_RESTORE_MAX = 12;
+
+function scheduleRestoreSurverProListRowAnchor() {
+    if (!readSurverProListRowAnchor()) {
+        return;
+    }
+    _surverProListAnchorRestoreAttempts = 0;
+    var delays = [0, 100, 300, 500, 800, 1200, 1800, 2500];
+    for (var i = 0; i < delays.length; i++) {
+        (function (ms) {
+            setTimeout(function () {
+                if (!readSurverProListRowAnchor()) {
+                    return;
+                }
+                if (_surverProListAnchorRestoreAttempts >= SURVER_PRO_LIST_ANCHOR_RESTORE_MAX) {
+                    // 列表 iframe 仍隐藏时不要清锚点，关形审 Tab 后还能再恢复
+                    if (!document.hidden) {
+                        clearSurverProListRowAnchor();
+                    }
+                    return;
+                }
+                _surverProListAnchorRestoreAttempts++;
+                restoreSurverProListRowAnchor();
+            }, ms);
+        })(delays[i]);
+    }
+}
+
+/**
+ * 供父页 / 形审页调用：只 refresh 列表并恢复行位置（不 location.reload，避免滚回表顶）
+ */
+function refreshSurverProListWithAnchor() {
+    if (hasSurverProListPendingRefresh()) {
+        clearSurverProListPendingRefresh();
+    }
+    var $tbl = $("#exampleTable");
+    if ($tbl.length && $tbl.data("bootstrap.table")) {
+        $tbl.bootstrapTable("refresh");
+        if ($("#isViewProCode").val() == "false") {
+            $tbl.bootstrapTable("hideColumn", "proCode");
+        }
+        scheduleRestoreSurverProListRowAnchor();
+        return;
+    }
+    load();
+}
+
+/** 从父页/顶层 Tab 切回列表时：iframe 重新显示后滚动条常被重置，需主动恢复 */
+function onSurverProListBecameVisible() {
+    if (hasSurverProListPendingRefresh()) {
+        clearSurverProListPendingRefresh();
+        refreshSurverProListWithAnchor();
+        return;
+    }
+    if (!readSurverProListRowAnchor()) {
+        return;
+    }
+    scheduleRestoreSurverProListRowAnchor();
+}
+
 $(function () {
     restoreSurverProAdvFilterFromStorage();
     load();
+    // 浏览器 Tab / 顶层菜单 Tab 切回可见时尝试恢复行位置
+    $(document).on("visibilitychange.surverProListAnchor", function () {
+        if (!document.hidden) {
+            onSurverProListBecameVisible();
+        }
+    });
+    $(window).on("focus.surverProListAnchor", function () {
+        onSurverProListBecameVisible();
+    });
     // 原先：仅绑定持久化，刷新列表需手动点「筛选」
     // $("#surverProFilterPanel").on("input change", "input, select", schedulePersistSurverProAdvFilter);
     var $panel = $("#surverProFilterPanel");
@@ -169,6 +436,10 @@ function load() {
                 //search : true, // 是否显示搜索框
                 showColumns: false, // 是否显示内容下拉框（选择显示的列）
                 sidePagination: "server", // 设置在哪里进行分页，可选值为"client" 或者 "server"
+                // 为每行标记 proId，便于返回列表时 scrollIntoView 精确定位
+                rowAttributes: function (row) {
+                    return { "data-surver-pro-id": row.proId };
+                },
                 queryParams: function (params) {
                     // 基础参数
                     var qp = {
@@ -445,6 +716,8 @@ function load() {
                     if (typeof loadExpertGroupAssignments === 'function') {
                         loadExpertGroupAssignments();
                     }
+                    // 新增：从查看 / 形审 / 修改返回后，滚回离开前所在行（页码仍由表格保持）
+                    scheduleRestoreSurverProListRowAnchor();
                 },
                 onClickCell: function (field, value, row, $element) {
 
@@ -759,10 +1032,12 @@ function cancelCheck(proId) {
 }
 
 function reLoad() {
-    $('#exampleTable').bootstrapTable('refresh');
-    if($("#isViewProCode").val() == 'false') {
-       $('#exampleTable').bootstrapTable('hideColumn', 'proCode');
-    }
+    // 原：仅 refresh，数据更新后滚动条会回到当前页顶部，看不到刚处理的那一行
+    // $('#exampleTable').bootstrapTable('refresh');
+    // if($("#isViewProCode").val() == 'false') {
+    //    $('#exampleTable').bootstrapTable('hideColumn', 'proCode');
+    // }
+    refreshSurverProListWithAnchor();
 }
 
 function add() {
@@ -777,6 +1052,7 @@ function add() {
 }
 
 function view(proId, proType) {
+    rememberSurverProListRowAnchor(proId);
     let url = '';
     let title = '';
     if (proType == 'design') {
@@ -823,6 +1099,7 @@ function view(proId, proType) {
 // ... existing code ...
 
 function edit(proId, proType) {
+    rememberSurverProListRowAnchor(proId);
     let url = '';
     let title = '';
     if (proType == 'design') {
@@ -845,9 +1122,10 @@ function edit(proId, proType) {
 }
 
 
-
+// 除了查看、编辑，就连形式审查都做了分开跳转
 
 function reviewUploadDoc(id, proId, proSubType) {
+    rememberSurverProListRowAnchor(proId);
     let url = '';
     let title = '';
     if (proSubType == 'design') {
@@ -1196,6 +1474,10 @@ function loadExpertGroupAssignments() {
                 var info = EXPERT_GROUP_ASSIGN_MAP[pid];
                 $(this).text(info && info.name ? info.name : '未分配');
             });
+            // 专家分组异步改 DOM 后，再尝试滚回离开前那一行
+            if (readSurverProListRowAnchor()) {
+                scheduleRestoreSurverProListRowAnchor();
+            }
         }
     });
 }

@@ -359,6 +359,27 @@
 		WHERE
 			id = #{value}
 	</select>
+
+	<select id="getLatestTaskIdForExpertAssign" resultType="String">
+		SELECT pro.publish_task_id
+		FROM ass_award_enterprise_project pro
+				 JOIN ass_award_assign_project ap ON ap.pro_id = pro.id AND ap.uid = #{uid}
+				 JOIN ass_award_publish_task pt ON pt.id = pro.publish_task_id AND pt.award_id = #{awardType}
+		ORDER BY pt.publish_date DESC
+		LIMIT 1
+	</select>
+
+	<select id="getExpertAssignTaskIdWithScoreStandard" resultType="String">
+		SELECT pro.publish_task_id
+		FROM ass_award_enterprise_project pro
+				 JOIN ass_award_assign_project ap ON ap.pro_id = pro.id AND ap.uid = #{uid}
+				 JOIN ass_award_publish_task pt ON pt.id = pro.publish_task_id AND pt.award_id = #{awardType}
+				 JOIN ass_enterprise_docs ad ON ad.task_id = pro.publish_task_id
+			AND ad.file_type = #{scoreStandardFileType}
+			AND ad.task_id IS NOT NULL AND ad.task_id != ''
+		ORDER BY pt.publish_date DESC
+		LIMIT 1
+	</select>
 	<select id="isMenuAuth" resultType="java.lang.Integer">
 		SELECT
 			COUNT(1)

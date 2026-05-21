@@ -541,14 +541,15 @@ function loadScoreRatingTable() {
                     return formatterScoreExpertGrade(row);
                 }
             },
-            {
-                field: '_mainReview',
-                title: '主评意见',
-                align: 'center',
-                formatter: function (value, row) {
-                    return formatterScoreMainReview(row);
-                }
-            },
+            // 它又不要这个主评意见了，说要搬到别处去
+            // {
+            //     field: '_mainReview',
+            //     title: '主评意见',
+            //     align: 'center',
+            //     formatter: function (value, row) {
+            //         return formatterScoreMainReview(row);
+            //     }
+            // },
             {
                 title: '操作',
                 field: 'id',
@@ -719,34 +720,82 @@ function renderExpertSubmitToolbar() {
     var totalCount = stat.totalCount || 0;
     var remaining = totalCount - stat.gradedCount - stat.avoidedCount;
     if (remaining < 0) remaining = 0;
+    // 原：单行工具条，无右侧「下载评分标准」
+    // var html =
+    //     '<div id="surverElimExpertToolbar" style="margin:8px 0;padding:8px;...">'
+    //     + '<span style="margin-right:16px;">';
+    // 评级页 surverExpertScorePage=1；原判断 === 'true' 导致按钮永不显示
+    // var isExpertScorePage = $('#surverExpertScorePage').val() === 'true' || $('#surverExpertScorePage').val() === true;
+    var isExpertScorePage = getSurverScorePageMode() === 'rating'
+        || $('#surverExpertScorePage').val() === '1'
+        || $('#surverExpertScorePage').val() === 'true';
     var html =
-        '<div id="surverElimExpertToolbar" style="margin:8px 0;padding:8px;border:1px solid #e5e5e5;border-radius:4px;background:#f9fafc;">'
+        '<div id="surverElimExpertToolbar" style="margin:8px 0;padding:8px;border:1px solid #e5e5e5;border-radius:4px;background:#f9fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;">'
         // + '<span style="margin-right:16px;color:#333;"><b>淘汰评级状态：</b></span>'
         // + '<span style="margin-right:16px;">共 <b>' + totalCount + '</b> 项</span>'
         // + '<span style="margin-right:16px;">已评 <b style="color:#5cb85c;">' + stat.gradedCount + '</b> 项</span>'
         // + '<span style="margin-right:16px;">已回避 <b style="color:#d9534f;">' + stat.avoidedCount + '</b> 项</span>'
         // + (remaining > 0 ? '<span style="margin-right:16px;">剩余 <b style="color:#f0ad4e;">' + remaining + '</b> 项未处理</span>' : '')
-        + '<span style="margin-right:16px;">';
+        + '<span style="margin-right:16px;flex:1 1 auto;">';
     if (!locked) {
         // html += '确认提交淘汰评级名单';
         html += '<button class="btn btn-danger btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;" '
-            + 'onclick="onSurverConfirmSubmitElim()">确认淘汰结果</button>';
+            // + 'onclick="onSurverConfirmSubmitElim()">确认淘汰结果</button>';
+            // 按要求非要改名字
+            + 'onclick="onSurverConfirmSubmitElim()">确认评级结果</button>';
         html += '<button class="btn btn-primary btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
-            + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
+            // + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
+            // 按要求非要改名字
+            + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载评级结果</button>';
     } else {
         html += '<span style="display:inline-block;padding:4px 10px;font-size:13px;border-radius:3px;background:#5cb85c;color:#fff;vertical-align:middle;">'
             + '已确认提交（不可撤回）</span>';
         html += '<button class="btn btn-default btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
-            + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
+            // + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
+            // 按要求非要改名字
+            + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载评级结果</button>';
     }
-    html += '<button class="btn btn-success btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
-        + 'onclick="downloadSurverMainReviewZip()"><i class="fa fa-download"></i> 下载主评意见</button>';
-    html += '</span></div>';
+    // html += '<button class="btn btn-success btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
+    //     + 'onclick="downloadSurverMainReviewZip()"><i class="fa fa-download"></i> 下载主评意见</button>';
+    html += '</span>';
+    if (isExpertScorePage) {
+        html += '<span style="flex:0 0 auto;margin-left:12px;">'
+            + '<button type="button" class="btn btn-info btn-sm" style="font-size:13px;padding:4px 10px;" '
+            + 'onclick="downloadSurverScoreStandardFile()"><i class="fa fa-download"></i> 下载评分标准</button>'
+            + '</span>';
+    }
+    html += '</div>';
     var $mount = $('#surverRatingToolbar');
     if ($mount.length) {
         $mount.html(html);
     }
     // 原：插入主表上方 $('#exampleTable').before(html);
+}
+
+/** 专家：下载协会上传的勘察奖任务评分标准 */
+function downloadSurverScoreStandardFile() {
+    var taskId = $('#taskId').val();
+    if (!taskId) {
+        layer.msg('缺少任务ID', { icon: 2 });
+        return;
+    }
+    // 原：直接跳转下载，无文件时浏览器页内显示纯文本「暂未上传评分标准文件」
+    // window.location.href = '/surverScore/downloadScoreStandardFile?taskId=' + encodeURIComponent(taskId);
+    $.ajax({
+        type: 'GET',
+        url: '/surverScore/checkScoreStandardFile',
+        data: { taskId: taskId },
+        success: function (r) {
+            if (r && r.code === 0) {
+                window.location.href = '/surverScore/downloadScoreStandardFile?taskId=' + encodeURIComponent(taskId);
+                return;
+            }
+            layer.alert((r && r.msg) ? r.msg : '暂未上传评分标准文件', { icon: 2, title: '提示' });
+        },
+        error: function () {
+            layer.alert('检查评分标准文件失败，请稍后重试', { icon: 2, title: '提示' });
+        }
+    });
 }
 
 function downloadSurverMainReviewZip() {

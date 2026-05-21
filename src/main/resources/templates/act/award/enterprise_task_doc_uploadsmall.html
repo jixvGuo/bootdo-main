@@ -57,31 +57,53 @@
                         console.log("successmultiple===>",response);
                         var fileStr = "";
                         var fileSize = response.fileSize;
+                        var fileType = response.fileType;
                         for(var i=0;i< fileSize;i++) {
                             var f = response.files[i];
+                            var bodyInner;
+                            // 任务文件：不提供预览（原带 toViewUploadDoc 的 <a> 已注释保留在 publish_award_task_ass_edit.html）
+                            if (fileType === 'task_file') {
+                                bodyInner = '                            <div class="file-static" style="cursor:default;">' +
+                                    '                                   <span class="corner"></span>' +
+                                    '                                   <div class="icon">' +
+                                    '                                        <i class="fa fa-file"></i>' +
+                                    '                                   </div>' +
+                                    '                                   <div class="file-name">' +
+                                    '                                         <span>'+f.fileName+'</span>' +
+                                    '                                         <br>' +
+                                    '                                         <small>添加时间：<span>'+f.created+'</span></small> ' +
+                                    '                                   </div>' +
+                                    '                             </div>';
+                            } else {
+                                bodyInner = '                            <a href="javascript:void(0)" ' +
+                                    ' onclick="javascript:toViewUploadDoc(\''+f.fileName+'\',\''+f.url+'\')" >' +
+                                    '                                   <span class="corner"></span>' +
+                                    '                                   <div class="icon">' +
+                                    '                                        <i class="fa fa-file"></i>' +
+                                    '                                   </div>' +
+                                    '                                   <div class="file-name">' +
+                                    '                                         <span>'+f.fileName+'</span>' +
+                                    '                                         <br>' +
+                                    '                                         <small>添加时间：<span>'+f.created+'</span></small> ' +
+                                    '                                   </div>' +
+                                    '                             </a>';
+                                if (fileType === 'surver_score_standard_file') {
+                                    bodyInner += '<div style="margin-top:6px;text-align:center;">' +
+                                        '<button type="button" class="btn btn-danger btn-xs" ' +
+                                        'onclick="parent.removeSurverScoreStandardDoc(' + f.id + ', this)">' +
+                                        '<i class="fa fa-trash"></i> 删除</button></div>';
+                                }
+                            }
                             var content = '<div class="file-box">' +
                                 '                       <div class="file">' +
                                 '                            <input type="hidden" name="upDocId" value="'+f.id+'"/>'+
-                                '                            <a href="javascript:void(0)" ' +
-                                ' onclick="javascript:toViewUploadDoc(\''+f.fileName+'\',\''+f.url+'\')" >' +
-                                '                                   <span class="corner"></span>' +
-                                '                                   <div class="icon">' +
-                                '                                        <i class="fa fa-file"></i>' +
-                                '                                   </div>' +
-                                '                                   <div class="file-name">' +
-                                '                                         <span>'+f.fileName+'</span>' +
-                                '                                         <br>' +
-                                '                                         <small>添加时间：<span>'+f.created+'</span></small> ' +
-                                '                                   </div>' +
-                                '                             </a>' +
+                                bodyInner +
                                 '                       </div> ' +
                                 '            </div>';
                             fileStr += content;
                         }
                         console.log("AllData" + fileStr);
 
-
-                        var fileType = response.fileType;
 
                         var index = parent.layer.getFrameIndex(window.name); // 获取窗口索引
 
@@ -97,7 +119,15 @@
 
                         console.log("--html-->",iframe.find("#"+fileType).find(".col-sm-12").html());
 
-                        iframe.find("#"+fileType).find(".col-sm-12").prepend(fileStr);
+                        // 原：iframe.find("#"+fileType).find(".col-sm-12").prepend(fileStr);
+                        var $listTarget = (fileType === 'task_file')
+                            ? iframe.find("#upload_div")
+                            : iframe.find("#" + fileType).find(".col-sm-12");
+                        // 评分标准：页面上只保留最新一条展示（库中旧记录已在上传接口中替换删除）
+                        if (fileType === 'surver_score_standard_file') {
+                            $listTarget.find('.file-box').remove();
+                        }
+                        $listTarget.prepend(fileStr);
                         var curSize = iframe.find("#"+fileType).find(".file").size();
                         console.log("curSize=",curSize);
                          parent.layer.close(index);

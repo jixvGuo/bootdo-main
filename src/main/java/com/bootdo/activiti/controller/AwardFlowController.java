@@ -508,6 +508,39 @@ public class AwardFlowController extends BaseScienceTechnologyController {
         return R.ok();
     }
 
+    /** 协会任务编辑：删除任务级附件（评分标准 / 任务文件） */
+    @ResponseBody
+    @RequestMapping("/remove_task_enterprise_doc")
+    @RequiresPermissions("act:award:publish_award_task_edit")
+    public R removeTaskEnterpriseDoc(@RequestParam int docId, @RequestParam String taskId) {
+        if (StringUtils.isBlank(taskId)) {
+            return R.error("任务ID不能为空");
+        }
+        Map<String, Object> query = new HashMap<>();
+        query.put("taskId", taskId);
+        List<EnterpriseDocUploadDo> docList = fileService.listTaskDocInfo(query);
+        EnterpriseDocUploadDo target = null;
+        if (docList != null) {
+            for (EnterpriseDocUploadDo row : docList) {
+                if (row.getId() == docId) {
+                    target = row;
+                    break;
+                }
+            }
+        }
+        if (target == null) {
+            return R.error("附件不存在或不属于当前任务");
+        }
+        String fileType = target.getFileType();
+        if (!"surver_score_standard_file".equals(fileType) && !"task_file".equals(fileType)) {
+            return R.error("仅支持删除任务文件或评分标准");
+        }
+        if (fileService.deleteEnterpriseDoc(docId) > 0) {
+            return R.ok();
+        }
+        return R.error("删除失败");
+    }
+
     private void handlePublishAwardTaskUploadFiles(MultipartFile file, PublishAwardTaskDo awardTaskDo) {
         if (file != null) {
             System.out.println(file.getOriginalFilename());

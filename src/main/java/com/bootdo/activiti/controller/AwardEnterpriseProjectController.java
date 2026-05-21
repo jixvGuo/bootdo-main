@@ -890,6 +890,19 @@ public class AwardEnterpriseProjectController extends BaseScienceProController {
                 }else if (isExpertSign) {
                   expertGroupService.updateExpertSignId(sysFile.getId(), taskId, expertUid);
                 } else {
+                    // 勘察奖评分标准：同任务下再次上传时替换旧文件（仅保留最新一份供专家下载）
+                    if ("surver_score_standard_file".equals(fileType) && StringUtils.isNotBlank(taskId)) {
+                        Map<String, Object> oldDocQuery = new HashMap<>();
+                        oldDocQuery.put("taskId", taskId);
+                        List<EnterpriseDocUploadDo> oldDocs = sysFileService.listTaskDocInfo(oldDocQuery);
+                        if (oldDocs != null) {
+                            for (EnterpriseDocUploadDo old : oldDocs) {
+                                if ("surver_score_standard_file".equals(old.getFileType())) {
+                                    sysFileService.deleteEnterpriseDoc(old.getId());
+                                }
+                            }
+                        }
+                    }
                     EnterpriseDocUploadDo uploadDo = new EnterpriseDocUploadDo();
                     uploadDo.setTaskId(taskId);
                     uploadDo.setFileId(sysFile.getId());

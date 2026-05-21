@@ -109,6 +109,38 @@
 
 
         }
+
+        /** 当前激活子 tab 内的项目列表 iframe（勘察/设计/软件/标准） */
+        function getActiveSurverProListIframe() {
+            var $pane = $(".tab-pane.active");
+            if (!$pane.length) {
+                $pane = $(".tab-pane").first();
+            }
+            return $pane.find("iframe").first();
+        }
+
+        /**
+         * 供顶层 contabs 关闭「查看/形审」Tab 时调用。
+         * 原：外层 toProListMain 无 reLoad，refreshActiveIframeIfPossible 调不到内层 surverProList。
+         */
+        function reLoad() {
+            var $iframe = getActiveSurverProListIframe();
+            if (!$iframe.length) {
+                return;
+            }
+            try {
+                var win = $iframe[0].contentWindow;
+                if (win && typeof win.refreshSurverProListWithAnchor === "function") {
+                    win.refreshSurverProListWithAnchor();
+                } else if (win && typeof win.reLoad === "function") {
+                    win.reLoad();
+                }
+            } catch (e) { /* ignore */ }
+        }
+
+        function refreshSurverProListWithAnchor() {
+            reLoad();
+        }
     </script>
 
 

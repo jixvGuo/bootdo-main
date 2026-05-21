@@ -141,6 +141,21 @@ function openUpload() {
     });
 }
 
+/** 勘察奖：上传任务评分标准（与「上传文件」同流程，fileType 不同） */
+function openScoreStandardUpload() {
+    var fileType = "surver_score_standard_file";
+    var pid = 0;
+    var taskId = $("#id").val();
+    parent.layer.open({
+        title: '上传评分标准',
+        maxmin: true,
+        type: 2,
+        shadeClose: false,
+        area: ['800px', '520px'],
+        content: '/award_flow/to_uploadtask_small?taskId=' + taskId + '&proId=' + pid + '&fileType=' + fileType
+    });
+}
+
 
 function validateRule() {
     var icon = "<i class='fa fa-times-circle'></i> ";

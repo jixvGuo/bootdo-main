@@ -184,7 +184,32 @@ $(function () {
                 var win = $iframe[0].contentWindow;
                 if (win && typeof win.reLoad === 'function') {
                     win.reLoad();
+                    return;
                 }
+                // 新增：勘察奖 toProListMain 外层无 reLoad，真实列表在子 iframe（surverPro/toProList）
+                // if (win && typeof win.reLoad === 'function') { win.reLoad(); }
+                try {
+                    var nestedDone = false;
+                    $('iframe', win.document).each(function () {
+                        if (nestedDone) {
+                            return false;
+                        }
+                        var cw = this.contentWindow;
+                        if (!cw) {
+                            return;
+                        }
+                        if (typeof cw.refreshSurverProListWithAnchor === 'function') {
+                            cw.refreshSurverProListWithAnchor();
+                            nestedDone = true;
+                            return false;
+                        }
+                        if (typeof cw.reLoad === 'function') {
+                            cw.reLoad();
+                            nestedDone = true;
+                            return false;
+                        }
+                    });
+                } catch (e2) { /* ignore */ }
             }
         } catch (e) {
             // ignore

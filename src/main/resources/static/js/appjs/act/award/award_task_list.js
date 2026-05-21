@@ -366,6 +366,8 @@ function qcGroup(taskId) {
 //     return canImport || canManage;
 // }
 
+
+// 勘察奖入口界面，更不好找的那个，有勘察项目列表、查看、编辑、专业组管理、分数查询、删除
 // bootstrap Table 配置和数据加载
 function load() {
 	/**
