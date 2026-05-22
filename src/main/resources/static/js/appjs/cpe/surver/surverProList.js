@@ -133,6 +133,13 @@ var SURVER_PRO_LIST_ROW_ANCHOR_KEY_PREFIX = "cpe.surverProList.rowAnchor.v1";
 var SURVER_PRO_LIST_PENDING_REFRESH_PREFIX = "cpe.surverProList.pendingRefresh.v1";
 /** 内存一份，避免仅 refresh、未关页时读不到 session */
 var _surverProListPendingRowAnchor = null;
+/** 程序正在恢复滚动时置 true，避免把恢复过程当成用户手动滚动而清锚点 */
+var _surverProListAnchorRestoreInProgress = false;
+/** 本轮已滚回锚点行则置 true，避免 focus / 异步回调反复把列表拉回旧行 */
+var _surverProListAnchorRestoreSatisfied = false;
+var _surverProListAnchorScrollClearTimer = null;
+var _surverProListAnchorScrollBound = false;
+var _surverProListAnchorRowClickBound = false;
 
 function getSurverProListRowAnchorStorageKey() {
     var tid = ($("#taskId").val() || "") + "";
@@ -168,6 +175,7 @@ function rememberSurverProListRowAnchor(proId) {
         proSubType: ($("#proSubType").val() || "") + ""
     };
     _surverProListPendingRowAnchor = anchor;
+    _surverProListAnchorRestoreSatisfied = false;
     try {
         sessionStorage.setItem(getSurverProListRowAnchorStorageKey(), JSON.stringify(anchor));
     } catch (e) { /* ignore */ }
@@ -190,9 +198,106 @@ function readSurverProListRowAnchor() {
 
 function clearSurverProListRowAnchor() {
     _surverProListPendingRowAnchor = null;
+    _surverProListAnchorRestoreSatisfied = true;
     try {
         sessionStorage.removeItem(getSurverProListRowAnchorStorageKey());
     } catch (e) { /* ignore */ }
+}
+
+/** 是否仍需自动滚回锚点（待刷新、刚离开详情页时尚未滚到位） */
+function shouldAutoRestoreSurverProListRowAnchor() {
+    if (!readSurverProListRowAnchor()) {
+        return false;
+    }
+    if (hasSurverProListPendingRefresh()) {
+        return true;
+    }
+    return !_surverProListAnchorRestoreSatisfied;
+}
+
+/** 用户手动滚动表格后清除锚点 */
+function scheduleClearSurverProListRowAnchorOnUserScroll() {
+    if (_surverProListAnchorRestoreInProgress) {
+        return;
+    }
+    if (_surverProListAnchorScrollClearTimer) {
+        clearTimeout(_surverProListAnchorScrollClearTimer);
+    }
+    _surverProListAnchorScrollClearTimer = setTimeout(function () {
+        _surverProListAnchorScrollClearTimer = null;
+        if (_surverProListAnchorRestoreInProgress) {
+            return;
+        }
+        clearSurverProListRowAnchor();
+    }, 200);
+}
+
+function bindSurverProListAnchorUserScrollClear() {
+    if (_surverProListAnchorScrollBound) {
+        return;
+    }
+    var $tbl = $("#exampleTable");
+    if (!$tbl.length) {
+        return;
+    }
+    var $wrap = $tbl.closest(".bootstrap-table");
+    var $body = $wrap.find(".fixed-table-body");
+    if (!$body.length) {
+        $body = $wrap.find(".fixed-table-container");
+    }
+    if (!$body.length) {
+        return;
+    }
+    _surverProListAnchorScrollBound = true;
+    $body.on("scroll.surverProListAnchor", function () {
+        if (!readSurverProListRowAnchor()) {
+            return;
+        }
+        scheduleClearSurverProListRowAnchorOnUserScroll();
+    });
+}
+
+/** 用户点击其他项目行时清除锚点，避免一直跳回离开前那一行 */
+function bindSurverProListAnchorUserRowClear() {
+    if (_surverProListAnchorRowClickBound) {
+        return;
+    }
+    var $tbl = $("#exampleTable");
+    if (!$tbl.length) {
+        return;
+    }
+    var $wrap = $tbl.closest(".bootstrap-table");
+    var $body = $wrap.find(".fixed-table-body");
+    if (!$body.length) {
+        $body = $wrap.find(".fixed-table-container");
+    }
+    if (!$body.length) {
+        return;
+    }
+    _surverProListAnchorRowClickBound = true;
+    $body.find("tbody").on("click.surverProListAnchorRow", "tr", function () {
+        if (_surverProListAnchorRestoreInProgress) {
+            return;
+        }
+        var anchor = readSurverProListRowAnchor();
+        if (!anchor) {
+            return;
+        }
+        var $tr = $(this);
+        var pid = ($tr.attr("data-surver-pro-id") || "") + "";
+        if (!pid) {
+            var idx = $tr.data("index");
+            if (idx !== undefined && idx !== null) {
+                var data = $tbl.bootstrapTable("getData") || [];
+                if (data[idx] && data[idx].proId != null) {
+                    pid = String(data[idx].proId);
+                }
+            }
+        }
+        if (pid && pid !== String(anchor.proId)) {
+            clearSurverProListRowAnchor();
+        }
+    });
 }
 
 function getSurverProListPendingRefreshStorageKey() {
@@ -312,19 +417,27 @@ function restoreSurverProListRowAnchor() {
     var opts = $tbl.bootstrapTable("getOptions") || {};
     var curPage = opts.pageNumber || 1;
     if (anchor.pageNumber && anchor.pageNumber !== curPage) {
+        _surverProListAnchorRestoreInProgress = true;
         $tbl.bootstrapTable("selectPage", anchor.pageNumber);
+        setTimeout(function () {
+            _surverProListAnchorRestoreInProgress = false;
+        }, 600);
         return;
     }
+    _surverProListAnchorRestoreInProgress = true;
     if (scrollSurverProListToProId(anchor.proId)) {
-        clearSurverProListRowAnchor();
+        _surverProListAnchorRestoreSatisfied = true;
     }
+    setTimeout(function () {
+        _surverProListAnchorRestoreInProgress = false;
+    }, 400);
 }
 
 var _surverProListAnchorRestoreAttempts = 0;
 var SURVER_PRO_LIST_ANCHOR_RESTORE_MAX = 12;
 
 function scheduleRestoreSurverProListRowAnchor() {
-    if (!readSurverProListRowAnchor()) {
+    if (!shouldAutoRestoreSurverProListRowAnchor()) {
         return;
     }
     _surverProListAnchorRestoreAttempts = 0;
@@ -332,14 +445,12 @@ function scheduleRestoreSurverProListRowAnchor() {
     for (var i = 0; i < delays.length; i++) {
         (function (ms) {
             setTimeout(function () {
-                if (!readSurverProListRowAnchor()) {
+                if (!shouldAutoRestoreSurverProListRowAnchor()) {
                     return;
                 }
                 if (_surverProListAnchorRestoreAttempts >= SURVER_PRO_LIST_ANCHOR_RESTORE_MAX) {
-                    // 列表 iframe 仍隐藏时不要清锚点，关形审 Tab 后还能再恢复
-                    if (!document.hidden) {
-                        clearSurverProListRowAnchor();
-                    }
+                    // 原：可见且超次数则清锚点；现保留锚点，关 Tab / 再切回列表仍可继续尝试恢复
+                    // if (!document.hidden) { clearSurverProListRowAnchor(); }
                     return;
                 }
                 _surverProListAnchorRestoreAttempts++;
@@ -356,6 +467,7 @@ function refreshSurverProListWithAnchor() {
     if (hasSurverProListPendingRefresh()) {
         clearSurverProListPendingRefresh();
     }
+    _surverProListAnchorRestoreSatisfied = false;
     var $tbl = $("#exampleTable");
     if ($tbl.length && $tbl.data("bootstrap.table")) {
         $tbl.bootstrapTable("refresh");
@@ -375,7 +487,7 @@ function onSurverProListBecameVisible() {
         refreshSurverProListWithAnchor();
         return;
     }
-    if (!readSurverProListRowAnchor()) {
+    if (!shouldAutoRestoreSurverProListRowAnchor()) {
         return;
     }
     scheduleRestoreSurverProListRowAnchor();
@@ -710,6 +822,9 @@ function load() {
                  */
                 onPageChange: function (number, size) {
                     persistSurverProListPageSize(size);
+                    if (!_surverProListAnchorRestoreInProgress && readSurverProListRowAnchor()) {
+                        clearSurverProListRowAnchor();
+                    }
                 },
                 // 新增：表格数据加载完成后，批量拉取并填充专家分组归属
                 onLoadSuccess: function (data) {
@@ -717,6 +832,8 @@ function load() {
                         loadExpertGroupAssignments();
                     }
                     // 新增：从查看 / 形审 / 修改返回后，滚回离开前所在行（页码仍由表格保持）
+                    bindSurverProListAnchorUserScrollClear();
+                    bindSurverProListAnchorUserRowClear();
                     scheduleRestoreSurverProListRowAnchor();
                 },
                 onClickCell: function (field, value, row, $element) {
@@ -1474,8 +1591,8 @@ function loadExpertGroupAssignments() {
                 var info = EXPERT_GROUP_ASSIGN_MAP[pid];
                 $(this).text(info && info.name ? info.name : '未分配');
             });
-            // 专家分组异步改 DOM 后，再尝试滚回离开前那一行
-            if (readSurverProListRowAnchor()) {
+            // 专家分组异步改 DOM 后，若本轮尚未恢复到位再滚一次
+            if (shouldAutoRestoreSurverProListRowAnchor()) {
                 scheduleRestoreSurverProListRowAnchor();
             }
         }
@@ -1979,6 +2096,7 @@ function exportEliminateCandidatesExcel() {
  *   - 重置：清空输入、删除存储，再刷新到第 1 页
  * ============================================================ */
 function applySurverProFilter() {
+    clearSurverProListRowAnchor();
     persistSurverProAdvFilterFromDom();
     var $tbl = $('#exampleTable');
     if ($tbl.data('bootstrap.table')) {
