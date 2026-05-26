@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.bootdo.cpe.domain.SurverReviewSurverResultDO;
 import com.bootdo.cpe.service.SurverReviewSurverResultService;
+import com.bootdo.cpe.utils.SurverReviewFormLoadHelper;
 import com.bootdo.common.utils.PageUtils;
 import com.bootdo.common.utils.Query;
 import com.bootdo.common.utils.R;
@@ -57,8 +58,8 @@ public class SurverReviewSurverResultController extends BaseSurverController {
 	@RequiresPermissions("cpe:surverApplyInfo:review")
 	String SurverReviewSurverResult(@RequestParam Map<String, Object> params, ModelMap map){
 	    packageAwardTaskId(map, params);
-		List<SurverReviewSurverResultDO> list = surverReviewSurverResultService.list(params);
-		map.put("reviewResult", list.size() > 0 ? list.get(0) : new SurverReviewSurverResultDO());
+		map.put("reviewResult", SurverReviewFormLoadHelper.loadLatest(params,
+				surverReviewSurverResultService::list, SurverReviewSurverResultDO::new));
 		return prefix + "/review_surver_template";
 	}
 
