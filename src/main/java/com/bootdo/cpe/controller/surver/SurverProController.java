@@ -7,6 +7,7 @@ import com.bootdo.common.utils.*;
 import com.bootdo.cpe.domain.*;
 import com.bootdo.cpe.service.*;
 import com.bootdo.cpe.utils.AwardSurverSubTypeEnum;
+import com.bootdo.cpe.utils.SurverEliminateExcelExportUtils;
 import com.bootdo.system.domain.SurverExcellentApplyTableInfoDO;
 import com.bootdo.system.domain.UserDO;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -405,85 +406,124 @@ public class SurverProController extends BaseSurverController {
         }
     }
 
+    // ========================= 原版 exportEliminateExcel（POI 拼接「专家评审汇总.xls」，已注释保留） =========================
+    // /**
+    //  * 导出"专家评审汇总"Excel
+    //  * 列：序号, 项目类别, 项目编号, 课题名称, 小组名称, 申报单位, 专家名称, 项目评级, 初审意见
+    //  * 全部项目，每位专家一行；无专家评级记录的项目后六列留空
+    //  */
+    // @RequestMapping("/exportEliminateExcel")
+    // public void exportEliminateExcel(HttpServletResponse response, @RequestParam Map<String, Object> params, ModelMap map) {
+    //     packageAwardTaskId(map, params);
+    //     String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
+    //     if (taskId.isEmpty()) {
+    //         try { response.getWriter().write("暂无数据导出（未找到有效任务）"); } catch (Exception ignored) {}
+    //         return;
+    //     }
+    //     UserDO exporter = getUser();
+    //     Long contactScopeUid = resolveSurverElimContactScopeUserId(exporter);
+    //     List<Map<String, Object>> dataList = surverExpertEliminateService.listExpertEvalDetail(taskId, contactScopeUid);
+    //     if (dataList == null || dataList.isEmpty()) {
+    //         try { response.getWriter().write("暂无数据导出"); } catch (Exception ignored) {}
+    //         return;
+    //     }
+    //     String[] header = {"序号", "项目类别", "项目编号", "课题名称", "小组名称", "申报单位", "专家名称", "项目评级", "初审意见"};
+    //     Map<String, String> subTypeMap = new java.util.LinkedHashMap<>();
+    //     subTypeMap.put("design",       "优秀设计奖");
+    //     subTypeMap.put("software",     "计算机软件奖");
+    //     subTypeMap.put("standard",     "标准设计奖");
+    //     subTypeMap.put("contribution", "优秀勘察奖");
+    //     subTypeMap.put("consulting",   "优秀咨询奖");
+    //     try {
+    //         org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
+    //         org.apache.poi.hssf.usermodel.HSSFSheet sheet = workbook.createSheet("专家评审汇总");
+    //         sheet.setDefaultColumnWidth(22);
+    //         sheet.setColumnWidth(8, 50 * 256);
+    //         org.apache.poi.hssf.usermodel.HSSFCellStyle headerStyle = workbook.createCellStyle();
+    //         headerStyle.setFillForegroundColor(org.apache.poi.hssf.util.HSSFColor.HSSFColorPredefined.YELLOW.getIndex());
+    //         headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
+    //         org.apache.poi.hssf.usermodel.HSSFRow headRow = sheet.createRow(0);
+    //         for (int i = 0; i < header.length; i++) {
+    //             org.apache.poi.hssf.usermodel.HSSFCell cell = headRow.createCell(i);
+    //             cell.setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(header[i]));
+    //             cell.setCellStyle(headerStyle);
+    //         }
+    //         for (int i = 0; i < dataList.size(); i++) {
+    //             Map<String, Object> d = dataList.get(i);
+    //             String rawSubType = d.get("proSubType") != null ? d.get("proSubType").toString() : "";
+    //             String subTypeName = subTypeMap.getOrDefault(rawSubType, rawSubType);
+    //             String[] vals = {
+    //                 String.valueOf(i + 1),
+    //                 subTypeName,
+    //                 safe(d.get("proCode")),
+    //                 safe(d.get("topicName")),
+    //                 safe(d.get("groupName")),
+    //                 safe(d.get("companyName")),
+    //                 safe(d.get("expertName")),
+    //                 safe(d.get("grade")),
+    //                 safe(d.get("remark"))
+    //             };
+    //             org.apache.poi.hssf.usermodel.HSSFRow dataRow = sheet.createRow(i + 1);
+    //             for (int j = 0; j < vals.length; j++) {
+    //                 dataRow.createCell(j).setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(stripHtmlTagsForExcel(vals[j])));
+    //             }
+    //         }
+    //         String fileName = java.net.URLEncoder.encode("专家评审汇总.xls", "UTF-8").replaceAll("\\+", "%20");
+    //         response.setContentType("application/octet-stream");
+    //         response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
+    //         response.flushBuffer();
+    //         workbook.write(response.getOutputStream());
+    //         workbook.close();
+    //     } catch (Exception e) {
+    //         e.printStackTrace();
+    //     }
+    // }
+    // ========================= 原版 exportEliminateExcel END =========================
+
     /**
-     * 导出"专家评审汇总"Excel
-     * 列：序号, 项目类别, 项目编号, 课题名称, 小组名称, 申报单位, 专家名称, 项目评级, 初审意见
-     * 全部项目，每位专家一行；无专家评级记录的项目后六列留空
+     * 导出「确认淘汰名单」：按 classpath 模板 {@code excel/surver_eliminate_template.xlsx} 填充，
+     * 按专家组分块展示（每块含标题、表头、项目行、评级说明区）。
      */
     @RequestMapping("/exportEliminateExcel")
     public void exportEliminateExcel(HttpServletResponse response, @RequestParam Map<String, Object> params, ModelMap map) {
         packageAwardTaskId(map, params);
         String taskId = params.get("taskId") != null ? params.get("taskId").toString() : "";
         if (taskId.isEmpty()) {
-            try { response.getWriter().write("暂无数据导出（未找到有效任务）"); } catch (Exception ignored) {}
+            try {
+                response.getWriter().write("暂无数据导出（未找到有效任务）");
+            } catch (Exception ignored) {
+            }
             return;
         }
-
         UserDO exporter = getUser();
         Long contactScopeUid = resolveSurverElimContactScopeUserId(exporter);
-        List<Map<String, Object>> dataList = surverExpertEliminateService.listExpertEvalDetail(taskId, contactScopeUid);
-        if (dataList == null || dataList.isEmpty()) {
-            try { response.getWriter().write("暂无数据导出"); } catch (Exception ignored) {}
-            return;
-        }
-
-        String[] header = {"序号", "项目类别", "项目编号", "课题名称", "小组名称", "申报单位", "专家名称", "项目评级", "初审意见"};
-        Map<String, String> subTypeMap = new java.util.LinkedHashMap<>();
-        subTypeMap.put("design",       "优秀设计奖");
-        subTypeMap.put("software",     "计算机软件奖");
-        subTypeMap.put("standard",     "标准设计奖");
-        subTypeMap.put("contribution", "优秀勘察奖");
-        subTypeMap.put("consulting",   "优秀咨询奖");
-
-        try {
-            org.apache.poi.hssf.usermodel.HSSFWorkbook workbook = new org.apache.poi.hssf.usermodel.HSSFWorkbook();
-            org.apache.poi.hssf.usermodel.HSSFSheet sheet = workbook.createSheet("专家评审汇总");
-            sheet.setDefaultColumnWidth(22);
-            // 最后一列（初审意见）宽一些
-            sheet.setColumnWidth(8, 50 * 256);
-            org.apache.poi.hssf.usermodel.HSSFCellStyle headerStyle = workbook.createCellStyle();
-            headerStyle.setFillForegroundColor(org.apache.poi.hssf.util.HSSFColor.HSSFColorPredefined.YELLOW.getIndex());
-            headerStyle.setFillPattern(org.apache.poi.ss.usermodel.FillPatternType.SOLID_FOREGROUND);
-            org.apache.poi.hssf.usermodel.HSSFRow headRow = sheet.createRow(0);
-            for (int i = 0; i < header.length; i++) {
-                org.apache.poi.hssf.usermodel.HSSFCell cell = headRow.createCell(i);
-                cell.setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(header[i]));
-                cell.setCellStyle(headerStyle);
-            }
-            for (int i = 0; i < dataList.size(); i++) {
-                Map<String, Object> d = dataList.get(i);
-                String rawSubType = d.get("proSubType") != null ? d.get("proSubType").toString() : "";
-                String subTypeName = subTypeMap.getOrDefault(rawSubType, rawSubType);
-                String[] vals = {
-                    String.valueOf(i + 1),
-                    subTypeName,
-                    safe(d.get("proCode")),
-                    safe(d.get("topicName")),
-                    safe(d.get("groupName")),
-                    safe(d.get("companyName")),
-                    safe(d.get("expertName")),
-                    safe(d.get("grade")),
-                    safe(d.get("remark"))
-                };
-                org.apache.poi.hssf.usermodel.HSSFRow dataRow = sheet.createRow(i + 1);
-                for (int j = 0; j < vals.length; j++) {
-                    dataRow.createCell(j).setCellValue(new org.apache.poi.hssf.usermodel.HSSFRichTextString(stripHtmlTagsForExcel(vals[j])));
+        List<Map<String, Object>> rows = surverExpertEliminateService.listEliminateExportRows(taskId, contactScopeUid);
+        if (contactScopeUid != null && rows != null && !rows.isEmpty()) {
+            Set<Integer> allowed = new HashSet<>(surverExpertEliminateService.listProIdsVisibleToSurverContact(taskId, contactScopeUid));
+            rows = new ArrayList<>(rows);
+            rows.removeIf(row -> {
+                Object pid = row.get("proId");
+                if (pid == null) {
+                    return true;
                 }
-            }
-            String fileName = java.net.URLEncoder.encode("专家评审汇总.xls", "UTF-8").replaceAll("\\+", "%20");
-            response.setContentType("application/octet-stream");
-            response.setHeader("Content-Disposition", "attachment;filename=" + fileName);
-            response.flushBuffer();
-            workbook.write(response.getOutputStream());
-            workbook.close();
+                int id = pid instanceof Number ? ((Number) pid).intValue() : Integer.parseInt(pid.toString());
+                return !allowed.contains(id);
+            });
+        }
+        try {
+            SurverEliminateExcelExportUtils.exportByTemplate(response, rows);
         } catch (Exception e) {
             e.printStackTrace();
+            try {
+                response.getWriter().write("导出失败: " + e.getMessage());
+            } catch (Exception ignored) {
+            }
         }
     }
 
     /**
      * 导入"确认淘汰名单"Excel
-     * 通过 proid 列（第2列, index=1）识别项目，通过淘汰状态列（第11列, index=10）更新 eliminated
+     * 通过 proID 列（B 列, index=1）识别项目，通过「淘汰状态」列（O 列, index=14；兼容旧版 K 列 index=10）更新 eliminated
      * 淘汰状态合法值：已淘汰(→1) / 未淘汰(→0)
      */
     @ResponseBody
@@ -528,19 +568,24 @@ public class SurverProController extends BaseSurverController {
                 wb = new org.apache.poi.hssf.usermodel.HSSFWorkbook(is);
             }
             org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
-            // 第1行(index=0)为表头，从第2行开始读数据
-            for (int r = 1; r <= sheet.getLastRowNum(); r++) {
+            for (int r = 0; r <= sheet.getLastRowNum(); r++) {
                 org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
                 if (row == null) continue;
-                // proid: 第2列(index=1)
                 org.apache.poi.ss.usermodel.Cell proIdCell = row.getCell(1);
-                // 淘汰状态: 第11列(index=10)
-                org.apache.poi.ss.usermodel.Cell statusCell = row.getCell(10);
-                if (proIdCell == null || statusCell == null) { skipCount++; continue; }
+                if (proIdCell == null) { skipCount++; continue; }
 
                 String proIdStr = getCellStr(proIdCell).trim();
+                if (proIdStr.isEmpty() || "proID".equalsIgnoreCase(proIdStr)) { skipCount++; continue; }
+                if (proIdStr.contains("专家组名称")) { skipCount++; continue; }
+
+                org.apache.poi.ss.usermodel.Cell statusCell = row.getCell(14);
+                if (statusCell == null || getCellStr(statusCell).trim().isEmpty()) {
+                    statusCell = row.getCell(10);
+                }
+                if (statusCell == null) { skipCount++; continue; }
+
                 String statusStr = getCellStr(statusCell).trim();
-                if (proIdStr.isEmpty() || statusStr.isEmpty()) { skipCount++; continue; }
+                if (statusStr.isEmpty()) { skipCount++; continue; }
 
                 Integer proId;
                 try { proId = Integer.parseInt(proIdStr); } catch (NumberFormatException e) {

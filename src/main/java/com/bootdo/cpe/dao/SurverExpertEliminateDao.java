@@ -113,4 +113,10 @@ public interface SurverExpertEliminateDao {
     List<Map<String, Object>> listMyExpertGroupEliminateDetail(@Param("taskId") String taskId,
                                                                 @Param("proSubType") String proSubType,
                                                                 @Param("viewerUid") Long viewerUid);
+
+    /**
+     * 确认淘汰名单模板导出：按专家组 × 项目 × 专家展开（Java 侧再按专家组分组填模板）
+     */
+    List<Map<String, Object>> listEliminateExportRows(@Param("taskId") String taskId,
+                                                      @Param("contactUserId") Long contactUserId);
 }

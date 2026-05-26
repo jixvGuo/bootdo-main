@@ -349,9 +349,9 @@
 						th:title="${isSurverGroupContact && !isAssociationLeader} ? '仅导出您绑定的专家组范围内的专家评审汇总（非全任务）' : '导出当前任务专家评审汇总'">
 					<i class="fa fa-file-excel-o" ></i> 导出确认淘汰名单
 				</button>
-<!--				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()" disabled>-->
-<!--					<i class="fa fa-upload"></i> 导入确认淘汰名单-->
-<!--				</button>-->
+				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()">
+					<i class="fa fa-upload"></i> 导入确认淘汰名单
+				</button>
 				<!-- 原file input已移至弹窗内部，此处保留注释
 			<input type="file" id="surverElimImportFile" accept=".xlsx,.xls" style="display:none;" onchange="onImportEliminateExcel(event)">
 			-->
@@ -372,10 +372,6 @@
 							<th style="width:120px;">申报账号</th>
 							<th style="width:120px;">分组</th>
 							<th style="width:120px;">专家分组</th>
-<!--							<th style="width:46px;">A</th>-->
-<!--							<th style="width:46px;">B</th>-->
-<!--							<th style="width:46px;">C</th>-->
-<!--							<th style="width:46px;">D</th>-->
 							<th style="width:120px;">专家名称</th>
 							<th style="width:100px;">专家评级</th>
 							<th style="width:80px;">淘汰状态</th>
@@ -389,43 +385,6 @@
 			</div>
 		</div>
 
-		<!-- 原Tab2内容已注释
-		<div id="surverElimTabConfirmed" class="tab-pane fade">
-			<div style="margin-bottom:10px;">
-				<button class="btn btn-primary btn-sm" onclick="loadEliminateConfirmed()">
-					<i class="fa fa-refresh"></i> 刷新
-				</button>
-				<button class="btn btn-success btn-sm" onclick="exportEliminateConfirmedExcel()">
-					<i class="fa fa-file-excel-o"></i> 导出确认淘汰名单
-				</button>
-				<button class="btn btn-warning btn-sm" style="margin-left:5px;" onclick="triggerImportEliminateExcel()">
-					<i class="fa fa-upload"></i> 导入确认淘汰名单
-				</button>
-			</div>
-			<div style="max-height:480px;overflow:auto;">
-				<table class="table table-bordered table-hover table-condensed">
-					<thead style="background:#f5f5f5;">
-						<tr>
-							<th style="width:45px;">序号</th>
-							<th style="width:110px;">类别</th>
-							<th style="width:50px;">项目编号</th>
-							<th style="width:155px;">项目名称</th>
-							<th style="width:80px;">申报单位</th>
-							<th style="width:120px;">申报账号</th>
-							<th style="width:120px;">分组</th>
-							<th style="width:120px;">专家分组</th>
-							<th style="width:40px;">专家评级</th>
-							<th style="width:90px;">淘汰状态</th>
-							<th style="width:80px;">操作</th>
-						</tr>
-					</thead>
-					<tbody id="surverElimConfirmedBody">
-						<tr><td colspan="11" style="text-align:center;color:#999;">加载中...</td></tr>
-					</tbody>
-				</table>
-			</div>
-		</div>
-		-->
 	</div>
 </div>
 

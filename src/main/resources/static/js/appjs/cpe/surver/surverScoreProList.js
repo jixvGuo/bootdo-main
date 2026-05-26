@@ -257,7 +257,9 @@ function formatterScoreExpertGrade(row) {
         return '<span style="color:#d9534f;font-size:12px;">已回避</span>';
     }
     var current = SURVER_EXPERT_GRADE_MAP[row.proId] || '';
-    var btnLabel = current ? '已评级(' + current + ')' : '淘汰';
+    // var btnLabel = current ? '已评级(' + current + ')' : '淘汰';
+    // 忘改评级
+    var btnLabel = current ? '已评级(' + current + ')' : '评级';
     var btnClass = current ? 'btn-success' : 'btn-primary';
     var disabled = SURVER_EXPERT_LOCKED ? 'disabled' : '';
     return '<button class="btn btn-xs ' + btnClass + '" ' + disabled
@@ -742,7 +744,7 @@ function renderExpertSubmitToolbar() {
         html += '<button class="btn btn-danger btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;" '
             // + 'onclick="onSurverConfirmSubmitElim()">确认淘汰结果</button>';
             // 按要求非要改名字
-            + 'onclick="onSurverConfirmSubmitElim()">确认评级结果</button>';
+            + 'onclick="onSurverConfirmSubmitElim()">提交评级结果</button>';
         html += '<button class="btn btn-primary btn-sm" style="font-size:13px;padding:4px 10px;vertical-align:middle;margin-left:8px;" '
             // + 'onclick="openSurverDownloadElimRemarks()"><i class="fa fa-download"></i> 下载淘汰评语</button>';
             // 按要求非要改名字

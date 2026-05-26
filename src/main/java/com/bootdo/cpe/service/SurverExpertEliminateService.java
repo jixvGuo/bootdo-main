@@ -62,4 +62,9 @@ public interface SurverExpertEliminateService {
      * 专家侧：仅本人淘汰评级及评语（「下载淘汰评语」导出）
      */
     java.util.List<java.util.Map<String, Object>> listMyExpertGroupEliminateDetail(String taskId, String proSubType, Long viewerUid);
+
+    /**
+     * 确认淘汰名单按专家组导出用明细行
+     */
+    java.util.List<java.util.Map<String, Object>> listEliminateExportRows(String taskId, Long contactUserId);
 }

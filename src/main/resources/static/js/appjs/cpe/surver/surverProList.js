@@ -925,7 +925,7 @@ function printExcelPro() {
 
 // ========== 导出/导入确认淘汰名单 ==========
 
-/** 导出确认淘汰名单 Excel（含当前淘汰状态，可编辑后重新导入） */
+/** 导出确认淘汰名单 Excel（模板分块：项目行 A/B/C/D/回避 计数 + KC 专家评级 + 块底统计；可编辑 O 列淘汰状态后导入） */
 function exportEliminateConfirmedExcel() {
     var taskId = $("#taskId").val();
     window.location.href = prefix + "/exportEliminateExcel?taskId=" + encodeURIComponent(taskId);
