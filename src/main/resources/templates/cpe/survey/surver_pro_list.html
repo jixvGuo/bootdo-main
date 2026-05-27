@@ -349,7 +349,7 @@
 						th:title="${isSurverGroupContact && !isAssociationLeader} ? '仅导出您绑定的专家组范围内的专家评审汇总（非全任务）' : '导出当前任务专家评审汇总'">
 					<i class="fa fa-file-excel-o" ></i> 导出确认淘汰名单
 				</button>
-				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()">
+				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()" disabled>
 					<i class="fa fa-upload"></i> 导入确认淘汰名单
 				</button>
 				<!-- 原file input已移至弹窗内部，此处保留注释

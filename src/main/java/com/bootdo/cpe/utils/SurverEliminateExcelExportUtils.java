@@ -11,6 +11,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import javax.servlet.http.HttpServletResponse;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -22,7 +24,7 @@ public final class SurverEliminateExcelExportUtils {
 
     private static final String TEMPLATE_PATH = "excel/surver_eliminate_template.xlsx";
     /** 响应头携带此版本号，便于确认服务已加载最新编译的导出类 */
-    public static final String EXPORT_BUILD = "20260525-avoidance-only-export";
+    public static final String EXPORT_BUILD = "20260526-eliminate-avg-score";
 
     private static final int BLOCK_ROW_COUNT = 16;
     private static final int DATA_START_IN_BLOCK = 3;
@@ -230,7 +232,7 @@ public final class SurverEliminateExcelExportUtils {
         putCellValue(sheet, rowIdx, COL_GRADE_C, styleRow, cntC > 0 ? String.valueOf(cntC) : "");
         putCellValue(sheet, rowIdx, COL_GRADE_D, styleRow, cntD > 0 ? String.valueOf(cntD) : "");
         putCellValue(sheet, rowIdx, COL_GRADE_AVOID, styleRow, cntAvoid > 0 ? String.valueOf(cntAvoid) : "");
-        putCellValue(sheet, rowIdx, COL_TOTAL, styleRow, "");
+        putCellValue(sheet, rowIdx, COL_TOTAL, styleRow, formatAvgScore(calcEliminateAvgScore(expertUids, p)));
 
         int elim = p.eliminated != null && p.eliminated == 1 ? 1 : 0;
         putCellValue(sheet, rowIdx, COL_ELIM, styleRow, elim == 1 ? "已淘汰" : "未淘汰");
@@ -494,6 +496,64 @@ public final class SurverEliminateExcelExportUtils {
             return "回避";
         }
         return raw;
+    }
+
+    /** 淘汰等级 → 分数（与模板 I–L 行 10/8/6/4 一致） */
+    private static BigDecimal gradeToScore(String grade) {
+        switch (grade) {
+            case "A":
+                return BigDecimal.valueOf(10);
+            case "B":
+                return BigDecimal.valueOf(8);
+            case "C":
+                return BigDecimal.valueOf(6);
+            case "D":
+                return BigDecimal.valueOf(4);
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * 计算项目淘汰评级平均分：排除回避，A/B/C/D→10/8/6/4；
+     * ≥3 个有效分去最高最低再平均，1–2 个直接平均（与 QC 奖规则一致）。
+     */
+    private static BigDecimal calcEliminateAvgScore(List<Long> expertUids, ProjectExportData p) {
+        if (expertUids == null || expertUids.isEmpty() || p == null) {
+            return null;
+        }
+        List<BigDecimal> validScores = new ArrayList<>();
+        for (Long uid : expertUids) {
+            String grade = normalizeGrade(p.gradeByExpert.get(uid));
+            if ("回避".equals(grade) || grade.isEmpty()) {
+                continue;
+            }
+            BigDecimal score = gradeToScore(grade);
+            if (score != null) {
+                validScores.add(score);
+            }
+        }
+        if (validScores.isEmpty()) {
+            return null;
+        }
+        List<BigDecimal> toAvg = new ArrayList<>(validScores);
+        if (toAvg.size() >= 3) {
+            toAvg.sort(BigDecimal::compareTo);
+            toAvg.remove(0);
+            toAvg.remove(toAvg.size() - 1);
+        }
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal s : toAvg) {
+            sum = sum.add(s);
+        }
+        return sum.divide(BigDecimal.valueOf(toAvg.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private static String formatAvgScore(BigDecimal avg) {
+        if (avg == null) {
+            return "";
+        }
+        return avg.toPlainString();
     }
 
     private static List<GroupExportData> buildGroupData(List<Map<String, Object>> flatRows) {
