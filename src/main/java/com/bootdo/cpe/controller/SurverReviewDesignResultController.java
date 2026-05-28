@@ -12,6 +12,7 @@ import com.bootdo.cpe.service.ProjectCommonService;
 import com.bootdo.oa.domain.NotifyDO;
 import com.bootdo.oa.service.NotifyService;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.shiro.authz.annotation.Logical;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.ui.Model;
@@ -28,6 +29,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.bootdo.cpe.domain.SurverReviewDesignResultDO;
 import com.bootdo.cpe.service.SurverReviewDesignResultService;
 import com.bootdo.cpe.utils.SurverReviewFormLoadHelper;
+import com.bootdo.cpe.utils.SurverReviewNotifyHelper;
+import com.bootdo.cpe.utils.SurverReviewRecordOpsFactory;
+import com.bootdo.cpe.utils.SurverReviewSaveHelper;
 import com.bootdo.common.utils.PageUtils;
 import com.bootdo.common.utils.Query;
 import com.bootdo.common.utils.R;
@@ -58,7 +62,10 @@ public class SurverReviewDesignResultController extends BaseSurverController {
 	@RequiresPermissions("cpe:surverApplyInfo:review")
 	String SurverReviewDesignResult(@RequestParam Map<String, Object> params, ModelMap map){
 		packageAwardTaskId(map, params);
-		map.put("reviewResult", SurverReviewFormLoadHelper.loadLatest(params,
+		// 原：带入历史 id，自动保存 update 与正式提交 save 重复插入
+		// map.put("reviewResult", SurverReviewFormLoadHelper.loadLatest(params,
+		// 		surverReviewDesignResultService::list, SurverReviewDesignResultDO::new));
+		map.put("reviewResult", SurverReviewFormLoadHelper.loadLatestForFormSession(params,
 				surverReviewDesignResultService::list, SurverReviewDesignResultDO::new));
 	    return prefix + "/review_design_template";
 	}
@@ -95,53 +102,53 @@ public class SurverReviewDesignResultController extends BaseSurverController {
 	@ResponseBody
 	@PostMapping("/save")
 	@RequiresPermissions("cpe:surverReview:add")
-	public R save( SurverReviewDesignResultDO surverReviewDesignResult){
+	public R save(SurverReviewDesignResultDO surverReviewDesignResult,
+	              @RequestParam(value = "formalSubmit", required = false) String formalSubmit,
+	              @RequestParam(value = "originReviewResult", required = false) String originReviewResult,
+	              @RequestParam(value = "originRemarks", required = false) String originRemarks) {
 		Integer proId = surverReviewDesignResult.getProId();
-		// 仅保存形式审查结果记录，不再根据形审结果改项目状态
-
-		//发送系统通知给用户
-		long proCreateUid = projectCommonService.getProCreateUid(proId);
-		Long[] uidArr = {proCreateUid};
-		NotifyDO notifyDO = new NotifyDO();
-		notifyDO.setType(EnumAwardType.SURVER.getAwrdType() + "");
-		notifyDO.setUserIds(uidArr);
-		notifyDO.setCreateBy(getUserId());
-		String applyAwardName = "【勘察奖】" + surverReviewDesignResult.getProName();
-		String title = (applyAwardName == null ? "" : applyAwardName) + "形式审查结果";
-		String content = "形式审查结果:"+surverReviewDesignResult.getReviewResult()+";";
-		if(StringUtils.isNotBlank(surverReviewDesignResult.getRemarks())) {
-			content += surverReviewDesignResult.getRemarks();
-		}
-		notifyDO.setContent(content);
-		notifyDO.setTitle(title);
-		notifyService.save(notifyDO);
-
-		long notifyId = notifyDO.getId();
-		int reviewId = 0;
-
-
 		Long uid = getUserId();
-		surverReviewDesignResult.setOptUid(uid.intValue());
-		// 允许多次审查：每次提交都新增记录，不覆盖历史
-		surverReviewDesignResult.setId(null);
-		if(surverReviewDesignResultService.save(surverReviewDesignResult)>0){
-			reviewId = surverReviewDesignResult.getId();
-			notifyService.saveProReviewNotifyShip(notifyId, proId, reviewId, EnumProjectType.SURVER_PRO.getProType());
-			R r = R.ok();
-			r.put("id", surverReviewDesignResult.getId());
-			return r;
-		}
-		return R.error();
+		return SurverReviewSaveHelper.save(
+				surverReviewDesignResult,
+				formalSubmit,
+				originReviewResult,
+				originRemarks,
+				proId,
+				uid,
+				SurverReviewRecordOpsFactory.design(surverReviewDesignResultService),
+				notifyService,
+				projectCommonService);
 	}
 	/**
 	 * 修改
 	 */
 	@ResponseBody
 	@RequestMapping("/update")
-	@RequiresPermissions("cpe:surverReviewDesignResult:edit")
-	public R update( SurverReviewDesignResultDO surverReviewDesignResult){
+	@RequiresPermissions(value = {"cpe:surverReview:add", "cpe:surverReviewDesignResult:edit"}, logical = Logical.OR)
+	public R update(SurverReviewDesignResultDO surverReviewDesignResult,
+	                @RequestParam(value = "formalSubmit", required = false) String formalSubmit) {
+		// 原：仅 update，不发通知
+		// surverReviewDesignResultService.update(surverReviewDesignResult);
+		// return R.ok();
+
+		Long uid = getUserId();
+		surverReviewDesignResult.setOptUid(uid.intValue());
 		surverReviewDesignResultService.update(surverReviewDesignResult);
-		return R.ok();
+		if (SurverReviewNotifyHelper.isFormalSubmit(formalSubmit)
+				&& surverReviewDesignResult.getId() != null
+				&& surverReviewDesignResult.getProId() != null) {
+			SurverReviewNotifyHelper.sendFormalReviewNotify(
+					notifyService, projectCommonService, surverReviewDesignResult.getProId(),
+					surverReviewDesignResult.getProName(),
+					surverReviewDesignResult.getReviewResult(),
+					surverReviewDesignResult.getRemarks(),
+					uid, surverReviewDesignResult.getId());
+		}
+		R r = R.ok();
+		if (surverReviewDesignResult.getId() != null) {
+			r.put("id", surverReviewDesignResult.getId());
+		}
+		return r;
 	}
 
 	/**

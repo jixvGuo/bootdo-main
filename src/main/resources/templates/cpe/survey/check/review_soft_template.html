@@ -11,6 +11,8 @@
         <form id="signupForm" action="" class="ui basic form">
             <input type="hidden" id="isReadonly" th:value="${readonly}">
             <input id="id" name="id" th:value="${reviewResult.id}"  type="hidden">
+            <input id="originReviewResult" name="originReviewResult" th:value="${reviewResult.reviewResult}" type="hidden">
+            <input id="originRemarks" name="originRemarks" th:value="${reviewResult.remarks}" type="hidden">
             <input id="proId" name="proId" th:value="${proId}"  type="hidden">
             <input id="taskId" name="taskId" th:value="${taskId}"  type="hidden">
             <h4 class="ui red horizontal divider header">基本信息</h4>
@@ -225,6 +227,18 @@
                         <label>缓评</label>
                     </div>
                 </div>
+                <div class="field">
+                    <div class="ui radio checkbox">
+                        <input type="radio" name="reviewResult" th:checked="${reviewResult.reviewResult} eq 通过" value="通过">
+                        <label>通过</label>
+                    </div>
+                </div>
+                <div class="field">
+                    <div class="ui radio checkbox">
+                        <input type="radio" name="reviewResult" th:checked="${reviewResult.reviewResult} eq 不通过" value="不通过">
+                        <label>不通过</label>
+                    </div>
+                </div>
             </div>
             <div class="ui field">
                 <label>备注</label>
@@ -244,8 +258,8 @@
         updateUrl: '/cpe/surverReviewSoftResult/update'
     };
 </script>
-<script type="text/javascript" src="/js/appjs/cpe/surver_review_form_common.js?v=1.0"></script>
-<script type="text/javascript" src="/js/appjs/cpe/surverReviewSoftResult/add.js?v=1.2"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver_review_form_common.js?v=1.2"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surverReviewSoftResult/add.js?v=1.4"></script>
 <script type="text/javascript" src="/js/appjs/cpe/petroleum_engineering_award/readonly.js"></script>
 
 <script>

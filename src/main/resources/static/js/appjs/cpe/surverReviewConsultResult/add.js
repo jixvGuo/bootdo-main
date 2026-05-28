@@ -8,13 +8,17 @@ $.validator.setDefaults({
 	}
 });
 function save() {
+	if (typeof cancelSurverReviewAutoSaveTimer === "function") {
+		cancelSurverReviewAutoSaveTimer();
+	}
+	_surverReviewFormalSubmitting = true;
 	var cfg = window.SURVER_REVIEW_FORM_CFG || {};
 	var url = cfg.saveUrl || "/cpe/surverReviewConsultResult/save";
 	$.ajax({
 		cache : true,
 		type : "POST",
 		url : url,
-		data : $('#signupForm').serialize(),// 你的formid
+		data : $('#signupForm').serialize() + '&formalSubmit=1',
 		async : false,
 		error : function(request) {
 			parent.layer.alert("Connection error");
@@ -25,7 +29,9 @@ function save() {
 				if (data.id) {
 					$("#id").val(data.id);
 				}
-				// 原：reloadProList();
+				if (typeof refreshSurverReviewOriginSnapshot === "function") {
+					refreshSurverReviewOriginSnapshot();
+				}
 				if (typeof markSurverProListRefreshDeferred === "function") {
 					markSurverProListRefreshDeferred();
 				}
@@ -33,6 +39,9 @@ function save() {
 				parent.layer.alert(data.msg)
 			}
 
+		},
+		complete: function () {
+			_surverReviewFormalSubmitting = false;
 		}
 	});
 

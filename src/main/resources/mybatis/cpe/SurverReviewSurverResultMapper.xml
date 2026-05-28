@@ -53,6 +53,7 @@
 		  		  <if test="remarks != null and remarks != ''"> and cr.remarks = #{remarks} </if>
 		  		  <if test="optUid != null and optUid != ''"> and cr.opt_uid = #{optUid} </if>
 		  		  <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
+		  		  <if test="reviewRecordOnly != null and reviewRecordOnly != ''"> and cr.id is not null </if>
 		  		  <if test="taskId != null and taskId != ''"> and pro.publish_task_id = #{taskId} </if>
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
@@ -106,6 +107,7 @@
 		  		  <if test="remarks != null and remarks != ''"> and remarks = #{remarks} </if>
 		  		  <if test="optUid != null and optUid != ''"> and cr.opt_uid = #{optUid} </if>
 		  		  <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
+		  		  <if test="reviewRecordOnly != null and reviewRecordOnly != ''"> and cr.id is not null </if>
 		  		  <if test="taskId != null and taskId != ''"> and pro.publish_task_id = #{taskId} </if>
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
@@ -178,6 +180,7 @@
 	<update id="update" parameterType="com.bootdo.cpe.domain.SurverReviewSurverResultDO">
 		update ass_surver_review_surver_result
 		<set>
+			`updated` = NOW(),
 			<if test="numCopies != null">`num_copies` = #{numCopies}, </if>
 			<if test="applyUnitIsBear != null">`apply_unit_is_bear` = #{applyUnitIsBear}, </if>
 			<if test="bureauIsFirstAward != null">`bureau_is_first_award` = #{bureauIsFirstAward}, </if>
@@ -206,7 +209,6 @@
 			<if test="proId != null">`pro_id` = #{proId}, </if>
 			<if test="taskId != null">`task_id` = #{taskId}, </if>
 			<if test="created != null">`created` = #{created}, </if>
-			<if test="updated != null">`updated` = #{updated}</if>
 		</set>
 		where id = #{id}
 	</update>

@@ -8,14 +8,18 @@ $.validator.setDefaults({
 	}
 });
 function save() {
+	if (typeof cancelSurverReviewAutoSaveTimer === "function") {
+		cancelSurverReviewAutoSaveTimer();
+	}
+	_surverReviewFormalSubmitting = true;
 	var cfg = window.SURVER_REVIEW_FORM_CFG || {};
-	// 正式提交始终走 save（后端会 setId(null) 新增形审记录并发通知）；自动保存才走 update
+	// 统一走 save（带 id 时后端 update）；原：有 id 走 updateUrl 需 edit 权限
 	var url = cfg.saveUrl || "/cpe/surverReviewDesignResult/save";
 	$.ajax({
 		cache : true,
 		type : "POST",
 		url : url,
-		data : $('#signupForm').serialize(),// 你的formid
+		data : $('#signupForm').serialize() + '&formalSubmit=1',
 		async : false,
 		error : function(request) {
 			parent.layer.alert("Connection error");
@@ -26,8 +30,9 @@ function save() {
 				if (data.id) {
 					$("#id").val(data.id);
 				}
-				// 原：立即 reloadProList()，在形审 Tab 仍打开时刷新隐藏中的列表，锚点恢复失败
-				// reloadProList();
+				if (typeof refreshSurverReviewOriginSnapshot === "function") {
+					refreshSurverReviewOriginSnapshot();
+				}
 				if (typeof markSurverProListRefreshDeferred === "function") {
 					markSurverProListRefreshDeferred();
 				}
@@ -35,6 +40,9 @@ function save() {
 				parent.layer.alert(data.msg)
 			}
 
+		},
+		complete: function () {
+			_surverReviewFormalSubmitting = false;
 		}
 	});
 

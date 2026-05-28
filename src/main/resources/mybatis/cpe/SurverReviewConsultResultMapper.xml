@@ -71,6 +71,7 @@
 		  		  <if test="remarks != null and remarks != ''"> and remarks = #{remarks} </if>
 		  		  <if test="optUid != null and optUid != ''"> and cr.opt_uid = #{optUid} </if>
 		  		  <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
+		  		  <if test="reviewRecordOnly != null and reviewRecordOnly != ''"> and cr.id is not null </if>
 		  		  <if test="taskId != null and taskId != ''"> and pro.publish_task_id = #{taskId} </if>
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
@@ -140,6 +141,7 @@
 		  		  <if test="remarks != null and remarks != ''"> and remarks = #{remarks} </if>
 		  		  <if test="optUid != null and optUid != ''"> and cr.opt_uid = #{optUid} </if>
 		  		  <if test="proId != null and proId != ''"> and pro.id = #{proId} </if>
+		  		  <if test="reviewRecordOnly != null and reviewRecordOnly != ''"> and cr.id is not null </if>
 		  		  <if test="taskId != null and taskId != ''"> and pro.publish_task_id = #{taskId} </if>
 		  		  <if test="created != null and created != ''"> and created = #{created} </if>
 		  		  <if test="updated != null and updated != ''"> and updated = #{updated} </if>
@@ -248,6 +250,7 @@
 	<update id="update" parameterType="com.bootdo.cpe.domain.SurverReviewConsultResultDO">
 		update ass_surver_review_consult_result
 		<set>
+			`updated` = NOW(),
 			<if test="numCopies != null">`num_copies` = #{numCopies}, </if>
 			<if test="type != null">`type` = #{type}, </if>
 			<if test="proIsComplete != null">`pro_is_complete` = #{proIsComplete}, </if>
@@ -292,7 +295,6 @@
 			<if test="proId != null">`pro_id` = #{proId}, </if>
 			<if test="taskId != null">`task_id` = #{taskId}, </if>
 			<if test="created != null">`created` = #{created}, </if>
-			<if test="updated != null">`updated` = #{updated}</if>
 			<if test="useEffectIsCert != null">`use_effect_is_cert` = #{useEffectIsCert}</if>
 			<if test="specilistIsExpertOpinion != null">`specilist_is_expert_opinion` = #{specilistIsExpertOpinion}</if>
 		</set>

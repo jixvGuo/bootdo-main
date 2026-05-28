@@ -249,6 +249,8 @@ function buildScoreTableQueryParams(params, useRatingFilter) {
             qp[k] = (v + "").trim();
         }
     });
+    // 专家打分页（主打分 + 评级）均按项目编号升序
+    qp.orderByProCodeAsc = 'true';
     return qp;
 }
 
@@ -1396,10 +1398,10 @@ function showReviewRecordList(proId, proSubType) {
                 var record = records[i];
                 html += '<div style="border:1px solid #ddd;margin-bottom:10px;padding:10px;border-radius:4px;background:#fff;">';
                 html += '<p><b>形审结果:</b> ' + (record.reviewResult || '无') + '</p>';
-                html += '<p><b>形审时间:</b> ' + (record.created || record.reviewTime || '') + '</p>';
+                html += '<p><b>形审时间:</b> ' + (record.reviewTime || '') + '</p>';
                 html += '<p><b>形审人员:</b> ' + (record.reviewerName || '未知') + '</p>';
                 html += '<p><b>形审评语:</b></p>';
-                html += '<div style="border:1px solid #eee;padding:8px;min-height:80px;background:#f9f9f9;">' + (record.remarks || record.opinionDesc || '暂无评语') + '</div>';
+                html += '<div style="border:1px solid #eee;padding:8px;min-height:80px;background:#f9f9f9;">' + (record.remarks || '暂无评语') + '</div>';
                 html += '</div>';
             }
             html += '</div>';

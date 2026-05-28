@@ -4,6 +4,15 @@
  * - 提交成功：只标记「待刷新」，等关 Tab 回到列表可见后再 refresh + 恢复行位置
  */
 var _surverReviewAutoSaveTimer = null;
+/** 正式提交进行中时跳过自动保存，避免与 submit 并发各插一条 */
+var _surverReviewFormalSubmitting = false;
+
+function cancelSurverReviewAutoSaveTimer() {
+    if (_surverReviewAutoSaveTimer) {
+        clearTimeout(_surverReviewAutoSaveTimer);
+        _surverReviewAutoSaveTimer = null;
+    }
+}
 
 function getSurverReviewProSubTypeFromUrl() {
     var m = (window.location.search || "").match(/[?&]proSubType=([^&]+)/);
@@ -18,6 +27,13 @@ function markSurverProListRefreshDeferred() {
         sessionStorage.setItem("cpe.surverProList.pendingRefresh.v1:" + taskId + ":" + proSubType, "1");
     } catch (e) { /* ignore */ }
     // 原：立即 reloadProList / refresh 列表（形审 Tab 仍在前台时列表 iframe 是隐藏的，滚动恢复会失败并清掉锚点）
+}
+
+function refreshSurverReviewOriginSnapshot() {
+    var rr = ($("input[name=reviewResult]:checked").val() || "") + "";
+    $("#originReviewResult").val(rr);
+    var rm = ($("input[name=remarks]").val() || $("textarea[name=remarks]").val() || "") + "";
+    $("#originRemarks").val(rm);
 }
 
 function postSurverReviewForm(url, options) {
@@ -72,10 +88,15 @@ function scheduleSurverReviewAutoSave() {
 }
 
 function autoSaveSurverReviewDraft() {
+    if (_surverReviewFormalSubmitting) {
+        return;
+    }
     var cfg = window.SURVER_REVIEW_FORM_CFG || {};
-    var id = ($("#id").val() || "") + "";
-    var url = (id.length > 0 && cfg.updateUrl) ? cfg.updateUrl : cfg.saveUrl;
-    postSurverReviewForm(url, {
+    // 统一走 save：后端带 id 时 update，仅需 cpe:surverReview:add
+    // 原：有 id 走 updateUrl（需 xxx:edit，形审人员常无权限 → 未授权且可能重复 insert）
+    // var id = ($("#id").val() || "") + "";
+    // var url = (id.length > 0 && cfg.updateUrl) ? cfg.updateUrl : cfg.saveUrl;
+    postSurverReviewForm(cfg.saveUrl, {
         silent: true,
         async: true,
         onSuccess: function () {

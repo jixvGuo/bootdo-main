@@ -16,6 +16,11 @@
         END)
     </sql>
 
+    <!-- 列表/排序用项目编号：优先 pro_result_code，否则 pro_code -->
+    <sql id="surverProCodeOrderExpr">
+        IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', IFNULL(pro.pro_code, ''), pro.pro_result_code)
+    </sql>
+
     <select id="listProInfo" resultType="com.bootdo.cpe.domain.SurverProjectInfo">
         select pro.id pro_id,
                pro.major,
@@ -248,6 +253,9 @@
             </if>
         </where>
         <choose>
+            <when test="orderByProCodeAsc != null and orderByProCodeAsc.toString().equals('true')">
+                order by (<include refid="surverProCodeOrderExpr"/> + 0) asc, <include refid="surverProCodeOrderExpr"/> asc, pro.id asc
+            </when>
             <when test="sort != null and sort.trim() != ''">
                 order by ${sort} ${order}
             </when>

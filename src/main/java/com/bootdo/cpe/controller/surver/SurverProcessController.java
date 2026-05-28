@@ -31,6 +31,7 @@ import com.bootdo.cpe.service.SurverReviewStandardResultService;
 import com.bootdo.cpe.service.SurverReviewConsultResultService;
 import com.bootdo.cpe.service.SurverReviewSurverResultService;
 import com.bootdo.cpe.utils.PoiWordSurverMainReviewUtils;
+import com.bootdo.cpe.utils.SurverReviewRecordsHelper;
 import com.bootdo.system.domain.UserDO;
 import com.bootdo.system.service.UserService;
 import org.apache.shiro.authz.annotation.Logical;
@@ -452,12 +453,7 @@ public class SurverProcessController extends BaseSurverController {
         if (proId == null) {
             return R.error("缺少项目ID");
         }
-        Map<String, Object> params = new HashMap<>();
-        params.put("proId", proId);
-        params.put("sort", "id");
-        params.put("order", "desc");
-        params.put("offset", 0);
-        params.put("limit", 200);
+        Map<String, Object> params = SurverReviewRecordsHelper.historyQueryParams(proId);
 
         List<?> records;
         if ("design".equals(proSubType)) {
@@ -473,38 +469,16 @@ public class SurverProcessController extends BaseSurverController {
         } else {
             // 未传子类时，兼容汇总全部子类
             List<Object> all = new ArrayList<>();
-            all.addAll((List<?>) surverReviewDesignResultService.list(params));
-            all.addAll((List<?>) surverReviewSoftResultService.list(params));
-            all.addAll((List<?>) surverReviewStandardResultService.list(params));
-            all.addAll((List<?>) surverReviewConsultResultService.list(params));
-            all.addAll((List<?>) surverReviewSurverResultService.list(params));
+            all.addAll(surverReviewDesignResultService.list(params));
+            all.addAll(surverReviewSoftResultService.list(params));
+            all.addAll(surverReviewStandardResultService.list(params));
+            all.addAll(surverReviewConsultResultService.list(params));
+            all.addAll(surverReviewSurverResultService.list(params));
             records = all;
         }
 
-        // 填充形审人员姓名
-        if (records != null) {
-            for (Object obj : records) {
-                if (obj instanceof SurverReviewProBaseInfo) {
-                    SurverReviewProBaseInfo base = (SurverReviewProBaseInfo) obj;
-                    try {
-                        java.lang.reflect.Method getOptUid = obj.getClass().getMethod("getOptUid");
-                        Object uidObj = getOptUid.invoke(obj);
-                        if (uidObj instanceof Integer && (Integer) uidObj > 0) {
-                            UserDO u = userService.get((long) (int) uidObj);
-                            if (u != null) {
-                                String displayName = u.getUsername() != null ? u.getUsername() : u.getName();
-                                base.setReviewerName(displayName != null ? displayName : String.valueOf(uidObj));
-                            } else {
-                                base.setReviewerName(String.valueOf(uidObj));
-                            }
-                        }
-                    } catch (Exception e) {
-                        System.out.println("[DEBUG-reviewerName] error: " + e.getMessage() + ", class=" + obj.getClass().getName());
-                    }
-                }
-            }
-        }
-        return R.ok().put("data", records == null ? Collections.emptyList() : records);
+        List<Map<String, Object>> resultList = SurverReviewRecordsHelper.toDisplayList(records, userService);
+        return R.ok().put("data", resultList);
     }
 
     // ==========================================================================
