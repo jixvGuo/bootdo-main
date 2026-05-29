@@ -657,17 +657,19 @@ function load() {
                             return '<span class="expert-group-name-' + row.proId + '">' + name + '</span>';
                         }
                     },
-                    // Phase B 新增：淘汰状态列（来源 SurverProjectInfo.eliminated，由 4 张子表 CASE 取值）
+                    // Phase B 新增：淘汰状态列（来源 SurverProjectInfo.eliminated + eliminateType）
                     {
                         field: 'eliminated',
                         title: '淘汰状态',
+                        width: 100,
+                        align: 'center',
                         formatter: function (value, row, index) {
-                            if (value == 1 || value === '1') {
-                                return '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span>';
-                            }
-                            // 原：未淘汰与其它非 1 值统一显示为「-」
-                            // return '<span style="color:#999;">-</span>';
-                            return '<span style="color:#999;">未淘汰</span>';
+                            // 原：二值 已淘汰/未淘汰
+                            // if (value == 1 || value === '1') {
+                            //     return '<span style="background:#d9534f;...">已淘汰</span>';
+                            // }
+                            // return '<span style="color:#999;">未淘汰</span>';
+                            return _surverElimStatusHtml(value, row.eliminateType);
                         }
                     },
                     {
@@ -1694,6 +1696,35 @@ var SURVER_SUBTYPE_LABEL = {
 var _surverElimCandidates = [];   // 缓存最新一次候选数据，用于导出
 var _surverElimConfirmed  = [];   // 缓存最新一次已确认数据，用于导出
 
+/** 淘汰状态展示：未淘汰 / 评级淘汰 / 打分淘汰（历史 eliminated=1 且 type 空视为评级淘汰） */
+function _surverElimDisplayKind(eliminated, eliminateType) {
+    if (eliminated == 1 || eliminated === '1') {
+        var t = ((eliminateType || '') + '').trim().toLowerCase();
+        return t === 'score' ? 'score' : 'rating';
+    }
+    return 'none';
+}
+
+function _surverElimStatusHtml(eliminated, eliminateType) {
+    var kind = _surverElimDisplayKind(eliminated, eliminateType);
+    // 列宽与徽章样式在此控制（_surverElimDisplayKind 仅返回 none/rating/score）
+    var badgeStyle = 'display:inline-block;white-space:nowrap;min-width:68px;text-align:center;border-radius:3px;padding:2px 10px;font-size:12px;';
+    if (kind === 'score') {
+        return '<span style="' + badgeStyle + 'background:#c9302c;color:#fff;">打分淘汰</span>';
+    }
+    if (kind === 'rating') {
+        return '<span style="' + badgeStyle + 'background:#d9534f;color:#fff;">评级淘汰</span>';
+    }
+    return '<span style="display:inline-block;white-space:nowrap;color:#999;">未淘汰</span>';
+}
+
+function _surverElimStatusText(eliminated, eliminateType) {
+    var kind = _surverElimDisplayKind(eliminated, eliminateType);
+    if (kind === 'score') return '打分淘汰';
+    if (kind === 'rating') return '评级淘汰';
+    return '未淘汰';
+}
+
 function _surverElimEscape(s) {
     if (s == null) return '';
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1715,6 +1746,10 @@ function openEliminateManage() {
         success: function() {
             // 默认进入候选池 Tab
             loadEliminateCandidates();
+            // 项目类别：选中后立即筛选（原需点「刷新」）
+            $('#surverElimSubTypeFilter').off('change.surverElim').on('change.surverElim', function() {
+                loadEliminateCandidates();
+            });
             // 切换到"已确认"Tab 时再懒加载
             $('#surverElimTabs a[href="#surverElimTabConfirmed"]').off('shown.bs.tab.surverElim').on('shown.bs.tab.surverElim', function() {
                 loadEliminateConfirmed();
@@ -1762,12 +1797,18 @@ function _renderEliminateCandidates(list) {
     for (var i = 0; i < list.length; i++) {
         var it = list[i];
         var subTypeLabel = SURVER_SUBTYPE_LABEL[it.proSubType] || (it.proSubType || '-');
-        var statusHtml = (it.eliminated == 1)
-            ? '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span>'
-            : '<span style="color:#999;">未淘汰</span>';
-        var actionHtml = (it.eliminated == 1)
-            ? '<button class="btn btn-xs btn-default" onclick="onCancelEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">取消淘汰</button>'
-            : '<button class="btn btn-xs btn-danger"  onclick="onConfirmEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">确认淘汰</button>';
+        var statusHtml = _surverElimStatusHtml(it.eliminated, it.eliminateType);
+        // 原：单按钮「确认淘汰」
+        // var actionHtml = (it.eliminated == 1)
+        //     ? '...取消淘汰...'
+        //     : '...确认淘汰...';
+        var actionHtml;
+        if (it.eliminated == 1) {
+            actionHtml = '<button class="btn btn-xs btn-default" onclick="onCancelEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">取消淘汰</button>';
+        } else {
+            actionHtml = '<button class="btn btn-xs btn-danger" style="margin-bottom:3px;" onclick="onConfirmRatingEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">评级淘汰</button>'
+                + ' <button class="btn btn-xs btn-warning" onclick="onConfirmScoreEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">打分淘汰</button>';
+        }
         // 专家名称列 + 专家评级列：从 "张三:A|李四:D" 中提取
         var gradeItems = (it.expertGrades || '').split('|').filter(function(s){ return s; });
         var expertNames = gradeItems.map(function(s) { return s.split(':')[0] || ''; }).filter(function(n){ return n; }).join('、');
@@ -1835,18 +1876,23 @@ function showExpertGradeDetails(proId) {
     });
 }
 
-/** 确认淘汰 - 写子表 eliminated=1 */
-function onConfirmEliminate(proSubType, proId) {
-    layer.confirm('确认将该项目设置为"已淘汰"？', { btn: ['确定', '取消'] }, function(idx) {
+/** 设置/取消淘汰（带 eliminateType：rating | score） */
+function _postSetEliminated(proSubType, proId, eliminated, eliminateType, confirmTitle) {
+    layer.confirm(confirmTitle, { btn: ['确定', '取消'] }, function(idx) {
         layer.close(idx);
+        var payload = { proSubType: proSubType, proId: proId, eliminated: eliminated };
+        if (eliminated === 1 && eliminateType) {
+            payload.eliminateType = eliminateType;
+        }
         $.ajax({
             type: 'POST',
             url: SURVER_ELIM_PREFIX + '/setEliminated',
-            data: { proSubType: proSubType, proId: proId, eliminated: 1 },
+            data: payload,
             success: function(r) {
                 if (r.code === 0) {
-                    layer.msg(r.msg || '已确认淘汰', { icon: 1 });
+                    layer.msg(r.msg || '操作成功', { icon: 1 });
                     loadEliminateCandidates();
+                    try { reLoad(); } catch (e) {}
                 } else {
                     layer.msg(r.msg || '操作失败', { icon: 2 });
                 }
@@ -1856,9 +1902,40 @@ function onConfirmEliminate(proSubType, proId) {
     });
 }
 
+/** 评级淘汰 */
+function onConfirmRatingEliminate(proSubType, proId) {
+    _postSetEliminated(proSubType, proId, 1, 'rating', '确认将该项目的「评级淘汰」？');
+}
+
+/** 打分淘汰 */
+function onConfirmScoreEliminate(proSubType, proId) {
+    _postSetEliminated(proSubType, proId, 1, 'score', '确认将该项目的「打分淘汰」？');
+}
+
+// 原：确认淘汰（无 eliminate_type，保留参考）
+// function onConfirmEliminate(proSubType, proId) {
+//     layer.confirm('确认将该项目设置为"已淘汰"？', { btn: ['确定', '取消'] }, function(idx) {
+//         layer.close(idx);
+//         $.ajax({
+//             type: 'POST',
+//             url: SURVER_ELIM_PREFIX + '/setEliminated',
+//             data: { proSubType: proSubType, proId: proId, eliminated: 1 },
+//             success: function(r) {
+//                 if (r.code === 0) {
+//                     layer.msg(r.msg || '已确认淘汰', { icon: 1 });
+//                     loadEliminateCandidates();
+//                 } else {
+//                     layer.msg(r.msg || '操作失败', { icon: 2 });
+//                 }
+//             },
+//             error: function() { layer.msg('请求失败', { icon: 2 }); }
+//         });
+//     });
+// }
+
 /** 取消淘汰 - 写子表 eliminated=0 */
 function onCancelEliminate(proSubType, proId) {
-    layer.confirm('确认取消该项目的"已淘汰"标记？', { btn: ['确定', '取消'] }, function(idx) {
+    layer.confirm('确认取消该项目的淘汰标记？', { btn: ['确定', '取消'] }, function(idx) {
         layer.close(idx);
         $.ajax({
             type: 'POST',
@@ -1868,6 +1945,7 @@ function onCancelEliminate(proSubType, proId) {
                 if (r.code === 0) {
                     layer.msg(r.msg || '已取消淘汰', { icon: 1 });
                     loadEliminateCandidates();
+                    try { reLoad(); } catch (e) {}
                 } else {
                     layer.msg(r.msg || '操作失败', { icon: 2 });
                 }
@@ -1922,7 +2000,7 @@ function _renderEliminateConfirmed(list) {
             + '<td>' + _surverElimEscape(it.groupName || '-') + '</td>'
             + '<td>' + _surverElimEscape(it.expertGroupName || '-') + '</td>'
             + '<td>' + grades + '</td>'
-            + '<td><span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:12px;">已淘汰</span></td>'
+            + '<td>' + _surverElimStatusHtml(1, it.eliminateType) + '</td>'
             + '<td><button class="btn btn-xs btn-default" onclick="onCancelEliminate(\'' + _surverElimEscape(it.proSubType) + '\',' + it.proId + ')">取消淘汰</button></td>'
             + '</tr>';
     }
@@ -1956,7 +2034,7 @@ function exportEliminateCandidatesExcel() {
                 it.companyName || '',
                 it.gradeA || 0, it.gradeB || 0, it.gradeC || 0, it.gradeD || 0,
                 (it.expertGrades || '').replace(/\|/g, ', '),
-                (it.eliminated == 1) ? '已淘汰' : '未淘汰'
+                _surverElimStatusText(it.eliminated, it.eliminateType)
             ]);
         });
         var ws = XLSX.utils.aoa_to_sheet(aoa);

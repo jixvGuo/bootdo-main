@@ -58,6 +58,20 @@ public interface SurverExpertEliminateDao {
                                   @Param("eliminated") Integer eliminated);
 
     /**
+     * 读取子表当前淘汰状态（eliminated + eliminateType）
+     */
+    Map<String, Object> getEliminateStateBySubType(@Param("proSubType") String proSubType,
+                                                   @Param("proId") Integer proId);
+
+    /**
+     * 设置/取消淘汰并写入 eliminate_type（rating/score；取消时 type 置 null）
+     */
+    int updateEliminatedWithTypeBySubType(@Param("proSubType") String proSubType,
+                                          @Param("proId") Integer proId,
+                                          @Param("eliminated") Integer eliminated,
+                                          @Param("eliminateType") String eliminateType);
+
+    /**
      * 新增：如果子表没有该 proId 的记录，插入一条最小记录（仅 pro_id + eliminated）
      */
     int insertMinimalIfNotExists(@Param("proSubType") String proSubType,

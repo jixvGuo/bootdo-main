@@ -1,5 +1,6 @@
 package com.bootdo.cpe.utils;
 
+import com.bootdo.cpe.domain.SurverEliminateType;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -235,7 +236,9 @@ public final class SurverEliminateExcelExportUtils {
         putCellValue(sheet, rowIdx, COL_TOTAL, styleRow, formatAvgScore(calcEliminateAvgScore(expertUids, p)));
 
         int elim = p.eliminated != null && p.eliminated == 1 ? 1 : 0;
-        putCellValue(sheet, rowIdx, COL_ELIM, styleRow, elim == 1 ? "已淘汰" : "未淘汰");
+        // 原：elim == 1 ? "已淘汰" : "未淘汰"
+        putCellValue(sheet, rowIdx, COL_ELIM, styleRow,
+                SurverEliminateType.displayLabel(elim, p.eliminateType));
 
         for (int e = 0; e < expertUids.size(); e++) {
             putCellValue(sheet, rowIdx, expertCol(e), styleRow,
@@ -581,6 +584,7 @@ public final class SurverEliminateExcelExportUtils {
                 pd.groupName = str(row.get("groupName"));
                 pd.companyName = str(row.get("companyName"));
                 pd.eliminated = toInt(row.get("eliminated"));
+                pd.eliminateType = str(row.get("eliminateType"));
                 return pd;
             });
             if (p.proCode.isEmpty()) {
@@ -735,6 +739,7 @@ public final class SurverEliminateExcelExportUtils {
         String groupName;
         String companyName;
         Integer eliminated;
+        String eliminateType;
         final Map<Long, String> gradeByExpert = new HashMap<>();
     }
 

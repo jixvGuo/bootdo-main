@@ -854,9 +854,22 @@ function _surverScoreGradeBadgeHtml(g) {
         + _surverScoreEsc(gv) + '</span>';
 }
 
-function _surverScoreElimStatusHtml(elim) {
+function _surverScoreElimStatusText(elim, eliminateType) {
     if (elim == 1 || elim === '1') {
-        return '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:11px;">已淘汰</span>';
+        var t = ((eliminateType || '') + '').trim().toLowerCase();
+        return t === 'score' ? '打分淘汰' : '评级淘汰';
+    }
+    return '未淘汰';
+}
+
+function _surverScoreElimStatusHtml(elim, eliminateType) {
+    // 原：二值 已淘汰/未淘汰
+    if (elim == 1 || elim === '1') {
+        var t = ((eliminateType || '') + '').trim().toLowerCase();
+        if (t === 'score') {
+            return '<span style="background:#c9302c;color:#fff;border-radius:3px;padding:2px 8px;font-size:11px;">打分淘汰</span>';
+        }
+        return '<span style="background:#d9534f;color:#fff;border-radius:3px;padding:2px 8px;font-size:11px;">评级淘汰</span>';
     }
     return '<span style="color:#999;">未淘汰</span>';
 }
@@ -902,7 +915,7 @@ function openSurverDownloadElimRemarks() {
                         + '<td>' + _surverScoreEsc(it.expertGroupName || '-') + '</td>'
                         + '<td>' + _surverScoreEsc(it.expertName || '-') + '</td>'
                         + '<td style="text-align:center;">' + _surverScoreGradeBadgeHtml(it.grade) + '</td>'
-                        + '<td style="text-align:center;">' + _surverScoreElimStatusHtml(it.eliminated) + '</td>'
+                        + '<td style="text-align:center;">' + _surverScoreElimStatusHtml(it.eliminated, it.eliminateType) + '</td>'
                         + '<td style="max-width:220px;white-space:pre-wrap;word-break:break-all;">'
                         + _surverScoreEsc(it.remark || '') + '</td>'
                         + '</tr>';
@@ -981,7 +994,7 @@ function exportSurverGroupElimDetailExcel() {
 
         list.forEach(function (it, idx) {
             var st = it.proSubType || '';
-            var elim = (it.eliminated == 1 || it.eliminated === '1') ? '已淘汰' : '未淘汰';
+            var elim = _surverScoreElimStatusText(it.eliminated, it.eliminateType);
             var dr = ws.addRow([
                 idx + 1,
                 SURVER_SCORE_SUBTYPE_LABEL[st] || st || '',

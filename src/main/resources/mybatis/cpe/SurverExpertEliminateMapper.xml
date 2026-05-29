@@ -120,7 +120,14 @@
                 WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
                 WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
                 ELSE 0
-            END AS eliminated
+            END AS eliminated,
+            CASE e.pro_sub_type
+                WHEN 'design'       THEN (SELECT t.eliminate_type FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'software'     THEN (SELECT t.eliminate_type FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'standard'     THEN (SELECT t.eliminate_type FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'contribution' THEN (SELECT t.eliminate_type FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                ELSE NULL
+            END AS eliminateType
         FROM ass_surver_expert_eliminate e
         LEFT JOIN ass_award_enterprise_project p ON p.id = e.pro_id
         LEFT JOIN sys_user su ON su.user_id = p.create_uid
@@ -152,6 +159,77 @@
     <!-- Phase B: 管理员设置/取消"淘汰状态" → 路由到 4 张申报子表的 eliminated 字段 -->
     <!--   注意: pro_sub_type=consulting 不在 Phase A 加字段范围, 调用方需先校验    -->
     <!-- ============================================================== -->
+    <!-- 原：仅更新 eliminated（保留参考）
+    <update id="updateEliminatedBySubType">
+        ...
+    </update>
+    -->
+
+    <select id="getEliminateStateBySubType" resultType="java.util.HashMap">
+        <choose>
+            <when test="proSubType == 'design'">
+                SELECT IFNULL(t.eliminated, 0) AS eliminated, t.eliminate_type AS eliminateType
+                  FROM ass_surver_design_apply_table_info t
+                 WHERE t.pro_id = #{proId}
+                 ORDER BY t.id DESC LIMIT 1
+            </when>
+            <when test="proSubType == 'software'">
+                SELECT IFNULL(t.eliminated, 0) AS eliminated, t.eliminate_type AS eliminateType
+                  FROM ass_surver_soft_apply_table_info t
+                 WHERE t.pro_id = #{proId}
+                 ORDER BY t.id DESC LIMIT 1
+            </when>
+            <when test="proSubType == 'standard'">
+                SELECT IFNULL(t.eliminated, 0) AS eliminated, t.eliminate_type AS eliminateType
+                  FROM ass_surver_standard_apply_table_info t
+                 WHERE t.pro_id = #{proId}
+                 ORDER BY t.id DESC LIMIT 1
+            </when>
+            <when test="proSubType == 'contribution'">
+                SELECT IFNULL(t.eliminated, 0) AS eliminated, t.eliminate_type AS eliminateType
+                  FROM ass_surver_excellent_apply_table_info t
+                 WHERE t.pro_id = #{proId}
+                 ORDER BY t.id DESC LIMIT 1
+            </when>
+            <otherwise>
+                SELECT 0 AS eliminated, NULL AS eliminateType FROM dual WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </select>
+
+    <update id="updateEliminatedWithTypeBySubType">
+        <choose>
+            <when test="proSubType == 'design'">
+                UPDATE ass_surver_design_apply_table_info
+                   SET eliminated = #{eliminated},
+                       eliminate_type = #{eliminateType}
+                 WHERE pro_id = #{proId}
+            </when>
+            <when test="proSubType == 'software'">
+                UPDATE ass_surver_soft_apply_table_info
+                   SET eliminated = #{eliminated},
+                       eliminate_type = #{eliminateType}
+                 WHERE pro_id = #{proId}
+            </when>
+            <when test="proSubType == 'standard'">
+                UPDATE ass_surver_standard_apply_table_info
+                   SET eliminated = #{eliminated},
+                       eliminate_type = #{eliminateType}
+                 WHERE pro_id = #{proId}
+            </when>
+            <when test="proSubType == 'contribution'">
+                UPDATE ass_surver_excellent_apply_table_info
+                   SET eliminated = #{eliminated},
+                       eliminate_type = #{eliminateType}
+                 WHERE pro_id = #{proId}
+            </when>
+            <otherwise>
+                UPDATE ass_surver_expert_eliminate SET id = id WHERE 1 = 0
+            </otherwise>
+        </choose>
+    </update>
+
+    <!-- 兼容旧调用：仅 toggled eliminated，不写 eliminate_type -->
     <update id="updateEliminatedBySubType">
         <choose>
             <when test="proSubType == 'design'">
@@ -206,7 +284,8 @@
             sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
-            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'design' AND e2.deleted = 0) AS expertGrades
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'design' AND e2.deleted = 0) AS expertGrades,
+            t.eliminate_type AS eliminateType
           FROM ass_surver_design_apply_table_info t
           JOIN ass_award_enterprise_project p ON p.id = t.pro_id
           LEFT JOIN sys_user su ON su.user_id = p.create_uid
@@ -218,7 +297,8 @@
             sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
-            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'software' AND e2.deleted = 0) AS expertGrades
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'software' AND e2.deleted = 0) AS expertGrades,
+            t.eliminate_type AS eliminateType
           FROM ass_surver_soft_apply_table_info t
           JOIN ass_award_enterprise_project p ON p.id = t.pro_id
           LEFT JOIN sys_user su ON su.user_id = p.create_uid
@@ -230,7 +310,8 @@
             sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
-            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'standard' AND e2.deleted = 0) AS expertGrades
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'standard' AND e2.deleted = 0) AS expertGrades,
+            t.eliminate_type AS eliminateType
           FROM ass_surver_standard_apply_table_info t
           JOIN ass_award_enterprise_project p ON p.id = t.pro_id
           LEFT JOIN sys_user su ON su.user_id = p.create_uid
@@ -242,7 +323,8 @@
             sd.name AS companyName, (SELECT qg.name FROM ass_qc_group qg WHERE qg.groupid = p.group_id AND qg.taskid = p.publish_task_id LIMIT 1) AS groupName, p.major AS major,
             p.declare_account AS declareAccount,
             (SELECT GROUP_CONCAT(DISTINCT eg.name ORDER BY eg.name SEPARATOR ', ') FROM ass_award_pro_expert_group peg JOIN ass_award_expert_group eg ON eg.groupid = peg.groupid AND eg.taskid = peg.taskid WHERE peg.proid = p.id) AS expertGroupName,
-            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'contribution' AND e2.deleted = 0) AS expertGrades
+            (SELECT GROUP_CONCAT(CONCAT_WS(':', IFNULL(e2.expert_name,''), IFNULL(e2.grade,'-')) ORDER BY e2.expert_uid SEPARATOR '|') FROM ass_surver_expert_eliminate e2 WHERE e2.task_id = #{taskId} AND e2.pro_id = p.id AND e2.pro_sub_type = 'contribution' AND e2.deleted = 0) AS expertGrades,
+            t.eliminate_type AS eliminateType
           FROM ass_surver_excellent_apply_table_info t
           JOIN ass_award_enterprise_project p ON p.id = t.pro_id
           LEFT JOIN sys_user su ON su.user_id = p.create_uid
@@ -395,7 +477,14 @@
                 WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
                 WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
                 ELSE 0
-            END AS eliminated
+            END AS eliminated,
+            CASE e.pro_sub_type
+                WHEN 'design'       THEN (SELECT t.eliminate_type FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'software'     THEN (SELECT t.eliminate_type FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'standard'     THEN (SELECT t.eliminate_type FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'contribution' THEN (SELECT t.eliminate_type FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                ELSE NULL
+            END AS eliminateType
         FROM ass_surver_expert_eliminate e
         LEFT JOIN ass_award_enterprise_project p ON p.id = e.pro_id
         LEFT JOIN sys_user su ON su.user_id = p.create_uid
@@ -450,7 +539,14 @@
                 WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
                 WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
                 ELSE 0
-            END AS eliminated
+            END AS eliminated,
+            CASE e.pro_sub_type
+                WHEN 'design'       THEN (SELECT t.eliminate_type FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'software'     THEN (SELECT t.eliminate_type FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'standard'     THEN (SELECT t.eliminate_type FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'contribution' THEN (SELECT t.eliminate_type FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = e.pro_id ORDER BY t.id DESC LIMIT 1)
+                ELSE NULL
+            END AS eliminateType
         FROM ass_surver_expert_eliminate e
         INNER JOIN ass_award_enterprise_project p ON p.id = e.pro_id AND p.publish_task_id = #{taskId} AND p.pro_type = 'surver_pro'
         LEFT JOIN sys_user u ON u.user_id = e.expert_uid
@@ -502,7 +598,14 @@
                 WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = av.pro_id ORDER BY t.id DESC LIMIT 1)
                 WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = av.pro_id ORDER BY t.id DESC LIMIT 1)
                 ELSE 0
-            END AS eliminated
+            END AS eliminated,
+            CASE p.pro_sub_type
+                WHEN 'design'       THEN (SELECT t.eliminate_type FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = av.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'software'     THEN (SELECT t.eliminate_type FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = av.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'standard'     THEN (SELECT t.eliminate_type FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = av.pro_id ORDER BY t.id DESC LIMIT 1)
+                WHEN 'contribution' THEN (SELECT t.eliminate_type FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = av.pro_id ORDER BY t.id DESC LIMIT 1)
+                ELSE NULL
+            END AS eliminateType
         FROM ass_surver_expert_avoidance av
         INNER JOIN ass_award_enterprise_project p ON p.id = av.pro_id AND p.publish_task_id = #{taskId} AND p.pro_type = 'surver_pro'
         LEFT JOIN sys_user u ON u.user_id = av.expert_user_id

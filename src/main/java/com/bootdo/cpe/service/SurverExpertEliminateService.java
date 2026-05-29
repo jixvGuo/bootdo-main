@@ -39,6 +39,10 @@ public interface SurverExpertEliminateService {
 
     int updateEliminatedBySubType(String proSubType, Integer proId, Integer eliminated);
 
+    Map<String, Object> getEliminateStateBySubType(String proSubType, Integer proId);
+
+    int updateEliminatedWithTypeBySubType(String proSubType, Integer proId, Integer eliminated, String eliminateType);
+
     int insertMinimalIfNotExists(String proSubType, Integer proId, Integer eliminated);
 
     java.util.List<java.util.Map<String, Object>> listConfirmedEliminated(String taskId);

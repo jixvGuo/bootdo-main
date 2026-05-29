@@ -168,30 +168,21 @@
 								<input type="text" class="form-control input-sm" id="filterExpertGroupName" placeholder="支持模糊匹配">
 							</div>
 							<div class="col-sm-3">
-								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">淘汰状态</label>
-								<select class="form-control input-sm" id="filterEliminated">
+								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;white-space:nowrap;">淘汰状态</label>
+								<select class="form-control input-sm" id="filterEliminated" style="min-width:128px;">
 									<option value="">全部</option>
 									<option value="0">未淘汰</option>
+									<!-- 原：二值已淘汰
 									<option value="1">已淘汰</option>
+									-->
+									<option value="rating">评级淘汰</option>
+									<option value="score">打分淘汰</option>
 								</select>
 							</div>
 							<div class="col-sm-3">
 								<label style="font-weight:normal;font-size:12px;margin-bottom:2px;">状态</label>
 								<select class="form-control input-sm" id="filterProStat">
 									<option value="">全部</option>
-									<!-- 原：按 pro_stat 单值筛选，与列表「状态」列(applyStat)展示不一致
-									<option value="check">审核中</option>
-									<option value="to_validate">待审核</option>
-									<option value="to_assign_experts">分派专家</option>
-									<option value="experts_score">专家打分</option>
-									<option value="score">专家打分(科技)</option>
-									<option value="partake_award">参评</option>
-									<option value="no_award">不评</option>
-									<option value="delayed_award">缓评</option>
-									<option value="reject">已驳回</option>
-									<option value="improve_partake">完善后参评</option>
-									<option value="eliminated">已淘汰</option>
-									-->
 									<!-- 与列表「状态」列一致：未提交=pro_stat 为空；审核中=check/to_validate/score/experts_score（initApplyStat 展示为审核中） -->
 									<option value="__NOT_SUBMITTED__">未提交</option>
 									<option value="__CHECKING__">审核中</option>
@@ -351,7 +342,7 @@
 						th:title="${isSurverGroupContact && !isAssociationLeader} ? '仅导出您绑定的专家组范围内的专家评审汇总（非全任务）' : '导出当前任务专家评审汇总'">
 					<i class="fa fa-file-excel-o" ></i> 导出确认淘汰名单
 				</button>
-				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()" disabled>
+				<button class="btn btn-warning btn-sm" style="margin-right: 5px" onclick="triggerImportEliminateExcel()">
 					<i class="fa fa-upload"></i> 导入确认淘汰名单
 				</button>
 				<!-- 原file input已移至弹窗内部，此处保留注释
@@ -376,8 +367,8 @@
 							<th style="width:120px;">专家分组</th>
 							<th style="width:120px;">专家名称</th>
 							<th style="width:100px;">专家评级</th>
-							<th style="width:80px;">淘汰状态</th>
-							<th style="width:80px;">操作</th>
+							<th style="width:90px;">淘汰状态</th>
+							<th style="width:90px;">操作</th>
 						</tr>
 					</thead>
 					<tbody id="surverElimCandidatesBody">
@@ -394,7 +385,7 @@
 <!-- <script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=2.4"></script> -->
 <!-- 新增专家分组联动后，提升版本号触发浏览器刷新缓存 -->
 <!-- Phase B 升级：新增"淘汰状态"列 + 淘汰管理弹窗逻辑 → v=2.6 -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=5.1"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surverProList.js?v=5.7"></script>
 <script>
 
     function reloadData() {

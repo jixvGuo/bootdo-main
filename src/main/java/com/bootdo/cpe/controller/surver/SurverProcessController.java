@@ -17,6 +17,7 @@ import com.bootdo.common.utils.*;
 import com.bootdo.cpe.domain.EnumProjectType;
 import com.bootdo.cpe.domain.ExpertGroupDO;
 import com.bootdo.cpe.domain.QcReviewResultRecordDO;
+import com.bootdo.cpe.domain.SurverEliminateType;
 import com.bootdo.cpe.domain.SurverProjectInfo;
 import com.bootdo.cpe.domain.SurverReviewProBaseInfo;
 import com.bootdo.cpe.domain.science_process.ScienceAssignCountInfo;
@@ -1048,6 +1049,7 @@ public class SurverProcessController extends BaseSurverController {
         String proSubType = params.get("proSubType") != null ? params.get("proSubType").toString() : "";
         String proIdStr   = params.get("proId")      != null ? params.get("proId").toString()      : "";
         String eliminatedStr = params.get("eliminated") != null ? params.get("eliminated").toString() : "";
+        String eliminateTypeParam = params.get("eliminateType") != null ? params.get("eliminateType").toString().trim() : "";
         if (StringUtils.isBlank(proSubType) || StringUtils.isBlank(proIdStr) || StringUtils.isBlank(eliminatedStr)) {
             return R.error("缺少必填参数 proSubType / proId / eliminated");
         }
@@ -1072,11 +1074,60 @@ public class SurverProcessController extends BaseSurverController {
                 return R.error("无权操作：该项目不在您绑定的专家组范围内");
             }
         }
-        // 先确保子表存在记录（以默认值0插入，保证后续 UPDATE 的返回值能准确反映是否发生变化）
+
+        // ===== 原逻辑（仅 eliminated 0/1，无 eliminate_type）保留参考 =====
+        // surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, 0);
+        // surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
+        // return R.ok(eliminated == 1 ? "已确认淘汰" : "已取消淘汰");
+        // ===== 原逻辑 END =====
+
         surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, 0);
-        // 再更新 eliminated 字段（SQL 含 AND eliminated != #{eliminated}，值相同时 rows=0 也属正常）
-        surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
-        return R.ok(eliminated == 1 ? "已确认淘汰" : "已取消淘汰");
+        Map<String, Object> currentState = surverExpertEliminateService.getEliminateStateBySubType(proSubType, proId);
+        int currentEliminated = 0;
+        String currentType = null;
+        if (currentState != null) {
+            Object elimObj = currentState.get("eliminated");
+            if (elimObj instanceof Number) {
+                currentEliminated = ((Number) elimObj).intValue();
+            } else if (elimObj != null) {
+                try {
+                    currentEliminated = Integer.parseInt(elimObj.toString());
+                } catch (NumberFormatException ignored) {
+                    currentEliminated = 0;
+                }
+            }
+            Object typeObj = currentState.get("eliminateType");
+            if (typeObj != null) {
+                currentType = typeObj.toString();
+            }
+        }
+
+        if (eliminated == 0) {
+            if (currentEliminated != 1) {
+                return R.ok("当前未淘汰，无需取消");
+            }
+            surverExpertEliminateService.updateEliminatedWithTypeBySubType(proSubType, proId, 0, null);
+            return R.ok("已取消淘汰");
+        }
+
+        // eliminated == 1：须指定 rating / score
+        if (StringUtils.isBlank(eliminateTypeParam)) {
+            eliminateTypeParam = SurverEliminateType.RATING;
+        }
+        if (!SurverEliminateType.isValidType(eliminateTypeParam)) {
+            return R.error("eliminateType 仅允许 rating（评级淘汰）或 score（打分淘汰）");
+        }
+        if (currentEliminated == 1) {
+            String display = SurverEliminateType.displayLabel(1, currentType);
+            if (SurverEliminateType.isValidType(eliminateTypeParam)
+                    && eliminateTypeParam.equalsIgnoreCase(SurverEliminateType.resolveDisplayType(1, currentType))) {
+                return R.ok("该项目已是「" + display + "」");
+            }
+            return R.error("该项目已处于「" + display + "」，请先取消后再设置另一种淘汰");
+        }
+        surverExpertEliminateService.updateEliminatedWithTypeBySubType(proSubType, proId, 1, eliminateTypeParam.toLowerCase());
+        String msg = SurverEliminateType.isScore(eliminateTypeParam) ? "已确认打分淘汰" : "已确认评级淘汰";
+        return R.ok(msg);
     }
 
     /**

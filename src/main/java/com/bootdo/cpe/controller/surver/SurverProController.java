@@ -524,7 +524,7 @@ public class SurverProController extends BaseSurverController {
     /**
      * 导入"确认淘汰名单"Excel
      * 通过 proID 列（B 列, index=1）识别项目，通过「淘汰状态」列（O 列, index=14；兼容旧版 K 列 index=10）更新 eliminated
-     * 淘汰状态合法值：已淘汰(→1) / 未淘汰(→0)
+     * 淘汰状态合法值：未淘汰(→0) / 评级淘汰(→1,rating) / 打分淘汰(→1,score)；兼容旧值「已淘汰」视为评级淘汰
      */
     @ResponseBody
     @RequestMapping("/importEliminateExcel")
@@ -591,18 +591,33 @@ public class SurverProController extends BaseSurverController {
                 try { proId = Integer.parseInt(proIdStr); } catch (NumberFormatException e) {
                     errors.add("第" + (r + 1) + "行 proid 非整数: " + proIdStr); continue;
                 }
-                if (!"已淘汰".equals(statusStr) && !"未淘汰".equals(statusStr)) {
-                    errors.add("第" + (r + 1) + "行淘汰状态值非法(仅允许'已淘汰'或'未淘汰'): " + statusStr); continue;
+                // 原：仅 已淘汰 / 未淘汰
+                // if (!"已淘汰".equals(statusStr) && !"未淘汰".equals(statusStr)) {
+                //     errors.add("第" + (r + 1) + "行淘汰状态值非法(仅允许'已淘汰'或'未淘汰'): " + statusStr); continue;
+                // }
+                int eliminated;
+                String eliminateType = null;
+                if ("未淘汰".equals(statusStr)) {
+                    eliminated = 0;
+                } else if ("已淘汰".equals(statusStr) || "评级淘汰".equals(statusStr)) {
+                    eliminated = 1;
+                    eliminateType = SurverEliminateType.RATING;
+                } else if ("打分淘汰".equals(statusStr)) {
+                    eliminated = 1;
+                    eliminateType = SurverEliminateType.SCORE;
+                } else {
+                    errors.add("第" + (r + 1) + "行淘汰状态值非法(允许'未淘汰'/'评级淘汰'/'打分淘汰'，兼容'已淘汰'): " + statusStr);
+                    continue;
                 }
 
                 String proSubType = proSubTypeMap.get(proId);
                 if (proSubType == null) { errors.add("第" + (r + 1) + "行 proid=" + proId + " 未找到对应项目"); continue; }
 
-                int eliminated = "已淘汰".equals(statusStr) ? 1 : 0;
-                // 始终以默认值0新建记录（若已存在则不插入），确保 updateEliminatedBySubType 的
-                // 返回值准确反映"状态是否真正发生变化"，避免把"新建记录但值未变"误计为更新
+                // int eliminated = "已淘汰".equals(statusStr) ? 1 : 0;
+                // 始终以默认值0新建记录（若已存在则不插入），确保 update 返回值准确反映"状态是否真正发生变化"
                 surverExpertEliminateService.insertMinimalIfNotExists(proSubType, proId, 0);
-                int updated  = surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
+                // int updated  = surverExpertEliminateService.updateEliminatedBySubType(proSubType, proId, eliminated);
+                int updated = surverExpertEliminateService.updateEliminatedWithTypeBySubType(proSubType, proId, eliminated, eliminateType);
                 if (updated > 0) successCount++; else noChangeCount++;
             }
             wb.close();

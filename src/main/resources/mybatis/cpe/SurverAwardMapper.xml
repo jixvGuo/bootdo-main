@@ -21,6 +21,26 @@
         IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', IFNULL(pro.pro_code, ''), pro.pro_result_code)
     </sql>
 
+    <!-- 4 张子表 eliminated / eliminate_type（与列表列、筛选一致） -->
+    <sql id="surverEliminatedExpr">
+        IFNULL((CASE pro.pro_sub_type
+            WHEN 'design'       THEN (SELECT IFNULL(t.eliminated, 0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            WHEN 'software'     THEN (SELECT IFNULL(t.eliminated, 0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            WHEN 'standard'     THEN (SELECT IFNULL(t.eliminated, 0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            WHEN 'contribution' THEN (SELECT IFNULL(t.eliminated, 0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            ELSE 0
+        END), 0)
+    </sql>
+    <sql id="surverEliminateTypeExpr">
+        (CASE pro.pro_sub_type
+            WHEN 'design'       THEN (SELECT t.eliminate_type FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            WHEN 'software'     THEN (SELECT t.eliminate_type FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            WHEN 'standard'     THEN (SELECT t.eliminate_type FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            WHEN 'contribution' THEN (SELECT t.eliminate_type FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+            ELSE NULL
+        END)
+    </sql>
+
     <select id="listProInfo" resultType="com.bootdo.cpe.domain.SurverProjectInfo">
         select pro.id pro_id,
                pro.major,
@@ -76,6 +96,7 @@
                    else ''
                end memberList,
                <!-- Phase B: 管理员淘汰标记；IFNULL 包裹 CASE：无申报子表行时内层标量子查询为 NULL，与筛选条件一致 -->
+               <!-- 原：仅 eliminated
                ifnull((case pro.pro_sub_type
                    when 'design'       then (select ifnull(t.eliminated,0) from ass_surver_design_apply_table_info    t where t.pro_id = pro.id order by t.id desc limit 1)
                    when 'software'     then (select ifnull(t.eliminated,0) from ass_surver_soft_apply_table_info      t where t.pro_id = pro.id order by t.id desc limit 1)
@@ -83,6 +104,9 @@
                    when 'contribution' then (select ifnull(t.eliminated,0) from ass_surver_excellent_apply_table_info t where t.pro_id = pro.id order by t.id desc limit 1)
                    else 0
                end), 0) eliminated,
+               -->
+               <include refid="surverEliminatedExpr"/> eliminated,
+               <include refid="surverEliminateTypeExpr"/> eliminateType,
                <!-- 新增：专家分组名称（通过 ass_award_pro_expert_group + ass_award_expert_group 关联查询） -->
                (select egn.name from ass_award_pro_expert_group pegn
                 join ass_award_expert_group egn on egn.groupid = pegn.groupid and egn.taskid = pegn.taskid
@@ -191,27 +215,32 @@
                     WHERE peg2.proid = pro.id AND eg2.name LIKE concat('%', #{filterExpertGroupName}, '%')
                 )
             </if>
-            <!-- 淘汰筛选：未淘汰 =「非已确认淘汰」(IFNULL 与列表列一致——无申报子表行时标量子查询为 NULL，原来用 =0 会把这些行全过滤掉) -->
+            <!-- 淘汰筛选：未淘汰 / 评级淘汰 / 打分淘汰（兼容旧值 filterEliminated=1 表示任意已淘汰） -->
+            <!-- 原：仅 0/1 二值
             <if test="filterEliminated != null and (filterEliminated == '0' or filterEliminated == 0 or filterEliminated == '1' or filterEliminated == 1)">
+                ...
+            </if>
+            -->
+            <if test="filterEliminated != null and filterEliminated != ''">
                 <choose>
-                    <when test="filterEliminated == '1' or filterEliminated == 1">
-                        AND IFNULL((CASE pro.pro_sub_type
-                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            ELSE 0
-                        END), 0) = 1
+                    <when test="filterEliminated == '0' or filterEliminated == 0">
+                        AND <include refid="surverEliminatedExpr"/> &lt;&gt; 1
                     </when>
-                    <otherwise>
-                        AND IFNULL((CASE pro.pro_sub_type
-                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            ELSE 0
-                        END), 0) &lt;&gt; 1
-                    </otherwise>
+                    <when test="filterEliminated == '1' or filterEliminated == 1">
+                        AND <include refid="surverEliminatedExpr"/> = 1
+                    </when>
+                    <when test="filterEliminated == 'rating'">
+                        AND <include refid="surverEliminatedExpr"/> = 1
+                        AND (
+                            <include refid="surverEliminateTypeExpr"/> = 'rating'
+                            OR <include refid="surverEliminateTypeExpr"/> IS NULL
+                            OR TRIM(IFNULL(<include refid="surverEliminateTypeExpr"/>, '')) = ''
+                        )
+                    </when>
+                    <when test="filterEliminated == 'score'">
+                        AND <include refid="surverEliminatedExpr"/> = 1
+                        AND <include refid="surverEliminateTypeExpr"/> = 'score'
+                    </when>
                 </choose>
             </if>
             <if test="filterProStat != null and filterProStat != ''">
@@ -383,27 +412,32 @@
                     WHERE peg2.proid = pro.id AND eg2.name LIKE concat('%', #{filterExpertGroupName}, '%')
                 )
             </if>
-            <!-- 淘汰筛选：未淘汰 =「非已确认淘汰」(IFNULL 与列表列一致——无申报子表行时标量子查询为 NULL，原来用 =0 会把这些行全过滤掉) -->
+            <!-- 淘汰筛选：未淘汰 / 评级淘汰 / 打分淘汰（兼容旧值 filterEliminated=1 表示任意已淘汰） -->
+            <!-- 原：仅 0/1 二值
             <if test="filterEliminated != null and (filterEliminated == '0' or filterEliminated == 0 or filterEliminated == '1' or filterEliminated == 1)">
+                ...
+            </if>
+            -->
+            <if test="filterEliminated != null and filterEliminated != ''">
                 <choose>
-                    <when test="filterEliminated == '1' or filterEliminated == 1">
-                        AND IFNULL((CASE pro.pro_sub_type
-                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            ELSE 0
-                        END), 0) = 1
+                    <when test="filterEliminated == '0' or filterEliminated == 0">
+                        AND <include refid="surverEliminatedExpr"/> &lt;&gt; 1
                     </when>
-                    <otherwise>
-                        AND IFNULL((CASE pro.pro_sub_type
-                            WHEN 'design'       THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_design_apply_table_info    t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'software'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_soft_apply_table_info      t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'standard'     THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_standard_apply_table_info  t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            WHEN 'contribution' THEN (SELECT ifnull(t.eliminated,0) FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
-                            ELSE 0
-                        END), 0) &lt;&gt; 1
-                    </otherwise>
+                    <when test="filterEliminated == '1' or filterEliminated == 1">
+                        AND <include refid="surverEliminatedExpr"/> = 1
+                    </when>
+                    <when test="filterEliminated == 'rating'">
+                        AND <include refid="surverEliminatedExpr"/> = 1
+                        AND (
+                            <include refid="surverEliminateTypeExpr"/> = 'rating'
+                            OR <include refid="surverEliminateTypeExpr"/> IS NULL
+                            OR TRIM(IFNULL(<include refid="surverEliminateTypeExpr"/>, '')) = ''
+                        )
+                    </when>
+                    <when test="filterEliminated == 'score'">
+                        AND <include refid="surverEliminatedExpr"/> = 1
+                        AND <include refid="surverEliminateTypeExpr"/> = 'score'
+                    </when>
                 </choose>
             </if>
             <if test="filterProStat != null and filterProStat != ''">

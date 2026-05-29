@@ -71,6 +71,16 @@ public class SurverExpertEliminateServiceImpl implements SurverExpertEliminateSe
     }
 
     @Override
+    public Map<String, Object> getEliminateStateBySubType(String proSubType, Integer proId) {
+        return dao.getEliminateStateBySubType(proSubType, proId);
+    }
+
+    @Override
+    public int updateEliminatedWithTypeBySubType(String proSubType, Integer proId, Integer eliminated, String eliminateType) {
+        return dao.updateEliminatedWithTypeBySubType(proSubType, proId, eliminated, eliminateType);
+    }
+
+    @Override
     public int insertMinimalIfNotExists(String proSubType, Integer proId, Integer eliminated) {
         return dao.insertMinimalIfNotExists(proSubType, proId, eliminated);
     }

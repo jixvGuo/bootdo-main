@@ -78,6 +78,11 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
     private Integer eliminated;
 
     /**
+     * 淘汰类型: rating=评级淘汰, score=打分淘汰（eliminated=1 时有效；历史空值按 rating 展示）
+     */
+    private String eliminateType;
+
+    /**
      * 新增：专家分组名称（来自 ass_award_pro_expert_group + ass_award_expert_group）
      */
     private String expertGroupName;
@@ -109,6 +114,14 @@ public class SurverProjectInfo extends QcBaseProjectInfoDO {
 
     public void setEliminated(Integer eliminated) {
         this.eliminated = eliminated;
+    }
+
+    public String getEliminateType() {
+        return eliminateType;
+    }
+
+    public void setEliminateType(String eliminateType) {
+        this.eliminateType = eliminateType;
     }
 
 
