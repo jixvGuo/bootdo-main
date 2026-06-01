@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.bootdo.cpe.dao.SurverExpertScoringDao">
+
+    <resultMap id="SurverExpertScoringMap" type="com.bootdo.cpe.domain.SurverExpertScoringDO">
+        <id property="id" column="id"/>
+        <result property="taskId" column="task_id"/>
+        <result property="proId" column="pro_id"/>
+        <result property="proSubType" column="pro_sub_type"/>
+        <result property="expertUid" column="expert_uid"/>
+        <result property="technicalLevel" column="technical_level"/>
+        <result property="technicalDifficulty" column="technical_difficulty"/>
+        <result property="technicalInnovation" column="technical_innovation"/>
+        <result property="economicBenefit" column="economic_benefit"/>
+        <result property="materialQuality" column="material_quality"/>
+        <result property="overallTechnicalLevel" column="overall_technical_level"/>
+        <result property="difficultyInnovation" column="difficulty_innovation"/>
+        <result property="digitalDesignLevel" column="digital_design_level"/>
+        <result property="environmentSafety" column="environment_safety"/>
+        <result property="designQuality" column="design_quality"/>
+        <result property="energySaving" column="energy_saving"/>
+        <result property="greenConstruction" column="green_construction"/>
+        <result property="promotability" column="promotability"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="opinionGrade" column="opinion_grade"/>
+        <result property="opinionText" column="opinion_text"/>
+        <result property="confirmed" column="confirmed"/>
+        <result property="confirmedAt" column="confirmed_at"/>
+        <result property="created" column="created"/>
+        <result property="updated" column="updated"/>
+        <result property="deleted" column="deleted"/>
+    </resultMap>
+
+    <select id="get" resultMap="SurverExpertScoringMap">
+        SELECT * FROM ass_surver_expert_scoring WHERE id = #{id} AND deleted = 0
+    </select>
+
+    <select id="getByTaskProExpert" resultMap="SurverExpertScoringMap">
+        SELECT * FROM ass_surver_expert_scoring
+        WHERE task_id = #{taskId} AND pro_id = #{proId} AND expert_uid = #{expertUid} AND deleted = 0
+    </select>
+
+    <select id="list" resultMap="SurverExpertScoringMap">
+        SELECT * FROM ass_surver_expert_scoring
+        <where>
+            deleted = 0
+            <if test="taskId != null and taskId != ''">
+                AND task_id = #{taskId}
+            </if>
+            <if test="expertUid != null">
+                AND expert_uid = #{expertUid}
+            </if>
+            <if test="proSubType != null and proSubType != ''">
+                AND pro_sub_type = #{proSubType}
+            </if>
+            <if test="confirmed != null">
+                AND confirmed = #{confirmed}
+            </if>
+        </where>
+        ORDER BY created DESC
+    </select>
+
+    <select id="count" resultType="int">
+        SELECT COUNT(*) FROM ass_surver_expert_scoring
+        <where>
+            deleted = 0
+            <if test="taskId != null and taskId != ''">
+                AND task_id = #{taskId}
+            </if>
+            <if test="expertUid != null">
+                AND expert_uid = #{expertUid}
+            </if>
+            <if test="proSubType != null and proSubType != ''">
+                AND pro_sub_type = #{proSubType}
+            </if>
+        </where>
+    </select>
+
+    <insert id="save" parameterType="com.bootdo.cpe.domain.SurverExpertScoringDO" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ass_surver_expert_scoring (
+            task_id, pro_id, pro_sub_type, expert_uid,
+            technical_level, technical_difficulty, technical_innovation, economic_benefit, material_quality,
+            overall_technical_level, difficulty_innovation, digital_design_level, environment_safety,
+            design_quality, energy_saving, green_construction,
+            promotability,
+            total_score, opinion_grade, opinion_text,
+            confirmed, confirmed_at, created, deleted
+        ) VALUES (
+            #{taskId}, #{proId}, #{proSubType}, #{expertUid},
+            #{technicalLevel}, #{technicalDifficulty}, #{technicalInnovation}, #{economicBenefit}, #{materialQuality},
+            #{overallTechnicalLevel}, #{difficultyInnovation}, #{digitalDesignLevel}, #{environmentSafety},
+            #{designQuality}, #{energySaving}, #{greenConstruction},
+            #{promotability},
+            #{totalScore}, #{opinionGrade}, #{opinionText},
+            0, NULL, NOW(), 0
+        )
+    </insert>
+
+    <update id="update" parameterType="com.bootdo.cpe.domain.SurverExpertScoringDO">
+        UPDATE ass_surver_expert_scoring SET
+            technical_level = #{technicalLevel},
+            technical_difficulty = #{technicalDifficulty},
+            technical_innovation = #{technicalInnovation},
+            economic_benefit = #{economicBenefit},
+            material_quality = #{materialQuality},
+            overall_technical_level = #{overallTechnicalLevel},
+            difficulty_innovation = #{difficultyInnovation},
+            digital_design_level = #{digitalDesignLevel},
+            environment_safety = #{environmentSafety},
+            design_quality = #{designQuality},
+            energy_saving = #{energySaving},
+            green_construction = #{greenConstruction},
+            promotability = #{promotability},
+            total_score = #{totalScore},
+            opinion_grade = #{opinionGrade},
+            opinion_text = #{opinionText},
+            updated = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="remove">
+        UPDATE ass_surver_expert_scoring SET deleted = 1, updated = NOW() WHERE id = #{id}
+    </update>
+
+    <update id="batchRemove">
+        UPDATE ass_surver_expert_scoring SET deleted = 1, updated = NOW() WHERE id IN
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+    <update id="confirmScoring">
+        UPDATE ass_surver_expert_scoring
+        SET confirmed = 1, confirmed_at = NOW(), updated = NOW()
+        WHERE task_id = #{taskId} AND expert_uid = #{expertUid} AND deleted = 0
+    </update>
+
+    <select id="checkConfirmed" resultType="int">
+        SELECT COUNT(*) FROM ass_surver_expert_scoring
+        WHERE task_id = #{taskId} AND expert_uid = #{expertUid} AND confirmed = 1 AND deleted = 0
+    </select>
+
+    <update id="resetConfirmStatus">
+        UPDATE ass_surver_expert_scoring
+        SET confirmed = 0, confirmed_at = NULL, updated = NOW()
+        WHERE task_id = #{taskId} AND expert_uid = #{expertUid} AND deleted = 0
+    </update>
+
+    <!-- 导出分数查询：获取项目+专家打分+专家分组信息 -->
+    <select id="listForExport" resultType="java.util.Map">
+        SELECT
+            pro.id AS proId,
+            IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) AS proCode,
+            pro.declare_account AS declareAccount,
+            pro.chengguo AS topicName,
+            pro.pro_sub_type AS proSubType,
+            pro.pro_group_name AS groupName,
+            (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = pro.create_uid LIMIT 1) AS companyName,
+            es.expert_uid AS expertUid,
+            (SELECT su.name FROM sys_user su WHERE su.user_id = es.expert_uid LIMIT 1) AS expertName,
+            es.total_score AS totalScore,
+            es.opinion_grade AS opinionGrade,
+            es.opinion_text AS opinionText,
+            es.technical_level AS technicalLevel,
+            es.technical_difficulty AS technicalDifficulty,
+            es.technical_innovation AS technicalInnovation,
+            es.economic_benefit AS economicBenefit,
+            es.material_quality AS materialQuality,
+            es.overall_technical_level AS overallTechnicalLevel,
+            es.difficulty_innovation AS difficultyInnovation,
+            es.digital_design_level AS digitalDesignLevel,
+            es.environment_safety AS environmentSafety,
+            es.design_quality AS designQuality,
+            es.energy_saving AS energySaving,
+            es.green_construction AS greenConstruction,
+            es.promotability AS promotability,
+            eg.name AS expertGroupName
+        FROM ass_surver_expert_scoring es
+        JOIN ass_award_enterprise_project pro ON es.pro_id = pro.id
+        LEFT JOIN add_special_info si ON si.user_id = es.expert_uid AND si.pro_type = 'surver_pro_group' AND si.deleted = 0
+        LEFT JOIN ass_award_expert_group eg ON eg.name = si.group_name AND eg.taskid = es.task_id
+        WHERE es.task_id = #{taskId}
+          AND es.deleted = 0
+          AND pro.pro_type = 'surver_pro'
+          <if test="proSubType != null and proSubType != ''">
+              AND pro.pro_sub_type = #{proSubType}
+          </if>
+          <if test="groupName != null and groupName != ''">
+              AND pro.pro_group_name = #{groupName}
+          </if>
+          <if test="eliminated != null and eliminated == true">
+              AND CASE pro.pro_sub_type
+                  WHEN 'contribution' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  WHEN 'design' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_design_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  WHEN 'software' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_soft_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  WHEN 'standard' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_standard_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  ELSE ''
+              END = 'rating'
+          </if>
+          <if test="eliminated != null and eliminated == false">
+              AND CASE pro.pro_sub_type
+                  WHEN 'contribution' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_excellent_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  WHEN 'design' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_design_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  WHEN 'software' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_soft_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  WHEN 'standard' THEN (SELECT IFNULL(t.eliminate_type, '') FROM ass_surver_standard_apply_table_info t WHERE t.pro_id = pro.id ORDER BY t.id DESC LIMIT 1)
+                  ELSE ''
+              END != 'rating'
+          </if>
+        ORDER BY pro.pro_group_name, pro.pro_code, es.expert_uid
+    </select>
+
+</mapper>

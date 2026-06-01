@@ -87,6 +87,7 @@ public class AwardEnterpriseProjectServiceImpl implements AwardEnterpriseProject
      * @param taskId
      * @param uid
      * @param projectType
+     *
      * @return
      */
     @Override
@@ -480,5 +481,15 @@ public class AwardEnterpriseProjectServiceImpl implements AwardEnterpriseProject
     @Override
     public int countProByGroupId(Map<String, Object> params) {
         return projectDao.countProByGroupId(params);
+    }
+
+    @Override
+    public List<Map<String, Object>> listSurverProjects(Map<String, Object> params) {
+        return projectDao.listSurverProjects(params);
+    }
+
+    @Override
+    public List<Map<String, Object>> listSurverEliminatedProjects(Map<String, Object> params) {
+        return projectDao.listSurverEliminatedProjects(params);
     }
 }

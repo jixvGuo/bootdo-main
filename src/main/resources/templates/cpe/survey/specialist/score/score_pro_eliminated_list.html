@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
+<meta charset="utf-8">
+<head th:include="include :: header"></head>
+<body class="gray-bg">
+<div class="wrapper wrapper-content ">
+    <div class="col-sm-12">
+        <div class="ibox">
+            <div class="ibox-body">
+                <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
+
+                <div class="row" style="margin-bottom: 15px;">
+                    <div class="col-sm-12">
+                        <h4 style="margin: 0;"><i class="fa fa-list-alt"></i> 淘汰评语</h4>
+                    </div>
+                </div>
+
+                <table class="table table-bordered table-hover" id="table-eliminated">
+                    <thead>
+                        <tr>
+                            <th style="width: 120px;">申报账号</th>
+                            <th style="width: 100px;">项目编号</th>
+                            <th style="width: 250px;">项目名称</th>
+                            <th style="width: 120px;">主评意见</th>
+                            <th style="width: 100px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-eliminated">
+                        <tr><td colspan="5" class="text-center text-muted">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 主评意见弹窗 -->
+<div id="opinionModal" style="display: none; padding: 20px;">
+    <form class="form-horizontal">
+        <div class="form-group">
+            <label class="col-sm-3 control-label">等级：</label>
+            <div class="col-sm-8">
+                <select class="form-control" id="opinionGrade">
+                    <option value="">请选择等级</option>
+                    <option value="不评">不评</option>
+                    <option value="缓评">缓评</option>
+                    <option value="一等">一等</option>
+                    <option value="二等">二等</option>
+                    <option value="三等">三等</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">主评意见：</label>
+            <div class="col-sm-8">
+                <textarea class="form-control" id="opinionText" rows="5" placeholder="请输入主评意见"></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div th:include="include :: footer"></div>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surver_eliminated.js?v=1.0"></script>
+
+</body>
+</html>

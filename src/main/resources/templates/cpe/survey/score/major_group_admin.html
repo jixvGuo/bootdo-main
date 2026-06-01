@@ -44,6 +44,13 @@
                     title="为「勘察奖小组联络人」角色配置可见的专家组">
                 <i class="fa fa-link"></i> 小组联络人绑定
             </button>
+            <!-- 新增：导出分数（仅管理员和小组联络人可见） -->
+            <button class="btn btn-success btn-sm"
+                    onclick="exportScore()"
+                    th:if="${isQcAssociationContactRole70 or isSurverGroupContactRole}"
+                    title="导出专家打分结果">
+                <i class="fa fa-download"></i> 导出分数
+            </button>
         </div>
 
         <div class="ibox-content" style="display:flex;gap:16px;">
@@ -201,6 +208,6 @@
 <!-- 升级（v1.5）：添加专家改为 QC 风格的"暂存→显式保存"——前端 prepend 暂存行，填好姓名/单位再点【保存】才落库；常态行新增【编辑】按钮支持 inline 编辑 -->
 <!-- 升级（v1.6）：① 修复点击【编辑】报 Unknown method: updateByUniqueId（改用 load(getData()) 重渲染）② 专家姓名改为可选 -->
 <!-- 升级（v1.7）：新增回避管理功能，参考 QC 奖 manageAvoidance -->
-<script type="text/javascript" src="/js/appjs/cpe/surver/major_group_admin.js?v=2.0"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/major_group_admin.js?v=2.4"></script>
 </body>
 </html>

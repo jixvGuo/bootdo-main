@@ -131,4 +131,18 @@ public interface AwardEnterpriseProjectDao {
     int updateProGroup(Map<String, Object> params);
 
     int countProByGroupId(Map<String, Object> params);
+
+    /**
+     * 获取勘察奖项目列表（排除已淘汰的项目）
+     * @param params 查询参数，包含taskId, proSubType, eliminated
+     * @return 项目列表
+     */
+    List<Map<String, Object>> listSurverProjects(Map<String, Object> params);
+
+    /**
+     * 获取勘察奖评级淘汰的项目列表
+     * @param params 查询参数，包含taskId, eliminateType
+     * @return 项目列表
+     */
+    List<Map<String, Object>> listSurverEliminatedProjects(Map<String, Object> params);
 }

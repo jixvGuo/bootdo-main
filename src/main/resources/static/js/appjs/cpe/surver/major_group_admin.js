@@ -33,6 +33,10 @@ function bindGroupListClick() {
 function initExpertTable() {
     // 新增：读取70角色标志，用于控制签章/工作单位列可见性（参考 QC isQcAssociationContactRole70）
     var IS_ROLE_70 = String($("#isQcAssociationContactRole70").val()) === 'true';
+    // 新增：读取勘察奖小组联络人角色标志，用于控制驳回按钮可见性
+    var IS_GROUP_CONTACT = String($("#isSurverGroupContactRole").val()) === 'true';
+    // 管理员或小组联络人可操作驳回按钮
+    var CAN_REJECT = IS_ROLE_70 || IS_GROUP_CONTACT;
     $("#expertTable").bootstrapTable({
         method: "get",
         url: SVR_PREFIX + "/surver_major_group/expert/list",
@@ -227,9 +231,9 @@ function initExpertTable() {
                             + '\')">'
                             + '回避</a> ';
                     }
-                    // 驳回淘汰按钮（管理员驳回专家的确认提交，让专家可重新修改评级）
+                    // 驳回淘汰按钮（管理员/小组联络人可操作，驳回专家的淘汰确认提交）
                     var btnRejectElim = '';
-                    if (row.userId) {
+                    if (CAN_REJECT && row.userId) {
                         btnRejectElim = '<a class="btn btn-default btn-sm" '
                             + 'href="javascript:rejectEliminateSubmit('
                             + row.userId
@@ -238,8 +242,19 @@ function initExpertTable() {
                             + '\')">'
                             + '驳回淘汰</a> ';
                     }
+                    // 驳回打分按钮（管理员/小组联络人可操作，驳回专家的打分确认）
+                    var btnRejectScore = '';
+                    if (CAN_REJECT && row.userId) {
+                        btnRejectScore = '<a class="btn btn-warning btn-sm" '
+                            + 'href="javascript:rejectScoringConfirm('
+                            + row.userId
+                            + ',\''
+                            + _surverEscapeHtml(row.expertName || la)
+                            + '\')">'
+                            + '驳回打分</a> ';
+                    }
                     // return btnEdit + btnToggle + btnSign + btnRemove;
-                    return btnEdit + btnSign + btnRemove + btnAvoidance + btnRejectElim;
+                    return btnEdit + btnSign + btnRemove + btnAvoidance + btnRejectElim + btnRejectScore;
                 }
             }
         ]
@@ -672,6 +687,84 @@ function rejectEliminateSubmit(expertUserId, expertName) {
             });
         }
     );
+}
+
+// =========================================================================
+// 新增：管理员驳回专家的打分确认（重置打分确认状态，让专家可重新修改打分）
+// =========================================================================
+function rejectScoringConfirm(expertUserId, expertName) {
+    var taskId = getTaskId();
+    if (!taskId) { layer.msg("任务 ID 为空"); return; }
+    layer.confirm(
+        "确定要驳回专家【" + (expertName || expertUserId) + "】的打分确认吗？<br/>"
+        + "驳回后该专家可重新修改打分，已有打分数据不会被清空。",
+        { btn: ["确定", "取消"], icon: 3, title: "驳回打分确认" },
+        function (idx) {
+            layer.close(idx);
+            $.ajax({
+                url: "/surverScore/rejectScoringConfirm",
+                type: "post",
+                data: { taskId: taskId, expertUid: expertUserId },
+                success: function (r) {
+                    if (r && r.code == 0) {
+                        layer.msg(r.msg || "已驳回");
+                        reloadExperts();
+                    } else {
+                        layer.msg(r && r.msg ? r.msg : "驳回失败");
+                    }
+                }
+            });
+        }
+    );
+}
+
+// =========================================================================
+// 新增：导出分数功能（管理员和小组联络人可用）
+// 管理员可以选择导出全部或仅未淘汰的分数
+// 小组联络人只能导出本组未淘汰的分数
+// =========================================================================
+function exportScore() {
+    var taskId = getTaskId();
+    if (!taskId) { layer.msg("任务 ID 为空"); return; }
+
+    // 读取角色标志
+    var IS_ROLE_70 = String($("#isQcAssociationContactRole70").val()) === 'true';
+    var IS_GROUP_CONTACT = String($("#isSurverGroupContactRole").val()) === 'true';
+
+    // 如果是管理员（70角色），弹出选择框让用户选择导出类型
+    if (IS_ROLE_70) {
+        layer.open({
+            type: 1,
+            title: '导出分数',
+            area: ['400px', '200px'],
+            content: '<div style="padding:20px;">'
+                + '<p>请选择导出类型：</p>'
+                + '<div style="margin-top:10px;">'
+                + '<label style="margin-right:15px;"><input type="radio" name="exportType" value="all" checked> 导出全部</label>'
+                + '<label><input type="radio" name="exportType" value="eliminated"> 仅导出已淘汰</label>'
+                + '</div>'
+                + '</div>',
+            btn: ['确定', '取消'],
+            yes: function(index) {
+                var exportType = $('input[name="exportType"]:checked').val();
+                var showEliminated = exportType === 'eliminated';
+                _doExportScore(taskId, CURRENT_GROUP_NAME, showEliminated);
+                layer.close(index);
+            }
+        });
+    } else {
+        // 小组联络人或其他角色，直接导出未淘汰的分数
+        _doExportScore(taskId, CURRENT_GROUP_NAME, false);
+    }
+}
+
+function _doExportScore(taskId, groupName, showEliminated) {
+    var url = '/surverScore/exportScore?taskId=' + encodeURIComponent(taskId);
+    if (groupName) {
+        url += '&groupName=' + encodeURIComponent(groupName);
+    }
+    url += '&showEliminated=' + showEliminated;
+    window.location.href = url;
 }
 
 // =========================================================================

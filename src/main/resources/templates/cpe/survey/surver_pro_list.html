@@ -34,6 +34,11 @@
 					<button class="btn btn-warning" onclick="openEliminateManage()" th:if="${isAssociationLeader}">
 						<i class="fa fa-ban"></i>&nbsp;淘汰管理
 					</button>
+					<!-- 新增：导出分数按钮（管理员和小组联络人可见） -->
+					<button class="btn btn-success" onclick="exportSurverScore()" th:if="${isAssociationLeader or isSurverGroupContact}"
+							title="导出专家打分结果Excel">
+						<i class="fa fa-download"></i>&nbsp;导出分数
+					</button>
 					<!-- 新增：勘察奖小组联络人 — 淘汰相关信息与导出（服务端按 surver_view_scope 限制为本绑定专家组，非全任务） -->
 					<button class="btn btn-warning" onclick="openEliminateManage()" th:if="${isSurverGroupContact && !isAssociationLeader}" title="仅展示与导出您绑定的专家组范围内的项目">
 						<i class="fa fa-ban"></i>&nbsp;淘汰信息

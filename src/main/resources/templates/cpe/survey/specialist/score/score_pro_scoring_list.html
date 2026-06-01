@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
+<meta charset="utf-8">
+<head th:include="include :: header"></head>
+<body class="gray-bg">
+<div class="wrapper wrapper-content ">
+    <div class="col-sm-12">
+        <div class="ibox">
+            <div class="ibox-body">
+                <!-- 顶部按钮区域 - 独立一行 -->
+                <div class="row" style="margin-bottom: 20px;">
+                    <div class="col-sm-12">
+                        <input id="taskId" name="taskId" th:value="${taskId}" type="hidden">
+                        <button type="button" class="btn btn-primary" id="btnConfirmScore" onclick="confirmScoreResult()">
+                            <i class="fa fa-check"></i> 确认打分结果
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="downloadScoreResult()" style="margin-left: 10px;">
+                            <i class="fa fa-download"></i> 下载打分结果
+                        </button>
+                        <button type="button" class="btn btn-warning" onclick="openEliminatedTab()" style="float: right;">
+                            <i class="fa fa-list-alt"></i> 淘汰评语
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 四个子奖项Tab - 独立一行 -->
+                <div class="tabs-container">
+                    <ul class="nav nav-tabs">
+                        <li class="active">
+                            <a data-toggle="tab" href="#tab-contribution" aria-expanded="true">勘察项目</a>
+                        </li>
+                        <li class="">
+                            <a data-toggle="tab" href="#tab-design" onclick="loadTabData('design')" aria-expanded="false">设计项目</a>
+                        </li>
+                        <li class="">
+                            <a data-toggle="tab" href="#tab-software" onclick="loadTabData('software')" aria-expanded="false">计算机软件项目</a>
+                        </li>
+                        <li class="">
+                            <a data-toggle="tab" href="#tab-standard" onclick="loadTabData('standard')" aria-expanded="false">标准设计项目</a>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <!-- 勘察项目 -->
+                        <div id="tab-contribution" class="tab-pane active">
+                            <div class="panel-body">
+                                <table class="table table-bordered table-hover" id="table-contribution">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 120px;">申报账号</th>
+                                            <th style="width: 100px;">项目编号</th>
+                                            <th style="width: 200px;">项目名称</th>
+                                            <th style="width: 100px;">技术水平(30分)</th>
+                                            <th style="width: 100px;">技术难度(20分)</th>
+                                            <th style="width: 100px;">技术创新(20分)</th>
+                                            <th style="width: 100px;">经济效益(20分)</th>
+                                            <th style="width: 100px;">申报材料质量(10分)</th>
+                                            <th style="width: 80px;">总分</th>
+                                            <th style="width: 100px;">主评意见</th>
+                                            <th style="width: 120px;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-contribution">
+                                        <tr><td colspan="11" class="text-center text-muted">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- 设计项目 -->
+                        <div id="tab-design" class="tab-pane">
+                            <div class="panel-body">
+                                <table class="table table-bordered table-hover" id="table-design">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 120px;">申报账号</th>
+                                            <th style="width: 100px;">项目编号</th>
+                                            <th style="width: 200px;">项目名称</th>
+                                            <th style="width: 100px;">总体工艺技术水平(25分)</th>
+                                            <th style="width: 100px;">技术难度与创新(15分)</th>
+                                            <th style="width: 100px;">数字化设计水平(15分)</th>
+                                            <th style="width: 100px;">环境保护、安全、卫生等(10分)</th>
+                                            <th style="width: 100px;">设计质量(7分)</th>
+                                            <th style="width: 100px;">节能降耗、经济效益、社会效益(8分)</th>
+                                            <th style="width: 100px;">绿色建造与新能源利用情况(10分)</th>
+                                            <th style="width: 100px;">申报材料质量(10分)</th>
+                                            <th style="width: 80px;">总分</th>
+                                            <th style="width: 100px;">主评意见</th>
+                                            <th style="width: 120px;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-design">
+                                        <tr><td colspan="14" class="text-center text-muted">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- 计算机软件项目 -->
+                        <div id="tab-software" class="tab-pane">
+                            <div class="panel-body">
+                                <table class="table table-bordered table-hover" id="table-software">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 120px;">申报账号</th>
+                                            <th style="width: 100px;">项目编号</th>
+                                            <th style="width: 200px;">项目名称</th>
+                                            <th style="width: 100px;">技术水平(30分)</th>
+                                            <th style="width: 100px;">技术难度(20分)</th>
+                                            <th style="width: 100px;">技术创新(20分)</th>
+                                            <th style="width: 100px;">可推广应用性(20分)</th>
+                                            <th style="width: 100px;">经济效益(20分)</th>
+                                            <th style="width: 100px;">申报材料质量(10分)</th>
+                                            <th style="width: 80px;">总分</th>
+                                            <th style="width: 100px;">主评意见</th>
+                                            <th style="width: 120px;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-software">
+                                        <tr><td colspan="12" class="text-center text-muted">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <!-- 标准设计项目 -->
+                        <div id="tab-standard" class="tab-pane">
+                            <div class="panel-body">
+                                <table class="table table-bordered table-hover" id="table-standard">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 120px;">申报账号</th>
+                                            <th style="width: 100px;">项目编号</th>
+                                            <th style="width: 200px;">项目名称</th>
+                                            <th style="width: 100px;">技术水平(30分)</th>
+                                            <th style="width: 100px;">技术难度(20分)</th>
+                                            <th style="width: 100px;">技术创新(20分)</th>
+                                            <th style="width: 100px;">可推广应用性(20分)</th>
+                                            <th style="width: 100px;">经济效益(20分)</th>
+                                            <th style="width: 100px;">申报材料质量(10分)</th>
+                                            <th style="width: 80px;">总分</th>
+                                            <th style="width: 100px;">主评意见</th>
+                                            <th style="width: 120px;">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbody-standard">
+                                        <tr><td colspan="12" class="text-center text-muted">加载中...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 主评意见弹窗 -->
+<div id="opinionModal" style="display: none; padding: 20px;">
+    <form class="form-horizontal">
+        <div class="form-group">
+            <label class="col-sm-3 control-label">等级：</label>
+            <div class="col-sm-8">
+                <select class="form-control" id="opinionGrade">
+                    <option value="">请选择等级</option>
+                    <option value="不评">不评</option>
+                    <option value="缓评">缓评</option>
+                    <option value="一等">一等</option>
+                    <option value="二等">二等</option>
+                    <option value="三等">三等</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-group">
+            <label class="col-sm-3 control-label">主评意见：</label>
+            <div class="col-sm-8">
+                <textarea class="form-control" id="opinionText" rows="5" placeholder="请输入主评意见"></textarea>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div th:include="include :: footer"></div>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surver_scoring.js?v=1.4"></script>
+
+</body>
+</html>
