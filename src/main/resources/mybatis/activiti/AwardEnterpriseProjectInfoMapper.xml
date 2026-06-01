@@ -36,6 +36,7 @@
 		pro.`specialist_leader_comment`,
 		pro.pro_stat,
 		pro.pro_type,
+		pro.pro_sub_type proSubType,
         pro.pro_group_name proGroupName
 	</sql>
 

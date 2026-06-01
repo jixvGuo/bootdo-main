@@ -47,6 +47,10 @@ import java.util.Map;
 
 import static com.bootdo.common.config.Constant.ROLE_SPECIALIST_ID;
 import static com.bootdo.common.config.Constant.ROLE_SURVER_SPECALIST_ID;
+import static com.bootdo.common.config.Constant.ROLE_ASSOCIATION_LEADER;
+import static com.bootdo.common.config.Constant.ROLE_SURVER_ASSOCIATION_ID;
+import static com.bootdo.common.config.Constant.ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID;
+import static com.bootdo.common.config.Constant.ROLE_SURVER_GROUP_CONTACT_ID;
 
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
@@ -193,8 +197,18 @@ public class SurverScoreController extends BaseSurverController {
      */
     @RequestMapping("/rejectScoringConfirm")
     @ResponseBody
-    @RequiresPermissions("surveraward:score:prolist")
     public R rejectScoringConfirm(@RequestParam String taskId, @RequestParam Long expertUid) {
+        // 权限检查：仅管理员/协会领导/协会联系人/外聘专家/小组联络人可操作
+        UserDO user = getUser();
+        List<Long> roleIdList = user != null ? user.getRoleIds() : Collections.emptyList();
+        boolean isAdmin = roleIdList.contains(ROLE_ASSOCIATION_LEADER)
+                || roleIdList.contains(ROLE_SURVER_ASSOCIATION_ID)
+                || roleIdList.contains(ROLE_SURVER_EXTERNAL_EMPLOYMENT_ID)
+                || roleIdList.contains(ROLE_SURVER_GROUP_CONTACT_ID);
+        if (!isAdmin) {
+            return R.error("无权操作：仅管理员可驳回专家打分确认");
+        }
+
         if (StringUtils.isBlank(taskId)) {
             return R.error("任务ID不能为空");
         }
@@ -1066,7 +1080,12 @@ public class SurverScoreController extends BaseSurverController {
     @RequiresPermissions("surveraward:score:prolist")
     public R saveEliminatedOpinion(@RequestBody Map<String, Object> params) {
         String taskId = (String) params.get("taskId");
-        Integer proId = (Integer) params.get("proId");
+        // 安全转换 proId，兼容 String 和 Integer 类型
+        Object proIdObj = params.get("proId");
+        Integer proId = null;
+        if (proIdObj != null) {
+            proId = proIdObj instanceof Integer ? (Integer) proIdObj : Integer.parseInt(proIdObj.toString());
+        }
         String opinionGrade = (String) params.get("opinionGrade");
         String opinionText = (String) params.get("opinionText");
 
@@ -1089,10 +1108,14 @@ public class SurverScoreController extends BaseSurverController {
             existing.setOpinionText(opinionText);
             scoringService.update(existing);
         } else {
-            // 新增
+            // 新增 - 直接从项目表查询 pro_sub_type
+            EnterpriseProjectInfoDo projectInfo = awardEnterpriseProjectService.get(String.valueOf(proId));
+            String proSubType = projectInfo != null ? projectInfo.getProSubType() : null;
+
             SurverExpertScoringDO scoring = new SurverExpertScoringDO();
             scoring.setTaskId(taskId);
             scoring.setProId(proId);
+            scoring.setProSubType(proSubType);
             scoring.setExpertUid(expertUid);
             scoring.setOpinionGrade(opinionGrade);
             scoring.setOpinionText(opinionText);
