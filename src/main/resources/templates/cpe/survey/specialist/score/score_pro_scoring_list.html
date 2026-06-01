@@ -2,6 +2,22 @@
 <html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
 <meta charset="utf-8">
 <head th:include="include :: header"></head>
+<style>
+    /* 回避行样式 */
+    .avoided-row {
+        background-color: #fff3cd !important;
+    }
+    .avoided-row:hover {
+        background-color: #ffeaa7 !important;
+    }
+    .avoided-row td {
+        color: #856404;
+    }
+    .avoided-row .label-warning {
+        font-size: 10px;
+        vertical-align: middle;
+    }
+</style>
 <body class="gray-bg">
 <div class="wrapper wrapper-content ">
     <div class="col-sm-12">

@@ -83,44 +83,45 @@ function buildRow(proSubType, project, index) {
     var declareAccount = project.declareAccount || '';
     var proCode = project.proCode || '';
     var topicName = project.topicName || '';
+    var isAvoided = project.isAvoided == 1; // 是否已回避
 
     // 获取已保存的打分数据
     var scoreData = project.scoreData || {};
 
-    var row = '<tr data-pro-id="' + proId + '">';
+    var row = '<tr data-pro-id="' + proId + '"' + (isAvoided ? ' class="avoided-row"' : '') + '>';
 
     // 固定列：申报账号、项目编号、项目名称
     row += '<td>' + declareAccount + '</td>';
     row += '<td>' + proCode + '</td>';
-    row += '<td>' + topicName + '</td>';
+    row += '<td>' + topicName + (isAvoided ? ' <span class="label label-warning">已回避</span>' : '') + '</td>';
 
     // 根据子奖项类型添加分数列
     switch(proSubType) {
         case 'contribution':
-            row += buildScoreCell(proId, 'technicalLevel', 30, scoreData.technicalLevel);
-            row += buildScoreCell(proId, 'technicalDifficulty', 20, scoreData.technicalDifficulty);
-            row += buildScoreCell(proId, 'technicalInnovation', 20, scoreData.technicalInnovation);
-            row += buildScoreCell(proId, 'economicBenefit', 20, scoreData.economicBenefit);
-            row += buildScoreCell(proId, 'materialQuality', 10, scoreData.materialQuality);
+            row += buildScoreCell(proId, 'technicalLevel', 30, scoreData.technicalLevel, isAvoided);
+            row += buildScoreCell(proId, 'technicalDifficulty', 20, scoreData.technicalDifficulty, isAvoided);
+            row += buildScoreCell(proId, 'technicalInnovation', 20, scoreData.technicalInnovation, isAvoided);
+            row += buildScoreCell(proId, 'economicBenefit', 20, scoreData.economicBenefit, isAvoided);
+            row += buildScoreCell(proId, 'materialQuality', 10, scoreData.materialQuality, isAvoided);
             break;
         case 'design':
-            row += buildScoreCell(proId, 'overallTechnicalLevel', 25, scoreData.overallTechnicalLevel);
-            row += buildScoreCell(proId, 'difficultyInnovation', 15, scoreData.difficultyInnovation);
-            row += buildScoreCell(proId, 'digitalDesignLevel', 15, scoreData.digitalDesignLevel);
-            row += buildScoreCell(proId, 'environmentSafety', 10, scoreData.environmentSafety);
-            row += buildScoreCell(proId, 'designQuality', 7, scoreData.designQuality);
-            row += buildScoreCell(proId, 'energySaving', 8, scoreData.energySaving);
-            row += buildScoreCell(proId, 'greenConstruction', 10, scoreData.greenConstruction);
-            row += buildScoreCell(proId, 'materialQuality', 10, scoreData.materialQuality);
+            row += buildScoreCell(proId, 'overallTechnicalLevel', 25, scoreData.overallTechnicalLevel, isAvoided);
+            row += buildScoreCell(proId, 'difficultyInnovation', 15, scoreData.difficultyInnovation, isAvoided);
+            row += buildScoreCell(proId, 'digitalDesignLevel', 15, scoreData.digitalDesignLevel, isAvoided);
+            row += buildScoreCell(proId, 'environmentSafety', 10, scoreData.environmentSafety, isAvoided);
+            row += buildScoreCell(proId, 'designQuality', 7, scoreData.designQuality, isAvoided);
+            row += buildScoreCell(proId, 'energySaving', 8, scoreData.energySaving, isAvoided);
+            row += buildScoreCell(proId, 'greenConstruction', 10, scoreData.greenConstruction, isAvoided);
+            row += buildScoreCell(proId, 'materialQuality', 10, scoreData.materialQuality, isAvoided);
             break;
         case 'software':
         case 'standard':
-            row += buildScoreCell(proId, 'technicalLevel', 30, scoreData.technicalLevel);
-            row += buildScoreCell(proId, 'technicalDifficulty', 20, scoreData.technicalDifficulty);
-            row += buildScoreCell(proId, 'technicalInnovation', 20, scoreData.technicalInnovation);
-            row += buildScoreCell(proId, 'promotability', 20, scoreData.promotability);
-            row += buildScoreCell(proId, 'economicBenefit', 20, scoreData.economicBenefit);
-            row += buildScoreCell(proId, 'materialQuality', 10, scoreData.materialQuality);
+            row += buildScoreCell(proId, 'technicalLevel', 30, scoreData.technicalLevel, isAvoided);
+            row += buildScoreCell(proId, 'technicalDifficulty', 20, scoreData.technicalDifficulty, isAvoided);
+            row += buildScoreCell(proId, 'technicalInnovation', 20, scoreData.technicalInnovation, isAvoided);
+            row += buildScoreCell(proId, 'promotability', 20, scoreData.promotability, isAvoided);
+            row += buildScoreCell(proId, 'economicBenefit', 20, scoreData.economicBenefit, isAvoided);
+            row += buildScoreCell(proId, 'materialQuality', 10, scoreData.materialQuality, isAvoided);
             break;
     }
 
@@ -132,9 +133,13 @@ function buildRow(proSubType, project, index) {
     var opinionGrade = scoreData.opinionGrade || '';
     var opinionText = scoreData.opinionText || '';
     row += '<td>';
-    row += '<a href="javascript:void(0)" onclick="openOpinionModal(\'' + proId + '\')" class="btn btn-xs btn-info">';
-    row += opinionGrade ? opinionGrade : '填写意见';
-    row += '</a>';
+    if (isAvoided) {
+        row += '<span class="text-muted">' + (opinionGrade || '-') + '</span>';
+    } else {
+        row += '<a href="javascript:void(0)" onclick="openOpinionModal(\'' + proId + '\')" class="btn btn-xs btn-info">';
+        row += opinionGrade ? opinionGrade : '填写意见';
+        row += '</a>';
+    }
     row += '<input type="hidden" class="opinion-grade" value="' + opinionGrade + '">';
     row += '<input type="hidden" class="opinion-text" value="' + opinionText + '">';
     row += '</td>';
@@ -142,7 +147,9 @@ function buildRow(proSubType, project, index) {
     // 操作列
     row += '<td>';
     row += '<button type="button" class="btn btn-xs btn-default" onclick="viewProject(\'' + proId + '\')">查看</button> ';
-    row += '<button type="button" class="btn btn-xs btn-primary" onclick="saveScore(\'' + proId + '\', \'' + proSubType + '\')">保存</button>';
+    if (!isAvoided) {
+        row += '<button type="button" class="btn btn-xs btn-primary" onclick="saveScore(\'' + proId + '\', \'' + proSubType + '\')">保存</button>';
+    }
     row += '</td>';
 
     row += '</tr>';
@@ -152,17 +159,25 @@ function buildRow(proSubType, project, index) {
 /**
  * 构建分数输入单元格
  */
-function buildScoreCell(proId, fieldName, maxScore, value) {
+function buildScoreCell(proId, fieldName, maxScore, value, isAvoided) {
     var val = value || '';
-    return '<td>' +
-        '<input type="number" class="form-control input-sm score-input" ' +
-        'data-field="' + fieldName + '" ' +
-        'data-max="' + maxScore + '" ' +
-        'value="' + val + '" ' +
-        'min="0" max="' + maxScore + '" ' +
-        'placeholder="0-' + maxScore + '" ' +
-        'style="width: 80px;">' +
-        '</td>';
+    if (isAvoided) {
+        // 回避项目：显示分数但不可编辑
+        return '<td>' +
+            '<span class="form-control input-sm" style="width: 80px; background-color: #f5f5f5; color: #999;">' + (val || '-') + '</span>' +
+            '</td>';
+    } else {
+        // 正常项目：可编辑输入框
+        return '<td>' +
+            '<input type="number" class="form-control input-sm score-input" ' +
+            'data-field="' + fieldName + '" ' +
+            'data-max="' + maxScore + '" ' +
+            'value="' + val + '" ' +
+            'min="0" max="' + maxScore + '" ' +
+            'placeholder="0-' + maxScore + '" ' +
+            'style="width: 80px;">' +
+            '</td>';
+    }
 }
 
 /**
@@ -337,7 +352,18 @@ function confirmScoreResult() {
                     isConfirmed = true;
                     $('#btnConfirmScore').text('已确认打分结果').prop('disabled', true);
                 } else {
-                    layer.msg(res.msg || '确认失败');
+                    // 多行错误信息用弹窗显示
+                    if (res.msg && res.msg.indexOf('\n') > -1) {
+                        layer.open({
+                            type: 1,
+                            title: '提示',
+                            area: ['500px', '400px'],
+                            content: '<div style="padding:15px;white-space:pre-wrap;">' + res.msg + '</div>',
+                            btn: ['确定']
+                        });
+                    } else {
+                        layer.msg(res.msg || '确认失败');
+                    }
                 }
             },
             error: function() {

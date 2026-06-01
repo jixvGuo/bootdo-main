@@ -823,7 +823,15 @@
             pro.declare_account AS declareAccount,
             (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = pro.create_uid LIMIT 1) AS companyName,
             pro.major AS major,
-            pro.pro_sub_type AS proSubType
+            pro.pro_sub_type AS proSubType,
+            -- 检查是否已回避
+            CASE WHEN EXISTS (
+                SELECT 1 FROM ass_surver_expert_avoidance ea
+                WHERE ea.pro_id = pro.id
+                  AND ea.expert_user_id = #{expertUid}
+                  AND ea.task_id = #{taskId}
+                  AND ea.deleted = 0
+            ) THEN 1 ELSE 0 END AS isAvoided
         FROM ass_award_enterprise_project pro
         WHERE pro.publish_task_id = #{taskId}
           AND pro.pro_sub_type = #{proSubType}

@@ -872,7 +872,12 @@ public class SurverScoreController extends BaseSurverController {
     @RequiresPermissions("surveraward:score:prolist")
     public R saveScoring(@RequestBody Map<String, Object> params) {
         String taskId = (String) params.get("taskId");
-        Integer proId = (Integer) params.get("proId");
+        // 安全转换 proId，兼容 String 和 Integer 类型
+        Object proIdObj = params.get("proId");
+        Integer proId = null;
+        if (proIdObj != null) {
+            proId = proIdObj instanceof Integer ? (Integer) proIdObj : Integer.parseInt(proIdObj.toString());
+        }
         String proSubType = (String) params.get("proSubType");
         Map<String, Object> scoreData = (Map<String, Object>) params.get("scoreData");
 
@@ -961,6 +966,42 @@ public class SurverScoreController extends BaseSurverController {
         // 检查是否已确认
         if (scoringService.isConfirmed(taskId, expertUid)) {
             return R.error("已确认打分结果，无法重复确认");
+        }
+
+        // 校验是否所有项目都已评分（排除已回避的项目）
+        String[] proSubTypes = {"contribution", "design", "software", "standard"};
+        List<String> unscoredProjects = new ArrayList<>();
+
+        for (String proSubType : proSubTypes) {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("taskId", taskId);
+            queryParams.put("proSubType", proSubType);
+            queryParams.put("expertUid", expertUid);
+
+            List<Map<String, Object>> projects = awardEnterpriseProjectService.listSurverProjects(queryParams);
+
+            if (projects != null) {
+                for (Map<String, Object> project : projects) {
+                    // 跳过已回避的项目
+                    Object isAvoidedObj = project.get("isAvoided");
+                    if (isAvoidedObj != null && (isAvoidedObj instanceof Number) && ((Number) isAvoidedObj).intValue() == 1) {
+                        continue;
+                    }
+
+                    Integer proId = (Integer) project.get("proId");
+                    SurverExpertScoringDO scoring = scoringService.getByTaskProExpert(taskId, proId, expertUid);
+                    if (scoring == null || scoring.getTotalScore() == null) {
+                        String proCode = (String) project.get("proCode");
+                        String topicName = (String) project.get("topicName");
+                        unscoredProjects.add(proCode + " - " + topicName);
+                    }
+                }
+            }
+        }
+
+        if (!unscoredProjects.isEmpty()) {
+            String msg = "以下项目尚未评分，无法确认：\n" + String.join("\n", unscoredProjects);
+            return R.error(msg);
         }
 
         scoringService.confirmScoring(taskId, expertUid);
