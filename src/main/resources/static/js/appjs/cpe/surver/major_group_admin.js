@@ -949,7 +949,7 @@ function _surverAvoidRefresh(taskId) {
  */
 function _surverAvoidLoadProjects(taskId, expertUserId) {
     console.log('[勘察回避] 加载项目: taskId=' + taskId + ', expertUserId=' + expertUserId);
-    $("#surverAvoidanceTableBody").html('<tr><td colspan="7" class="text-center">加载中...</td></tr>');
+    $("#surverAvoidanceTableBody").html('<tr><td colspan="8" class="text-center">加载中...</td></tr>');
     $.ajax({
         type: "GET",
         url: SVR_PREFIX + "/avoidance/expertProjects",
@@ -996,6 +996,7 @@ function _surverAvoidRenderTable(projects) {
         }
         var row = '<tr>'
             + '<td>' + _surverEscapeHtml(p.topicName || '-') + '</td>'
+            + '<td>' + _surverEscapeHtml(p.proCode || '-') + '</td>'
             + '<td>' + _surverEscapeHtml(p.applyId || '-') + '</td>'
             + '<td>' + _surverEscapeHtml(p.unitName || '-') + '</td>'
             + '<td>' + _surverEscapeHtml(p.groupDesc || '-') + '</td>'
