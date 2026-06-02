@@ -3,11 +3,24 @@
 var currentTaskId = '';
 var currentProType = '';
 var isConfirmed = false; // 是否已确认打分结果
+var scoredDataCache = {}; // 缓存各子奖项的项目数据
+var SCORING_FILTER_KEY = "cpe.surverScoring.advFilter.v1"; // localStorage键名
 
 $(document).ready(function() {
     currentTaskId = $('#taskId').val() || '';
     // 默认加载勘察项目
     loadTabData('contribution');
+
+    // 绑定筛选面板回车事件
+    $('#scoringFilterPanel').on('keydown', 'input.form-control', function(e) {
+        if (e.which === 13 || e.keyCode === 13) {
+            e.preventDefault();
+            applyScoringFilter();
+        }
+    });
+
+    // 恢复保存的筛选条件
+    restoreScoringFilterFromStorage();
 });
 
 /**
@@ -26,7 +39,11 @@ function loadTabData(proSubType) {
         },
         success: function(res) {
             if (res.code === 0) {
-                renderTable(proSubType, res.data || []);
+                // 缓存原始数据
+                scoredDataCache[proSubType] = res.data || [];
+                // 应用筛选
+                var filtered = getFilteredData(proSubType);
+                renderTable(proSubType, filtered);
             } else {
                 layer.msg(res.msg || '加载失败');
                 $(tbodyId).html('<tr><td colspan="11" class="text-center text-danger">加载失败</td></tr>');
@@ -414,4 +431,106 @@ function viewProject(proId) {
     } else {
         layer.msg('未知的项目类型', { icon: 2 });
     }
+}
+
+// ==================== 高级筛选相关函数 ====================
+
+/**
+ * 获取筛选后的数据
+ */
+function getFilteredData(proSubType) {
+    var allData = scoredDataCache[proSubType] || [];
+    var declareAccount = ($('#scoringFilterDeclareAccount').val() || '').trim().toLowerCase();
+    var proCode = ($('#scoringFilterProCode').val() || '').trim().toLowerCase();
+    var proName = ($('#scoringFilterProName').val() || '').trim().toLowerCase();
+
+    // 如果没有筛选条件，返回全部数据
+    if (!declareAccount && !proCode && !proName) {
+        return allData;
+    }
+
+    return allData.filter(function(project) {
+        var matchAccount = !declareAccount || (project.declareAccount || '').toLowerCase().indexOf(declareAccount) > -1;
+        var matchCode = !proCode || (project.proCode || '').toLowerCase().indexOf(proCode) > -1;
+        var matchName = !proName || (project.topicName || '').toLowerCase().indexOf(proName) > -1;
+        return matchAccount && matchCode && matchName;
+    });
+}
+
+/**
+ * 应用筛选
+ */
+function applyScoringFilter() {
+    // 持久化筛选条件
+    persistScoringFilterFromDom();
+
+    // 对所有已加载的子奖项重新渲染
+    $.each(scoredDataCache, function(proSubType) {
+        var filtered = getFilteredData(proSubType);
+        renderTable(proSubType, filtered);
+    });
+}
+
+/**
+ * 重置筛选
+ */
+function resetScoringFilter() {
+    $('#scoringFilterDeclareAccount').val('');
+    $('#scoringFilterProCode').val('');
+    $('#scoringFilterProName').val('');
+
+    // 清除localStorage
+    clearScoringFilterStorage();
+
+    // 对所有已加载的子奖项重新渲染（显示全部数据）
+    $.each(scoredDataCache, function(proSubType) {
+        renderTable(proSubType, scoredDataCache[proSubType]);
+    });
+}
+
+/**
+ * 从DOM读取筛选条件并保存到localStorage
+ */
+function persistScoringFilterFromDom() {
+    try {
+        var data = {
+            declareAccount: $('#scoringFilterDeclareAccount').val() || '',
+            proCode: $('#scoringFilterProCode').val() || '',
+            proName: $('#scoringFilterProName').val() || ''
+        };
+        // 如果所有字段都为空，则清除存储
+        if (!data.declareAccount && !data.proCode && !data.proName) {
+            localStorage.removeItem(SCORING_FILTER_KEY);
+        } else {
+            localStorage.setItem(SCORING_FILTER_KEY, JSON.stringify(data));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+/**
+ * 从localStorage恢复筛选条件到DOM
+ */
+function restoreScoringFilterFromStorage() {
+    try {
+        var raw = localStorage.getItem(SCORING_FILTER_KEY);
+        if (raw == null || raw === '') {
+            return;
+        }
+        var data = JSON.parse(raw);
+        if (!data || typeof data !== 'object') {
+            return;
+        }
+        $('#scoringFilterDeclareAccount').val(data.declareAccount || '');
+        $('#scoringFilterProCode').val(data.proCode || '');
+        $('#scoringFilterProName').val(data.proName || '');
+    } catch (e) { /* ignore */ }
+}
+
+/**
+ * 清除localStorage中的筛选条件
+ */
+function clearScoringFilterStorage() {
+    try {
+        localStorage.removeItem(SCORING_FILTER_KEY);
+    } catch (e) { /* ignore */ }
 }
