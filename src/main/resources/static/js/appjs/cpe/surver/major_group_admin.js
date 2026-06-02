@@ -909,6 +909,9 @@ function _saveContactBinding(expertUserId, taskId) {
 var _surverAvoidCurrentExpertUserId = null;
 var _surverAvoidCurrentLoginAccount = null;
 var _surverAvoidAllProjects = [];
+var _surverAvoidFilteredProjects = [];
+var _surverAvoidCurrentPage = 1;
+var _surverAvoidPageSize = 10;
 
 /**
  * 打开回避管理弹窗
@@ -959,7 +962,10 @@ function _surverAvoidLoadProjects(taskId, expertUserId) {
             console.log('[勘察回避] 返回数据:', data);
             if (data && data.code == 0) {
                 _surverAvoidAllProjects = data.rows || [];
-                _surverAvoidRenderTable(_surverAvoidAllProjects);
+                // _surverAvoidRenderTable(_surverAvoidAllProjects);
+                _surverAvoidFilteredProjects = data.rows || [];
+                _surverAvoidCurrentPage = 1;
+                _surverAvoidRenderTableWithPagination();
             } else {
                 _surverAvoidAllProjects = [];
                 $("#surverAvoidanceTableBody").html('<tr><td colspan="7" class="text-center">' + (data && data.msg ? data.msg : '加载失败') + '</td></tr>');
@@ -979,7 +985,7 @@ function _surverAvoidRenderTable(projects) {
     var tbody = $("#surverAvoidanceTableBody");
     tbody.empty();
     if (!projects || projects.length === 0) {
-        tbody.html('<tr><td colspan="7" class="text-center">暂无分配项目</td></tr>');
+        tbody.html('<tr><td colspan="8" class="text-center">暂无分配项目</td></tr>');
         return;
     }
     projects.forEach(function (p) {
@@ -1006,6 +1012,60 @@ function _surverAvoidRenderTable(projects) {
             + '</tr>';
         tbody.append(row);
     });
+}
+/**
+ * 分页版渲染：先切片再渲染表格，然后更新分页控件
+ */
+function _surverAvoidRenderTableWithPagination() {
+    var totalRecords = _surverAvoidFilteredProjects.length;
+    var totalPages = Math.ceil(totalRecords / _surverAvoidPageSize);
+    if (_surverAvoidCurrentPage > totalPages && totalPages > 0) {
+        _surverAvoidCurrentPage = totalPages;
+    }
+    var startIndex = (_surverAvoidCurrentPage - 1) * _surverAvoidPageSize;
+    var endIndex = Math.min(startIndex + _surverAvoidPageSize, totalRecords);
+    var currentPageData = _surverAvoidFilteredProjects.slice(startIndex, endIndex);
+    _surverAvoidRenderTable(currentPageData);
+    _surverAvoidUpdatePagination(totalRecords);
+}
+function _surverAvoidUpdatePagination(totalRecords) {
+    var totalPages = Math.ceil(totalRecords / _surverAvoidPageSize);
+    var startIndex = totalRecords > 0 ? (_surverAvoidCurrentPage - 1) * _surverAvoidPageSize + 1 : 0;
+    var endIndex = Math.min(_surverAvoidCurrentPage * _surverAvoidPageSize, totalRecords);
+    $("#surverAvoidPageStart").text(startIndex);
+    $("#surverAvoidPageEnd").text(endIndex);
+    $("#surverAvoidPageTotal").text(totalRecords);
+    var paginationHtml = '';
+    paginationHtml += '<li class="' + (_surverAvoidCurrentPage <= 1 ? 'disabled' : '') + '">';
+    if (_surverAvoidCurrentPage > 1) {
+        paginationHtml += '<a href="javascript:void(0)" onclick="_surverAvoidChangePage(' + (_surverAvoidCurrentPage - 1) + ')">«</a>';
+    } else {
+        paginationHtml += '<a href="javascript:void(0)">«</a>';
+    }
+    paginationHtml += '</li>';
+    var startPage = Math.max(1, _surverAvoidCurrentPage - 2);
+    var endPage = Math.min(totalPages, startPage + 4);
+    if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+    }
+    for (var i = startPage; i <= endPage; i++) {
+        paginationHtml += '<li class="' + (i === _surverAvoidCurrentPage ? 'active' : '') + '">';
+        paginationHtml += '<a href="javascript:void(0)" ' + (i !== _surverAvoidCurrentPage ? 'onclick="_surverAvoidChangePage(' + i + ')"' : '') + '>' + i + '</a>';
+        paginationHtml += '</li>';
+    }
+    paginationHtml += '<li class="' + (_surverAvoidCurrentPage >= totalPages ? 'disabled' : '') + '">';
+    if (_surverAvoidCurrentPage < totalPages) {
+        paginationHtml += '<a href="javascript:void(0)" onclick="_surverAvoidChangePage(' + (_surverAvoidCurrentPage + 1) + ')">»</a>';
+    } else {
+        paginationHtml += '<a href="javascript:void(0)">»</a>';
+    }
+    paginationHtml += '</li>';
+    $("#surverAvoidPagination ul").html(paginationHtml);
+}
+
+function _surverAvoidChangePage(page) {
+    _surverAvoidCurrentPage = page;
+    _surverAvoidRenderTableWithPagination();
 }
 
 function _surverAvoidGetStatText(proStat) {
@@ -1037,7 +1097,8 @@ function surverSetAvoidance(proId) {
             success: function (data) {
                 if (data.code == 0) {
                     layer.msg("设置成功");
-                    _surverAvoidRefresh(taskId);
+                    // _surverAvoidRefresh(taskId);
+                    _surverAvoidReloadData(taskId);
                 } else {
                     layer.alert(data.msg || "设置失败");
                 }
@@ -1065,7 +1126,8 @@ function surverCancelAvoidance(proId) {
             success: function (data) {
                 if (data.code == 0) {
                     layer.msg("取消成功");
-                    _surverAvoidRefresh(taskId);
+                    // _surverAvoidRefresh(taskId);
+                    _surverAvoidReloadData(taskId);
                 } else {
                     layer.alert(data.msg || "取消失败");
                 }
@@ -1073,6 +1135,48 @@ function surverCancelAvoidance(proId) {
             error: function () { layer.alert("取消回避失败"); }
         });
         layer.close(index);
+    });
+}
+/**
+ * 刷新回避数据并保留当前筛选条件与分页
+ */
+function _surverAvoidReloadData(taskId) {
+    $("#surverAvoidanceTableBody").html('<tr><td colspan="8" class="text-center">加载中...</td></tr>');
+    $.ajax({
+        type: "GET",
+        url: SVR_PREFIX + "/avoidance/expertProjects",
+        data: { taskId: taskId, expertUserId: _surverAvoidCurrentExpertUserId },
+        timeout: 30000,
+        success: function (data) {
+            if (data && data.code == 0) {
+                _surverAvoidAllProjects = data.rows || [];
+                // 保留筛选条件
+                var filterTopicName = $("#surver_avoid_filter_topicName").val().toLowerCase();
+                var filterProCode = $("#surver_avoid_filter_proCode").val().toLowerCase();
+                var filterUnitName = $("#surver_avoid_filter_unitName").val().toLowerCase();
+                var filterGroupDesc = $("#surver_avoid_filter_groupDesc").val().toLowerCase();
+                var filterStatus = $("#surver_avoid_filter_status").val();
+                _surverAvoidFilteredProjects = _surverAvoidAllProjects.filter(function (p) {
+                    if (filterTopicName && (!p.topicName || p.topicName.toLowerCase().indexOf(filterTopicName) === -1)) return false;
+                    if (filterProCode && (!p.applyId || p.applyId.toLowerCase().indexOf(filterProCode) === -1)) return false;
+                    if (filterUnitName && (!p.unitName || p.unitName.toLowerCase().indexOf(filterUnitName) === -1)) return false;
+                    if (filterGroupDesc && (!p.groupDesc || p.groupDesc.toLowerCase().indexOf(filterGroupDesc) === -1)) return false;
+                    if (filterStatus !== "") {
+                        var isAvoided = p.isAvoided || false;
+                        if (filterStatus === "1" && !isAvoided) return false;
+                        if (filterStatus === "0" && isAvoided) return false;
+                    }
+                    return true;
+                });
+                // 保持当前分页（如果当前页超出总页数则自动回退）
+                var totalPages = Math.ceil(_surverAvoidFilteredProjects.length / _surverAvoidPageSize);
+                if (_surverAvoidCurrentPage > totalPages && totalPages > 0) {
+                    _surverAvoidCurrentPage = totalPages;
+                }
+                _surverAvoidRenderTableWithPagination();
+            }
+        },
+        error: function () { layer.alert("重新加载数据失败"); }
     });
 }
 
@@ -1086,7 +1190,8 @@ function surverApplyAvoidanceFilters() {
     var filterGroupDesc = $("#surver_avoid_filter_groupDesc").val().toLowerCase();
     var filterStatus = $("#surver_avoid_filter_status").val();
 
-    var filtered = _surverAvoidAllProjects.filter(function (p) {
+    // var filtered = _surverAvoidAllProjects.filter(function (p) {
+    _surverAvoidFilteredProjects = _surverAvoidAllProjects.filter(function (p) {
         if (filterTopicName && (!p.topicName || p.topicName.toLowerCase().indexOf(filterTopicName) === -1)) return false;
         if (filterProCode && (!p.applyId || p.applyId.toLowerCase().indexOf(filterProCode) === -1)) return false;
         if (filterUnitName && (!p.unitName || p.unitName.toLowerCase().indexOf(filterUnitName) === -1)) return false;
@@ -1098,7 +1203,9 @@ function surverApplyAvoidanceFilters() {
         }
         return true;
     });
-    _surverAvoidRenderTable(filtered);
+    // _surverAvoidRenderTable(filtered);
+    _surverAvoidCurrentPage = 1;
+    _surverAvoidRenderTableWithPagination();
 }
 
 function surverClearAvoidanceFilters() {
@@ -1107,5 +1214,8 @@ function surverClearAvoidanceFilters() {
     $("#surver_avoid_filter_unitName").val('');
     $("#surver_avoid_filter_groupDesc").val('');
     $("#surver_avoid_filter_status").val('');
-    _surverAvoidRenderTable(_surverAvoidAllProjects);
+    // _surverAvoidRenderTable(_surverAvoidAllProjects);
+    _surverAvoidFilteredProjects = _surverAvoidAllProjects;
+    _surverAvoidCurrentPage = 1;
+    _surverAvoidRenderTableWithPagination();
 }
