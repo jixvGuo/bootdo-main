@@ -152,4 +152,7 @@ public interface AwardEnterpriseProjectDao {
      * @return 项目列表
      */
     List<Map<String, Object>> listAllSurverProjectsForAutoAvoid(Map<String, Object> params);
+
+    /** 临时：按申报单位和项目名称搜索项目（无角色过滤） */
+    List<Map<String, Object>> searchByCompanyAndName(@Param("company") String company, @Param("proName") String proName);
 }

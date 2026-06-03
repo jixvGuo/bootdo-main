@@ -76,6 +76,8 @@ public class SurverProController extends BaseSurverController {
     private com.bootdo.cpe.service.SurverExpertEliminateService surverExpertEliminateService;
     @Autowired
     private com.bootdo.cpe.service.SurverExpertAvoidanceService surverExpertAvoidanceService;
+    @Autowired
+    private com.bootdo.activiti.service.AwardEnterpriseProjectService awardEnterpriseProjectService;
 
     @RequiresPermissions("surveraward:to:prolist")
     @RequestMapping("/toProListMain")
@@ -1231,5 +1233,19 @@ public class SurverProController extends BaseSurverController {
             return "";
         }
         return val;
+    }
+
+    /** 临时：按申报单位和项目名称搜索项目（无角色/任务过滤，用完删除） */
+    @RequestMapping("/tmpSearchProject")
+    @ResponseBody
+    public R tmpSearchProject(String company, String proName) {
+        if ((company == null || company.trim().isEmpty()) && (proName == null || proName.trim().isEmpty())) {
+            return R.error("请输入申报单位或项目名称");
+        }
+        List<Map<String, Object>> list = awardEnterpriseProjectService.searchByCompanyAndName(
+                company != null ? company.trim() : "",
+                proName != null ? proName.trim() : ""
+        );
+        return R.ok().put("list", list);
     }
 }
