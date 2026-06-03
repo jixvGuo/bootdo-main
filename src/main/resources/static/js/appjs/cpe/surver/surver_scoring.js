@@ -214,15 +214,25 @@ function buildScoreCell(proId, fieldName, maxScore, value, isAvoided) {
 
 /**
  * 分数输入实时过滤（oninput触发）
- * 只允许输入数字，自动去除非法字符
+ * 只允许输入数字和小数点，最多两位小数
  */
 function onScoreInput(el) {
     var $input = $(el);
     var raw = $input.val();
-    // 只保留数字
-    var filtered = raw.replace(/[^0-9]/g, '');
-    // 去除前导零（单独的0保留）
-    if (filtered.length > 1 && filtered.charAt(0) === '0') {
+    // 只保留数字和小数点
+    var filtered = raw.replace(/[^0-9.]/g, '');
+    // 只保留第一个小数点
+    var dotIndex = filtered.indexOf('.');
+    if (dotIndex !== -1) {
+        filtered = filtered.substring(0, dotIndex + 1) + filtered.substring(dotIndex + 1).replace(/\./g, '');
+        // 限制小数位数为2位
+        var parts = filtered.split('.');
+        if (parts[1] && parts[1].length > 2) {
+            filtered = parts[0] + '.' + parts[1].substring(0, 2);
+        }
+    }
+    // 去除前导零（单独的0保留，0.xxx保留）
+    if (filtered.length > 1 && filtered.charAt(0) === '0' && filtered.charAt(1) !== '.') {
         filtered = filtered.replace(/^0+/, '');
     }
     if (raw !== filtered) {
@@ -231,7 +241,7 @@ function onScoreInput(el) {
 }
 
 /**
- * 校验分数输入是否为整数
+ * 校验分数输入是否合法（支持最多两位小数）
  * @returns {boolean} 是否合法
  */
 function validateScoreInput($input) {
@@ -242,23 +252,24 @@ function validateScoreInput($input) {
         return true;
     }
 
-    // 检测是否包含小数点
+    // 检测小数位数是否超过2位
     if (raw.indexOf('.') > -1) {
-        layer.tips('请输入整数，不支持小数', $input, {tips: 2, time: 1500});
-        // 截取整数部分
-        var intVal = parseInt(raw);
-        $input.val(isNaN(intVal) ? '' : intVal);
-        $input.addClass('score-input-invalid');
-        setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
-        return false;
+        var parts = raw.split('.');
+        if (parts[1] && parts[1].length > 2) {
+            layer.tips('最多支持两位小数', $input, {tips: 2, time: 1500});
+            $input.val(parts[0] + '.' + parts[1].substring(0, 2));
+            $input.addClass('score-input-invalid');
+            setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
+            return false;
+        }
     }
 
-    // 检测前导零（如01、007等）
-    if (raw.length > 1 && raw.charAt(0) === '0') {
+    // 检测前导零（如01、007等，但允许0.xxx）
+    if (raw.length > 1 && raw.charAt(0) === '0' && raw.charAt(1) !== '.') {
         layer.tips('不支持前导零，请直接输入数字', $input, {tips: 2, time: 1500});
         // 去除前导零
-        var intVal = parseInt(raw, 10);
-        $input.val(isNaN(intVal) ? '' : intVal);
+        var numVal = parseFloat(raw);
+        $input.val(isNaN(numVal) ? '' : numVal);
         $input.addClass('score-input-invalid');
         setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
         return false;
@@ -274,7 +285,7 @@ function validateScoreInput($input) {
     }
 
     // 检测是否为非数字
-    if (isNaN(parseInt(raw))) {
+    if (isNaN(parseFloat(raw))) {
         layer.tips('请输入数字', $input, {tips: 2, time: 1500});
         $input.val('');
         $input.addClass('score-input-invalid');
@@ -294,12 +305,12 @@ function bindScoreInputEvents(proSubType) {
     $container.find('.score-input').on('input', function() {
         var $input = $(this);
 
-        // 整数格式校验
+        // 格式校验（支持两位小数）
 
         validateScoreInput($input);
 
-        var max = parseInt($input.data('max'));
-        var val = parseInt($input.val());
+        var max = parseFloat($input.data('max'));
+        var val = parseFloat($input.val());
 
         if (val > max) {
             $input.val(max);
@@ -319,8 +330,8 @@ function bindScoreInputEvents(proSubType) {
         var $input = $(this);
         validateScoreInput($input);
 
-        var max = parseInt($input.data('max'));
-        var val = parseInt($input.val());
+        var max = parseFloat($input.data('max'));
+        var val = parseFloat($input.val());
         if (val > max) {
             $input.val(max);
         }
@@ -339,9 +350,11 @@ function bindScoreInputEvents(proSubType) {
 function calculateRowTotal($row, proSubType) {
     var total = 0;
     $row.find('.score-input').each(function() {
-        var val = parseInt($(this).val()) || 0;
+        var val = parseFloat($(this).val()) || 0;
         total += val;
     });
+    // 保留两位小数显示
+    total = Math.round(total * 100) / 100;
     $row.find('.total-score').text(total > 0 ? total : '');
 }
 
@@ -352,32 +365,34 @@ function calculateTotal(proSubType, scoreData) {
     var total = 0;
     switch(proSubType) {
         case 'contribution':
-            total = (parseInt(scoreData.technicalLevel) || 0) +
-                    (parseInt(scoreData.technicalDifficulty) || 0) +
-                    (parseInt(scoreData.technicalInnovation) || 0) +
-                    (parseInt(scoreData.economicBenefit) || 0) +
-                    (parseInt(scoreData.materialQuality) || 0);
+            total = (parseFloat(scoreData.technicalLevel) || 0) +
+                    (parseFloat(scoreData.technicalDifficulty) || 0) +
+                    (parseFloat(scoreData.technicalInnovation) || 0) +
+                    (parseFloat(scoreData.economicBenefit) || 0) +
+                    (parseFloat(scoreData.materialQuality) || 0);
             break;
         case 'design':
-            total = (parseInt(scoreData.overallTechnicalLevel) || 0) +
-                    (parseInt(scoreData.difficultyInnovation) || 0) +
-                    (parseInt(scoreData.digitalDesignLevel) || 0) +
-                    (parseInt(scoreData.environmentSafety) || 0) +
-                    (parseInt(scoreData.designQuality) || 0) +
-                    (parseInt(scoreData.energySaving) || 0) +
-                    (parseInt(scoreData.greenConstruction) || 0) +
-                    (parseInt(scoreData.materialQuality) || 0);
+            total = (parseFloat(scoreData.overallTechnicalLevel) || 0) +
+                    (parseFloat(scoreData.difficultyInnovation) || 0) +
+                    (parseFloat(scoreData.digitalDesignLevel) || 0) +
+                    (parseFloat(scoreData.environmentSafety) || 0) +
+                    (parseFloat(scoreData.designQuality) || 0) +
+                    (parseFloat(scoreData.energySaving) || 0) +
+                    (parseFloat(scoreData.greenConstruction) || 0) +
+                    (parseFloat(scoreData.materialQuality) || 0);
             break;
         case 'software':
         case 'standard':
-            total = (parseInt(scoreData.technicalLevel) || 0) +
-                    (parseInt(scoreData.technicalDifficulty) || 0) +
-                    (parseInt(scoreData.technicalInnovation) || 0) +
-                    (parseInt(scoreData.promotability) || 0) +
-                    (parseInt(scoreData.economicBenefit) || 0) +
-                    (parseInt(scoreData.materialQuality) || 0);
+            total = (parseFloat(scoreData.technicalLevel) || 0) +
+                    (parseFloat(scoreData.technicalDifficulty) || 0) +
+                    (parseFloat(scoreData.technicalInnovation) || 0) +
+                    (parseFloat(scoreData.promotability) || 0) +
+                    (parseFloat(scoreData.economicBenefit) || 0) +
+                    (parseFloat(scoreData.materialQuality) || 0);
             break;
     }
+    // 保留两位小数
+    total = Math.round(total * 100) / 100;
     return total;
 }
 
@@ -427,7 +442,7 @@ function saveScore(proId, proSubType) {
     $row.find('.score-input').each(function() {
         var field = $(this).data('field');
         var val = $(this).val();
-        scoreData[field] = val ? parseInt(val) : 0;
+        scoreData[field] = val ? parseFloat(val) : 0;
     });
 
     // 收集主评意见
