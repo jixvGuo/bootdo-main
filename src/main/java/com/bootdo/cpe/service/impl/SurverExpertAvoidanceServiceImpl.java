@@ -77,8 +77,10 @@ public class SurverExpertAvoidanceServiceImpl implements SurverExpertAvoidanceSe
     }
 
     /**
-     * Phase A: stub — 仅记录入参合法性校验，实际"按单位匹配 4 张子表"逻辑在 Phase C 落地
-     * 落地参考: QcExpertAvoidanceServiceImpl#autoAvoidByCompany
+     * 自动回避（按专家单位 vs 申报单位）
+     * 遍历任务下所有勘察奖项目，按完成单位与专家单位比对：
+     * 1. 匹配则创建自动回避记录
+     * 2. 不再匹配则删除之前的自动回避记录
      */
     @Override
     @Transactional
@@ -86,23 +88,77 @@ public class SurverExpertAvoidanceServiceImpl implements SurverExpertAvoidanceSe
         if (StringUtils.isBlank(taskId) || expertUserId == null || StringUtils.isBlank(expertCompany)) {
             return 0;
         }
-        //Phase C: 遍历 4 张申报子表(excellent/design/soft/standard),
-        //               按完成单位 + 申报人单位 与 expertCompany 比对, 命中则 batchSave。
 
         // 标准化专家单位名称
         String normalizedExpertCompany = normalizeCompanyName(expertCompany);
+        System.out.println("[勘察奖自动回避] 开始检查：taskId=" + taskId + ", expertUserId=" + expertUserId + ", expertCompany=" + expertCompany + ", normalized=" + normalizedExpertCompany);
 
-        // 查询该任务下所有勘察奖项目（4种子类型）
+        // 查询该任务下所有勘察奖项目（4种子类型），使用专门的自动回避查询
         Map<String, Object> params = new HashMap<>();
         params.put("taskId", taskId);
 
         // 获取所有子类型的项目
-        List<Map<String, Object>> projects = awardEnterpriseProjectService.listSurverProjects(params);
+        List<Map<String, Object>> projects = awardEnterpriseProjectService.listAllSurverProjectsForAutoAvoid(params);
 
         if (projects == null || projects.isEmpty()) {
+            System.out.println("[勘察奖自动回避] 未找到项目");
             return 0;
         }
+        System.out.println("[勘察奖自动回避] 找到 " + projects.size() + " 个项目");
 
+        // 第一步：获取当前专家的所有自动回避记录
+        Map<String, Object> queryAutoAvoid = new HashMap<>();
+        queryAutoAvoid.put("taskId", taskId);
+        queryAutoAvoid.put("expertUserId", expertUserId);
+        queryAutoAvoid.put("avoidanceType", "auto");
+        List<SurverExpertAvoidanceDO> existingAutoAvoidances = avoidanceDao.list(queryAutoAvoid);
+        System.out.println("[勘察奖自动回避] 已有自动回避记录 " + (existingAutoAvoidances != null ? existingAutoAvoidances.size() : 0) + " 条");
+
+        // 构建项目ID到项目信息的映射
+        Map<Integer, Map<String, Object>> projectMap = new HashMap<>();
+        for (Map<String, Object> project : projects) {
+            Integer proId = (Integer) project.get("proId");
+            if (proId != null) {
+                projectMap.put(proId, project);
+            }
+        }
+
+        // 第二步：检查现有自动回避记录，删除不再符合条件的
+        List<Integer> toRemoveIds = new ArrayList<>();
+        if (existingAutoAvoidances != null) {
+            for (SurverExpertAvoidanceDO existing : existingAutoAvoidances) {
+                Integer proId = existing.getProId();
+                Map<String, Object> project = projectMap.get(proId);
+                if (project == null) {
+                    // 项目不存在了，删除回避记录
+                    toRemoveIds.add(existing.getId());
+                    System.out.println("[勘察奖自动回避] 删除回避记录：项目不存在，proId=" + proId);
+                    continue;
+                }
+                // 检查专家单位是否仍与项目单位匹配
+                String companyName = (String) project.get("companyName");
+                boolean stillMatch = false;
+                if (StringUtils.isNotBlank(companyName)) {
+                    String normalizedUnit = normalizeCompanyName(companyName);
+                    stillMatch = isSameCompany(normalizedExpertCompany, normalizedUnit);
+                }
+                if (!stillMatch) {
+                    toRemoveIds.add(existing.getId());
+                    String proCode = (String) project.get("proCode");
+                    System.out.println("[勘察奖自动回避] 删除回避记录：项目[" + proCode + "] 单位不再匹配");
+                }
+            }
+        }
+
+        // 批量删除不再符合条件的自动回避记录
+        if (!toRemoveIds.isEmpty()) {
+            for (Integer id : toRemoveIds) {
+                avoidanceDao.remove(id);
+            }
+            System.out.println("[勘察奖自动回避] 已删除 " + toRemoveIds.size() + " 条不再符合条件的自动回避记录");
+        }
+
+        // 第三步：创建新的自动回避记录
         List<SurverExpertAvoidanceDO> avoidanceList = new ArrayList<>();
 
         for (Map<String, Object> project : projects) {
@@ -111,18 +167,20 @@ public class SurverExpertAvoidanceServiceImpl implements SurverExpertAvoidanceSe
 
             // 检查：与申报单位完全匹配（SQL返回的字段名是 companyName）
             String companyName = (String) project.get("companyName");
+            Integer proId = (Integer) project.get("proId");
+            String proCode = (String) project.get("proCode");
             if (StringUtils.isNotBlank(companyName)) {
                 String normalizedUnit = normalizeCompanyName(companyName);
                 if (isSameCompany(normalizedExpertCompany, normalizedUnit)) {
                     shouldAvoid = true;
                     reason.append("申报单位[").append(companyName).append("]");
+                    System.out.println("[勘察奖自动回避] 匹配成功：项目[" + proCode + "] 申报单位[" + companyName + "]");
                 }
             }
 
             // 如果需要回避，插入回避记录
             if (shouldAvoid) {
-                Integer proId = (Integer) project.get("proId");
-                // 检查是否已存在回避记录
+                // 检查是否已存在回避记录（包括手动回避）
                 int existing = avoidanceDao.checkAvoidance(taskId, proId, expertUserId);
                 if (existing == 0) {
                     SurverExpertAvoidanceDO avoidance = new SurverExpertAvoidanceDO();
@@ -133,15 +191,16 @@ public class SurverExpertAvoidanceServiceImpl implements SurverExpertAvoidanceSe
                     avoidance.setAvoidanceReason(reason.toString());
                     avoidance.setCreatedBy(expertUserId);
                     avoidanceList.add(avoidance);
+                    System.out.println("[勘察奖自动回避] 新增回避记录：项目[" + proCode + "]");
+                } else {
+                    System.out.println("[勘察奖自动回避] 已存在回避记录：项目[" + proCode + "]");
                 }
             }
         }
 
         // 批量插入回避记录
         if (!avoidanceList.isEmpty()) {
-            for (SurverExpertAvoidanceDO avoidance : avoidanceList) {
-                avoidanceDao.save(avoidance);
-            }
+            avoidanceDao.batchSave(avoidanceList);
         }
 
         return avoidanceList.size();

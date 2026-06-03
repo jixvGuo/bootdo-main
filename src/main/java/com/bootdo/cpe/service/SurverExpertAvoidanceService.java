@@ -30,8 +30,7 @@ public interface SurverExpertAvoidanceService {
 
     /**
      * 自动回避（按专家单位 vs 申报单位）
-     * 注意: 勘察奖的项目分散在 4 张子表里，自动回避所需的"项目-单位"映射在 Phase C
-     * 专家打分页面落地时再补充实现。当前返回 0，stub。
+     * 遍历任务下所有勘察奖项目，按完成单位与专家单位比对，命中则自动创建回避记录
      */
     int autoAvoidByCompany(String taskId, Integer expertUserId, String expertCompany);
 

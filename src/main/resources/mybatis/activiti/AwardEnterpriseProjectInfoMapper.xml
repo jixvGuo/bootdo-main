@@ -899,4 +899,19 @@
         ORDER BY pro.pro_code
     </select>
 
+    <!-- 自动回避查询：获取任务下所有勘察奖项目（不需要expertUid参数） -->
+    <select id="listAllSurverProjectsForAutoAvoid" resultType="java.util.Map">
+        SELECT
+            pro.id AS proId,
+            IF(pro.pro_result_code IS NULL OR pro.pro_result_code = '', pro.pro_code, pro.pro_result_code) AS proCode,
+            pro.chengguo AS topicName,
+            pro.declare_account AS declareAccount,
+            pro.pro_sub_type AS proSubType,
+            (SELECT sd.name FROM sys_dept sd JOIN sys_user su ON sd.dept_id = su.dept_id WHERE su.user_id = pro.create_uid LIMIT 1) AS companyName
+        FROM ass_award_enterprise_project pro
+        WHERE pro.publish_task_id = #{taskId}
+          AND pro.pro_type = 'surver_pro'
+        ORDER BY pro.pro_sub_type, pro.pro_code
+    </select>
+
 </mapper>

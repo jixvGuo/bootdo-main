@@ -787,45 +787,11 @@ public class SurverProcessController extends BaseSurverController {
             ExpertGroupDO old = exist.get(0);
             expert.setId(old.getId());
             if (expertGroupService.update(expert) > 0) {
-                // 更新成功后，触发自动回避检查
-                try {
-                    if (StringUtils.isNotBlank(expert.getUserId()) && StringUtils.isNotBlank(expert.getCompany())) {
-                        int avoidCount = surverExpertAvoidanceService.autoAvoidByCompany(
-                            expert.getTaskId(),
-                            Integer.parseInt(expert.getUserId()),
-                            expert.getCompany()
-                        );
-                        if (avoidCount > 0) {
-                            System.out.println("[勘察奖自动回避] 专家[" + expert.getLoginAccount() + "]单位[" + expert.getCompany() + "]，自动回避 " + avoidCount + " 个项目");
-                        }
-                    }
-                } catch (Exception e) {
-                    // 自动回避失败不影响主流程
-                    System.err.println("[勘察奖自动回避] 失败: " + e.getMessage());
-                    e.printStackTrace();
-                }
                 return R.ok();
             }
             return R.error("更新失败");
         }
         if (expertGroupService.directSave(expert) > 0) {
-            // 保存成功后，触发自动回避检查
-            try {
-                if (StringUtils.isNotBlank(expert.getUserId()) && StringUtils.isNotBlank(expert.getCompany())) {
-                    int avoidCount = surverExpertAvoidanceService.autoAvoidByCompany(
-                        expert.getTaskId(),
-                        Integer.parseInt(expert.getUserId()),
-                        expert.getCompany()
-                    );
-                    if (avoidCount > 0) {
-                        System.out.println("[勘察奖自动回避] 专家[" + expert.getLoginAccount() + "]单位[" + expert.getCompany() + "]，自动回避 " + avoidCount + " 个项目");
-                    }
-                }
-            } catch (Exception e) {
-                // 自动回避失败不影响主流程
-                System.err.println("[勘察奖自动回避] 失败: " + e.getMessage());
-                e.printStackTrace();
-            }
             return R.ok();
         }
         return R.error("保存失败");
