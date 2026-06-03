@@ -40,7 +40,16 @@ function loadTabData(proSubType) {
         success: function(res) {
             if (res.code === 0) {
                 // 缓存原始数据
-                scoredDataCache[proSubType] = res.data || [];
+                var data = res.data || [];
+                // 设计项目按项目编号升序排序（数字格式，如10.1, 4.1, 5.1）
+                if (proSubType === 'design') {
+                    data.sort(function(a, b) {
+                        var numA = parseFloat(a.proCode) || 0;
+                        var numB = parseFloat(b.proCode) || 0;
+                        return numA - numB;
+                    });
+                }
+                scoredDataCache[proSubType] = data;
                 // 应用筛选
                 var filtered = getFilteredData(proSubType);
                 renderTable(proSubType, filtered);
