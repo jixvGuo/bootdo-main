@@ -21,6 +21,12 @@ $(document).ready(function() {
 
     // 恢复保存的筛选条件
     restoreScoringFilterFromStorage();
+
+    // 禁用浏览器中number输入框的滚轮改变数值行为
+    $(document).on('wheel', "input[type='number'], .score-input", function (e) {
+        e.preventDefault();
+        $(this).blur();
+    });
 });
 
 /**
@@ -193,25 +199,105 @@ function buildScoreCell(proId, fieldName, maxScore, value, isAvoided) {
             '<span class="form-control input-sm" style="width: 80px; background-color: #f5f5f5; color: #999;">' + (val || '-') + '</span>' +
             '</td>';
     } else {
-        // 正常项目：可编辑输入框
+        // 正常项目：可编辑输入框（使用text类型，通过正则限制只能输入数字）
         return '<td>' +
-            '<input type="number" class="form-control input-sm score-input" ' +
+            '<input type="text" class="form-control input-sm score-input" ' +
             'data-field="' + fieldName + '" ' +
             'data-max="' + maxScore + '" ' +
             'value="' + val + '" ' +
-            'min="0" max="' + maxScore + '" ' +
             'placeholder="0-' + maxScore + '" ' +
+            'oninput="onScoreInput(this)" ' +
             'style="width: 80px;">' +
             '</td>';
     }
 }
 
 /**
+ * 分数输入实时过滤（oninput触发）
+ * 只允许输入数字，自动去除非法字符
+ */
+function onScoreInput(el) {
+    var $input = $(el);
+    var raw = $input.val();
+    // 只保留数字
+    var filtered = raw.replace(/[^0-9]/g, '');
+    // 去除前导零（单独的0保留）
+    if (filtered.length > 1 && filtered.charAt(0) === '0') {
+        filtered = filtered.replace(/^0+/, '');
+    }
+    if (raw !== filtered) {
+        $input.val(filtered);
+    }
+}
+
+/**
+ * 校验分数输入是否为整数
+ * @returns {boolean} 是否合法
+ */
+function validateScoreInput($input) {
+    var raw = $input.val();
+    // 空值不校验（由范围校验处理）
+    if (raw === '' || raw === null || raw === undefined) {
+        $input.removeClass('score-input-invalid');
+        return true;
+    }
+
+    // 检测是否包含小数点
+    if (raw.indexOf('.') > -1) {
+        layer.tips('请输入整数，不支持小数', $input, {tips: 2, time: 1500});
+        // 截取整数部分
+        var intVal = parseInt(raw);
+        $input.val(isNaN(intVal) ? '' : intVal);
+        $input.addClass('score-input-invalid');
+        setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
+        return false;
+    }
+
+    // 检测前导零（如01、007等）
+    if (raw.length > 1 && raw.charAt(0) === '0') {
+        layer.tips('不支持前导零，请直接输入数字', $input, {tips: 2, time: 1500});
+        // 去除前导零
+        var intVal = parseInt(raw, 10);
+        $input.val(isNaN(intVal) ? '' : intVal);
+        $input.addClass('score-input-invalid');
+        setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
+        return false;
+    }
+
+    // 检测科学计数法（如1e5）及其他非法字符
+    if (/[eE\+\-]/.test(raw)) {
+        layer.tips('请输入数字，不支持科学计数法', $input, {tips: 2, time: 1500});
+        $input.val('');
+        $input.addClass('score-input-invalid');
+        setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
+        return false;
+    }
+
+    // 检测是否为非数字
+    if (isNaN(parseInt(raw))) {
+        layer.tips('请输入数字', $input, {tips: 2, time: 1500});
+        $input.val('');
+        $input.addClass('score-input-invalid');
+        setTimeout(function() { $input.removeClass('score-input-invalid'); }, 1500);
+        return false;
+    }
+
+    $input.removeClass('score-input-invalid');
+    return true;
+}
+
+/**
  * 绑定分数输入事件
  */
 function bindScoreInputEvents(proSubType) {
-    $('#tbody-' + proSubType).find('.score-input').on('input', function() {
+    var $container = $('#tbody-' + proSubType);
+    $container.find('.score-input').on('input', function() {
         var $input = $(this);
+
+        // 整数格式校验
+
+        validateScoreInput($input);
+
         var max = parseInt($input.data('max'));
         var val = parseInt($input.val());
 
@@ -224,6 +310,24 @@ function bindScoreInputEvents(proSubType) {
         }
 
         // 自动计算总分
+        var $row = $input.closest('tr');
+        calculateRowTotal($row, proSubType);
+    });
+
+    // 失焦时也进行校验（处理粘贴等场景）
+    $container.find('.score-input').on('blur', function() {
+        var $input = $(this);
+        validateScoreInput($input);
+
+        var max = parseInt($input.data('max'));
+        var val = parseInt($input.val());
+        if (val > max) {
+            $input.val(max);
+        }
+        if (val < 0) {
+            $input.val(0);
+        }
+
         var $row = $input.closest('tr');
         calculateRowTotal($row, proSubType);
     });
