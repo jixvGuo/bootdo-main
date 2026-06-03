@@ -18,7 +18,9 @@ import com.bootdo.cpe.domain.EnumProjectType;
 import com.bootdo.cpe.domain.ExpertGroupDO;
 import com.bootdo.cpe.domain.SurverExpertScoringDO;
 import com.bootdo.cpe.service.ExpertGroupService;
+import com.bootdo.cpe.service.SurverExpertAvoidanceService;
 import com.bootdo.cpe.service.SurverExpertScoringService;
+import com.bootdo.cpe.utils.SurverExpertScoringExportUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -42,8 +44,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 import static com.bootdo.common.config.Constant.ROLE_SPECIALIST_ID;
 import static com.bootdo.common.config.Constant.ROLE_SURVER_SPECALIST_ID;
@@ -55,6 +59,9 @@ import static com.bootdo.common.config.Constant.ROLE_SURVER_GROUP_CONTACT_ID;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @Controller
 @RequestMapping("/surverScore")
@@ -78,6 +85,8 @@ public class SurverScoreController extends BaseSurverController {
     private AwardPublishTaskService awardPublishTaskService;
     @Autowired
     private SurverExpertScoringService scoringService;
+    @Autowired
+    private SurverExpertAvoidanceService surverExpertAvoidanceService;
 
     /**
      * 勘察专家打分页 taskId：与 {@link SurverProController#getSurverProList} 一致（专家组绑定），
@@ -315,25 +324,13 @@ public class SurverScoreController extends BaseSurverController {
                 String sheetName = sheetNameMap.get(proSubType);
 
                 if (sheetData.isEmpty()) {
-                    // 如果没有数据，创建空sheet并提示
-                    Sheet sheet = workbook.createSheet(sheetName);
-                    Row emptyRow = sheet.createRow(0);
-                    Cell emptyCell = emptyRow.createCell(0);
-                    emptyCell.setCellValue("暂无数据");
+                    // 如果没有数据，创建带表头的空sheet
+                    createSheet(workbook, sheetName, sheetData, headerStyle, titleStyle, dataStyle, "全部");
                     continue;
                 }
 
-                // 按分数从高到低排序
-                Collections.sort(sheetData, new Comparator<Map<String, Object>>() {
-                    @Override
-                    public int compare(Map<String, Object> a, Map<String, Object> b) {
-                        Integer scoreA = (Integer) a.get("totalScore");
-                        Integer scoreB = (Integer) b.get("totalScore");
-                        if (scoreA == null) scoreA = 0;
-                        if (scoreB == null) scoreB = 0;
-                        return scoreB.compareTo(scoreA); // 降序
-                    }
-                });
+                // 原：按专家单行 totalScore 排序（现由 createSheet 内按项目平均分排序）
+                // Collections.sort(sheetData, ...);
 
                 // 获取专业组名称
                 String currentGroupName = StringUtils.isNotBlank(exportGroupName) ? exportGroupName : "全部";
@@ -366,6 +363,14 @@ public class SurverScoreController extends BaseSurverController {
         }
     }
 
+    /** 导出表「专家名称」下固定 5 列（与模板 A~M 一致） */
+    private static final int EXPORT_EXPERT_COL_COUNT = 5;
+
+    private static final class ExportExpertColumn {
+        Long expertUid;
+        String name;
+    }
+
     /**
      * 创建Sheet页
      */
@@ -373,6 +378,19 @@ public class SurverScoreController extends BaseSurverController {
                             CellStyle headerStyle, CellStyle titleStyle, CellStyle dataStyle,
                             String groupName) {
         Sheet sheet = workbook.createSheet(sheetName);
+
+        List<ExportExpertColumn> expertColumns = resolveExportExpertColumns(data, EXPORT_EXPERT_COL_COUNT);
+        List<Map<String, Object>> projectRows = buildExportProjectRows(data, expertColumns);
+        Collections.sort(projectRows, new Comparator<Map<String, Object>>() {
+            @Override
+            public int compare(Map<String, Object> a, Map<String, Object> b) {
+                BigDecimal scoreA = toBigDecimal(a.get("avgScore"));
+                BigDecimal scoreB = toBigDecimal(b.get("avgScore"));
+                if (scoreA == null) scoreA = BigDecimal.ZERO;
+                if (scoreB == null) scoreB = BigDecimal.ZERO;
+                return scoreB.compareTo(scoreA);
+            }
+        });
 
         // 第1行：标题行（合并单元格）
         Row titleRow = sheet.createRow(0);
@@ -382,154 +400,263 @@ public class SurverScoreController extends BaseSurverController {
         // 合并A1到M1
         sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 12));
 
-        // 第2行：表头第一部分
+        // 第2-3行：表头（与模板一致，共 13 列 A~M）
         Row headerRow1 = sheet.createRow(1);
         Row headerRow2 = sheet.createRow(2);
 
-        // 设置表头
-        String[] headers = {"序号", "申报账号", "项目编号", "项目名称", "专家名称", "项目平均分（100）", "专家推荐等级", "形式审查意见", "备注"};
-        int[] headerWidths = {8, 15, 15, 30, 10, 15, 15, 20, 20};
-
-        int colIndex = 0;
-        for (int i = 0; i < headers.length; i++) {
-            Cell cell = headerRow1.createCell(colIndex);
-            cell.setCellValue(headers[i]);
+        String[] leadHeaders = {"序号", "申报账号", "项目编号", "项目名称"};
+        for (int c = 0; c < leadHeaders.length; c++) {
+            Cell cell = headerRow1.createCell(c);
+            cell.setCellValue(leadHeaders[c]);
             cell.setCellStyle(headerStyle);
-
-            // 合并序号、申报账号、项目编号、项目名称的行（2-3行）
-            if (i < 4) {
-                sheet.addMergedRegion(new CellRangeAddress(1, 2, colIndex, colIndex));
-            }
-            colIndex++;
-
-            // 在"项目名称"后插入5个专家评分列（KC1-1到KC1-5）
-            if (i == 3) {
-                // 先设置"专家名称"合并单元格
-                Cell expertNameCell = headerRow1.createCell(colIndex);
-                expertNameCell.setCellValue("专家名称");
-                expertNameCell.setCellStyle(headerStyle);
-                sheet.addMergedRegion(new CellRangeAddress(1, 1, colIndex, colIndex + 4));
-
-                // 设置KC1-1到KC1-5
-                for (int j = 1; j <= 5; j++) {
-                    Cell kcCell = headerRow2.createCell(colIndex + j - 1);
-                    kcCell.setCellValue("KC1-" + j);
-                    kcCell.setCellStyle(headerStyle);
-                }
-                colIndex += 5;
-            }
-
-            // 合并项目平均分、专家推荐等级、形式审查意见、备注的行（2-3行）
-            if (i >= 5) {
-                sheet.addMergedRegion(new CellRangeAddress(1, 2, colIndex - 1, colIndex - 1));
-            }
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, c, c));
         }
 
-        // 第4行开始：数据行
+        // 专家名称（第 2 行跨 5 列）+ 第 3 行：实际专家姓名（原 KC1-1 … KC1-5 占位）
+        Cell expertNameCell = headerRow1.createCell(4);
+        expertNameCell.setCellValue("专家名称");
+        expertNameCell.setCellStyle(headerStyle);
+        sheet.addMergedRegion(new CellRangeAddress(1, 1, 4, 8));
+        for (int j = 0; j < EXPORT_EXPERT_COL_COUNT; j++) {
+            Cell nameCell = headerRow2.createCell(4 + j);
+            String label = j < expertColumns.size() ? expertColumns.get(j).name : "";
+            nameCell.setCellValue(label);
+            nameCell.setCellStyle(headerStyle);
+        }
+
+        String[] tailHeaders = {"项目平均分（100）", "专家推荐等级", "形式审查意见", "备注"};
+        int[] tailCols = {9, 10, 11, 12};
+        for (int i = 0; i < tailHeaders.length; i++) {
+            Cell cell = headerRow1.createCell(tailCols[i]);
+            cell.setCellValue(tailHeaders[i]);
+            cell.setCellStyle(headerStyle);
+            sheet.addMergedRegion(new CellRangeAddress(1, 2, tailCols[i], tailCols[i]));
+        }
+
+        // 第4行开始：数据行（每行一个项目，专家列填各专家 totalScore）
         int rowNum = 3;
-        for (int i = 0; i < data.size(); i++) {
-            Map<String, Object> item = data.get(i);
+        for (int i = 0; i < projectRows.size(); i++) {
+            Map<String, Object> item = projectRows.get(i);
             Row dataRow = sheet.createRow(rowNum++);
 
             int cellIdx = 0;
-            // 序号
             Cell cell0 = dataRow.createCell(cellIdx++);
             cell0.setCellValue(i + 1);
             cell0.setCellStyle(dataStyle);
 
-            // 申报账号
             Cell cell1 = dataRow.createCell(cellIdx++);
             cell1.setCellValue(getStringValue(item.get("declareAccount")));
             cell1.setCellStyle(dataStyle);
 
-            // 项目编号
             Cell cell2 = dataRow.createCell(cellIdx++);
             cell2.setCellValue(getStringValue(item.get("proCode")));
             cell2.setCellStyle(dataStyle);
 
-            // 项目名称
             Cell cell3 = dataRow.createCell(cellIdx++);
             cell3.setCellValue(getStringValue(item.get("topicName")));
             cell3.setCellStyle(dataStyle);
 
-            // 专家名称
-            Cell cell4 = dataRow.createCell(cellIdx++);
-            cell4.setCellValue(getStringValue(item.get("expertName")));
-            cell4.setCellStyle(dataStyle);
-
-            // 专家评分（KC1-1到KC1-5，根据不同的奖项类型显示不同的评分项）
-            List<Integer> scores = getScoresByType(item, data.get(0).get("proSubType").toString());
-            for (int j = 0; j < 5; j++) {
+            @SuppressWarnings("unchecked")
+            List<Integer> expertScores = (List<Integer>) item.get("expertScores");
+            for (int j = 0; j < EXPORT_EXPERT_COL_COUNT; j++) {
                 Cell scoreCell = dataRow.createCell(cellIdx++);
-                if (j < scores.size() && scores.get(j) != null) {
-                    scoreCell.setCellValue(scores.get(j));
+                Integer score = expertScores != null && j < expertScores.size() ? expertScores.get(j) : null;
+                if (score != null) {
+                    scoreCell.setCellValue(score.doubleValue());
                 } else {
                     scoreCell.setCellValue("");
                 }
                 scoreCell.setCellStyle(dataStyle);
             }
 
-            // 项目平均分
             Cell avgCell = dataRow.createCell(cellIdx++);
-            Integer totalScore = (Integer) item.get("totalScore");
-            if (totalScore != null) {
-                avgCell.setCellValue(totalScore.doubleValue());
+            Object avgScoreObj = item.get("avgScore");
+            if (avgScoreObj instanceof BigDecimal) {
+                avgCell.setCellValue(((BigDecimal) avgScoreObj).doubleValue());
+            } else if (avgScoreObj instanceof Number) {
+                avgCell.setCellValue(((Number) avgScoreObj).doubleValue());
             }
             avgCell.setCellStyle(dataStyle);
 
-            // 专家推荐等级
             Cell gradeCell = dataRow.createCell(cellIdx++);
             gradeCell.setCellValue(getStringValue(item.get("opinionGrade")));
             gradeCell.setCellStyle(dataStyle);
 
-            // 形式审查意见
             Cell opinionCell = dataRow.createCell(cellIdx++);
             opinionCell.setCellValue(getStringValue(item.get("opinionText")));
             opinionCell.setCellStyle(dataStyle);
 
-            // 备注
             Cell remarkCell = dataRow.createCell(cellIdx++);
             remarkCell.setCellValue("");
             remarkCell.setCellStyle(dataStyle);
         }
 
-        // 设置列宽
-        for (int i = 0; i < headerWidths.length; i++) {
-            sheet.setColumnWidth(i, headerWidths[i] * 256);
+        int[] colWidths = {8, 15, 15, 30, 12, 12, 12, 12, 12, 15, 15, 20, 20};
+        for (int i = 0; i < colWidths.length; i++) {
+            sheet.setColumnWidth(i, colWidths[i] * 256);
         }
     }
 
-    /**
-     * 根据奖项类型获取评分项
-     */
-    private List<Integer> getScoresByType(Map<String, Object> item, String proSubType) {
-        List<Integer> scores = new ArrayList<>();
-        switch (proSubType) {
-            case "contribution": // 优秀勘察奖
-                scores.add((Integer) item.get("technicalLevel"));
-                scores.add((Integer) item.get("technicalDifficulty"));
-                scores.add((Integer) item.get("technicalInnovation"));
-                scores.add((Integer) item.get("economicBenefit"));
-                scores.add((Integer) item.get("materialQuality"));
-                break;
-            case "design": // 优秀设计奖
-                scores.add((Integer) item.get("overallTechnicalLevel"));
-                scores.add((Integer) item.get("difficultyInnovation"));
-                scores.add((Integer) item.get("digitalDesignLevel"));
-                scores.add((Integer) item.get("environmentSafety"));
-                scores.add((Integer) item.get("designQuality"));
-                break;
-            case "software": // 优秀勘察设计计算机软件奖
-            case "standard": // 优秀标准设计奖
-                scores.add((Integer) item.get("technicalLevel"));
-                scores.add((Integer) item.get("technicalDifficulty"));
-                scores.add((Integer) item.get("technicalInnovation"));
-                scores.add((Integer) item.get("promotability"));
-                scores.add((Integer) item.get("economicBenefit"));
-                break;
+    /** 从导出数据中解析专家列（按 expertUid 升序，最多 5 人） */
+    private List<ExportExpertColumn> resolveExportExpertColumns(List<Map<String, Object>> data, int maxCols) {
+        Map<Long, String> ordered = new TreeMap<>();
+        for (Map<String, Object> item : data) {
+            Long uid = toLong(item.get("expertUid"));
+            if (uid == null) {
+                continue;
+            }
+            ordered.putIfAbsent(uid, getStringValue(item.get("expertName")));
         }
-        return scores;
+        List<ExportExpertColumn> cols = new ArrayList<>();
+        for (Map.Entry<Long, String> e : ordered.entrySet()) {
+            if (cols.size() >= maxCols) {
+                break;
+            }
+            ExportExpertColumn col = new ExportExpertColumn();
+            col.expertUid = e.getKey();
+            String name = e.getValue();
+            col.name = StringUtils.isNotBlank(name) ? name : ("专家" + e.getKey());
+            cols.add(col);
+        }
+        return cols;
     }
+
+    /** 按项目聚合：一行一项目，专家列对应该专家 totalScore */
+    private List<Map<String, Object>> buildExportProjectRows(List<Map<String, Object>> data,
+                                                             List<ExportExpertColumn> expertColumns) {
+        Map<Integer, LinkedHashMap<Long, Map<String, Object>>> byPro = new LinkedHashMap<>();
+        for (Map<String, Object> item : data) {
+            Integer proId = toInt(item.get("proId"));
+            Long uid = toLong(item.get("expertUid"));
+            if (proId == null) {
+                continue;
+            }
+            byPro.computeIfAbsent(proId, k -> new LinkedHashMap<>());
+            if (uid != null) {
+                byPro.get(proId).put(uid, item);
+            }
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (LinkedHashMap<Long, Map<String, Object>> expertMap : byPro.values()) {
+            if (expertMap.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> sample = expertMap.values().iterator().next();
+            Map<String, Object> row = new HashMap<>();
+            row.put("declareAccount", sample.get("declareAccount"));
+            row.put("proCode", sample.get("proCode"));
+            row.put("topicName", sample.get("topicName"));
+
+            List<Integer> expertScores = new ArrayList<>();
+            List<BigDecimal> validScores = new ArrayList<>();
+            LinkedHashSet<String> grades = new LinkedHashSet<>();
+            LinkedHashSet<String> opinions = new LinkedHashSet<>();
+            for (ExportExpertColumn ec : expertColumns) {
+                Map<String, Object> exp = expertMap.get(ec.expertUid);
+                Integer ts = exp != null ? toInt(exp.get("totalScore")) : null;
+                expertScores.add(ts);
+                // 排除空值（回避的评分在数据库中为null）
+                if (ts != null) {
+                    validScores.add(BigDecimal.valueOf(ts));
+                }
+                if (exp != null) {
+                    String g = getStringValue(exp.get("opinionGrade"));
+                    if (StringUtils.isNotBlank(g)) {
+                        grades.add(g);
+                    }
+                    String o = getStringValue(exp.get("opinionText"));
+                    if (StringUtils.isNotBlank(o)) {
+                        opinions.add(o);
+                    }
+                }
+            }
+            row.put("expertScores", expertScores);
+            // 计算项目平均分：≥3个有效分时去掉最高最低再平均，1-2个直接平均，保留两位小数
+            row.put("avgScore", calcAvgScore(validScores));
+            row.put("opinionGrade", String.join("；", grades));
+            row.put("opinionText", String.join("；", opinions));
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    /**
+     * 计算项目平均分：
+     * 1. 排除回避和空值
+     * 2. ≥3 个有效分时，去掉最高最低再平均
+     * 3. 1-2 个有效分时，直接平均
+     * 4. 保持两位有效小数
+     */
+    private BigDecimal calcAvgScore(List<BigDecimal> validScores) {
+        if (validScores == null || validScores.isEmpty()) {
+            return null;
+        }
+        List<BigDecimal> toAvg = new ArrayList<>(validScores);
+        // ≥3 个有效分时，去掉最高最低
+        if (toAvg.size() >= 3) {
+            toAvg.sort(BigDecimal::compareTo);
+            toAvg.remove(0);                    // 去掉最低分
+            toAvg.remove(toAvg.size() - 1);     // 去掉最高分
+        }
+        // 计算平均值
+        BigDecimal sum = BigDecimal.ZERO;
+        for (BigDecimal s : toAvg) {
+            sum = sum.add(s);
+        }
+        return sum.divide(BigDecimal.valueOf(toAvg.size()), 2, RoundingMode.HALF_UP);
+    }
+
+    private Integer toInt(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof Number) {
+            return ((Number) obj).intValue();
+        }
+        try {
+            return Integer.parseInt(obj.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Long toLong(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof Number) {
+            return ((Number) obj).longValue();
+        }
+        try {
+            return Long.parseLong(obj.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private BigDecimal toBigDecimal(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof BigDecimal) {
+            return (BigDecimal) obj;
+        }
+        if (obj instanceof Number) {
+            return BigDecimal.valueOf(((Number) obj).doubleValue());
+        }
+        try {
+            return new BigDecimal(obj.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // 原：KC 列填各打分维度（technicalLevel 等），与表头「专家名称」含义不符
+    /*
+    private List<Integer> getScoresByType(Map<String, Object> item, String proSubType) {
+        ...
+    }
+    */
 
     /**
      * 创建标题样式
@@ -829,6 +956,7 @@ public class SurverScoreController extends BaseSurverController {
     @ResponseBody
     @RequiresPermissions("surveraward:score:prolist")
     public R getScoringProjects(@RequestParam Map<String, Object> params) {
+        System.out.println("[勘察奖] getScoringProjects 方法被调用");
         String taskId = (String) params.get("taskId");
         String proSubType = (String) params.get("proSubType");
 
@@ -838,6 +966,31 @@ public class SurverScoreController extends BaseSurverController {
 
         // 获取当前专家用户ID
         Long expertUid = getUserId();
+
+        // 展示列表时也触发自动回避检查，确保所有回避状态是最新的
+        try {
+            // 从专家绑定信息中获取公司名称（UserDO中的companyName可能为空）
+            Map<String, Object> bindQuery = new HashMap<>();
+            bindQuery.put("userId", String.valueOf(expertUid));
+            bindQuery.put("proType", "surver_pro_group");
+            bindQuery.put("taskId", taskId);
+            List<ExpertGroupDO> bindings = expertGroupService.list(bindQuery);
+            if (bindings != null && !bindings.isEmpty()) {
+                String expertCompany = bindings.get(0).getCompany();
+                if (StringUtils.isNotBlank(expertCompany)) {
+                    int avoidCount = surverExpertAvoidanceService.autoAvoidByCompany(taskId, expertUid.intValue(), expertCompany);
+                    System.out.println("[勘察奖自动回避] 展示列表时触发：专家单位[" + expertCompany + "]，自动回避 " + avoidCount + " 个项目");
+                } else {
+                    System.out.println("[勘察奖自动回避] 展示列表时触发：专家单位为空，跳过自动回避");
+                }
+            } else {
+                System.out.println("[勘察奖自动回避] 展示列表时触发：未找到专家绑定信息");
+            }
+        } catch (Exception e) {
+            // 自动回避失败不影响列表展示
+            System.err.println("[勘察奖自动回避] 展示列表时触发失败: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         // 查询该任务下该子奖项的项目（未淘汰 + 专家所在专家组的项目）
         Map<String, Object> queryParams = new HashMap<>();
@@ -1023,14 +1176,193 @@ public class SurverScoreController extends BaseSurverController {
     }
 
     /**
-     * 下载打分结果
+     * 下载打分结果（专家本人：按模板四 Sheet 导出评分明细 + 电子签章）
      */
     @RequestMapping("/downloadScoringResult")
     @RequiresPermissions("surveraward:score:prolist")
     public void downloadScoringResult(@RequestParam String taskId, HttpServletResponse response) throws IOException {
-        // TODO: 实现下载功能
-        response.setContentType("text/plain;charset=UTF-8");
-        response.getWriter().write("下载功能开发中");
+        if (StringUtils.isBlank(taskId)) {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write("任务ID不能为空");
+            return;
+        }
+        UserDO user = getUser();
+        if (user == null) {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write("用户未登录");
+            return;
+        }
+        Long expertUid = getUserId();
+        String resolvedTaskId = resolveSurverScoreTaskId();
+        if (StringUtils.isNotBlank(resolvedTaskId)) {
+            taskId = resolvedTaskId;
+        }
+        if (StringUtils.isBlank(taskId)) {
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write("无法解析任务ID");
+            return;
+        }
+        try {
+            String groupName = resolveExpertGroupName(taskId, expertUid);
+            String signPath = resolveExpertSignDiskPath(taskId, expertUid);
+            Map<String, List<SurverExpertScoringExportUtils.ExportRow>> rowsBySubType =
+                    buildExpertScoringExportRows(taskId, expertUid);
+            String expertName = StringUtils.isNotBlank(user.getName()) ? user.getName() : user.getUsername();
+            SurverExpertScoringExportUtils.exportByTemplate(response, groupName, rowsBySubType, signPath, expertName);
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.setContentType("text/plain;charset=UTF-8");
+            response.getWriter().write("导出失败：" + e.getMessage());
+        }
+    }
+
+    // 原：占位
+    // public void downloadScoringResult(...) { response.getWriter().write("下载功能开发中"); }
+
+    private String resolveExpertGroupName(String taskId, Long expertUid) {
+        Map<String, Object> eq = new HashMap<>();
+        eq.put("userId", String.valueOf(expertUid));
+        eq.put("taskId", taskId);
+        eq.put("proType", "surver_pro_group");
+        List<ExpertGroupDO> bindings = expertGroupService.list(eq);
+        if (bindings != null && !bindings.isEmpty() && StringUtils.isNotBlank(bindings.get(0).getGroupName())) {
+            return bindings.get(0).getGroupName();
+        }
+        return "专业组";
+    }
+
+    private String resolveExpertSignDiskPath(String taskId, Long expertUid) {
+        try {
+            Map<String, Object> eq = new HashMap<>();
+            eq.put("userId", String.valueOf(expertUid));
+            eq.put("taskId", taskId);
+            eq.put("proType", "surver_pro_group");
+            List<ExpertGroupDO> list = expertGroupService.list(eq);
+            if (list == null || list.isEmpty() || StringUtils.isBlank(list.get(0).getExpertSignUrl())) {
+                return null;
+            }
+            String signUrl = list.get(0).getExpertSignUrl();
+            String uploadRoot = bootdoConfig.getUploadPath();
+            if (uploadRoot.endsWith("/**")) {
+                uploadRoot = uploadRoot.substring(0, uploadRoot.length() - 3);
+            }
+            return uploadRoot + signUrl.replace("/files/", "/");
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Map<String, List<SurverExpertScoringExportUtils.ExportRow>> buildExpertScoringExportRows(
+            String taskId, Long expertUid) {
+        Map<String, List<SurverExpertScoringExportUtils.ExportRow>> map = new LinkedHashMap<>();
+        String[] subTypes = {"contribution", "design", "software", "standard"};
+        for (String proSubType : subTypes) {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("taskId", taskId);
+            queryParams.put("proSubType", proSubType);
+            queryParams.put("expertUid", expertUid);
+            List<Map<String, Object>> projects = awardEnterpriseProjectService.listSurverProjects(queryParams);
+            List<SurverExpertScoringExportUtils.ExportRow> rows = new ArrayList<>();
+            if (projects != null) {
+                for (Map<String, Object> project : projects) {
+                    rows.add(toScoringExportRow(taskId, expertUid, proSubType, project));
+                }
+            }
+            map.put(proSubType, rows);
+        }
+        return map;
+    }
+
+    private SurverExpertScoringExportUtils.ExportRow toScoringExportRow(String taskId, Long expertUid,
+                                                                        String proSubType,
+                                                                        Map<String, Object> project) {
+        SurverExpertScoringExportUtils.ExportRow row = new SurverExpertScoringExportUtils.ExportRow();
+        row.declareAccount = exportStr(project.get("declareAccount"));
+        row.proCode = exportStr(project.get("proCode"));
+        row.topicName = exportStr(project.get("topicName"));
+        row.avoided = exportTruthy(project.get("isAvoided"));
+
+        Integer proId = exportInt(project.get("proId"));
+        if (proId == null || row.avoided) {
+            return row;
+        }
+        SurverExpertScoringDO scoring = scoringService.getByTaskProExpert(taskId, proId, expertUid);
+        if (scoring == null) {
+            return row;
+        }
+        row.totalScore = scoring.getTotalScore();
+        row.opinionGrade = scoring.getOpinionGrade();
+        row.opinionText = scoring.getOpinionText();
+        fillExportScores(row, scoring, proSubType);
+        return row;
+    }
+
+    private void fillExportScores(SurverExpertScoringExportUtils.ExportRow row, SurverExpertScoringDO scoring,
+                                  String proSubType) {
+        switch (proSubType) {
+            case "contribution":
+                putScore(row, "technicalLevel", scoring.getTechnicalLevel());
+                putScore(row, "technicalDifficulty", scoring.getTechnicalDifficulty());
+                putScore(row, "technicalInnovation", scoring.getTechnicalInnovation());
+                putScore(row, "economicBenefit", scoring.getEconomicBenefit());
+                putScore(row, "materialQuality", scoring.getMaterialQuality());
+                break;
+            case "design":
+                putScore(row, "overallTechnicalLevel", scoring.getOverallTechnicalLevel());
+                putScore(row, "difficultyInnovation", scoring.getDifficultyInnovation());
+                putScore(row, "digitalDesignLevel", scoring.getDigitalDesignLevel());
+                putScore(row, "environmentSafety", scoring.getEnvironmentSafety());
+                putScore(row, "designQuality", scoring.getDesignQuality());
+                putScore(row, "energySaving", scoring.getEnergySaving());
+                putScore(row, "greenConstruction", scoring.getGreenConstruction());
+                putScore(row, "materialQuality", scoring.getMaterialQuality());
+                break;
+            case "software":
+            case "standard":
+                putScore(row, "technicalLevel", scoring.getTechnicalLevel());
+                putScore(row, "technicalDifficulty", scoring.getTechnicalDifficulty());
+                putScore(row, "technicalInnovation", scoring.getTechnicalInnovation());
+                putScore(row, "promotability", scoring.getPromotability());
+                putScore(row, "economicBenefit", scoring.getEconomicBenefit());
+                putScore(row, "materialQuality", scoring.getMaterialQuality());
+                break;
+            default:
+                break;
+        }
+    }
+
+    private static void putScore(SurverExpertScoringExportUtils.ExportRow row, String field, Integer val) {
+        if (val != null) {
+            row.scores.put(field, val);
+        }
+    }
+
+    private static String exportStr(Object obj) {
+        return obj != null ? obj.toString() : "";
+    }
+
+    private static Integer exportInt(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof Number) {
+            return ((Number) obj).intValue();
+        }
+        try {
+            return Integer.parseInt(obj.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static boolean exportTruthy(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (obj instanceof Number) {
+            return ((Number) obj).intValue() == 1;
+        }
+        return "1".equals(obj.toString()) || Boolean.TRUE.equals(obj);
     }
 
     /**

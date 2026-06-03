@@ -145,4 +145,11 @@ public interface AwardEnterpriseProjectDao {
      * @return 项目列表
      */
     List<Map<String, Object>> listSurverEliminatedProjects(Map<String, Object> params);
+
+    /**
+     * 自动回避查询：获取任务下所有勘察奖项目（不需要expertUid参数）
+     * @param params 查询参数，包含taskId
+     * @return 项目列表
+     */
+    List<Map<String, Object>> listAllSurverProjectsForAutoAvoid(Map<String, Object> params);
 }

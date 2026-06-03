@@ -125,7 +125,7 @@ function buildRow(proSubType, project, index) {
     // 固定列：申报账号、项目编号、项目名称
     row += '<td>' + declareAccount + '</td>';
     row += '<td>' + proCode + '</td>';
-    row += '<td>' + topicName + (isAvoided ? ' <span class="label label-warning">已回避</span>' : '') + '</td>';
+    row += '<td>' + topicName + (isAvoided ? ' <span class="label label-danger">已回避</span>' : '') + '</td>';
 
     // 根据子奖项类型添加分数列
     switch(proSubType) {
@@ -178,7 +178,7 @@ function buildRow(proSubType, project, index) {
 
     // 操作列
     row += '<td>';
-    row += '<button type="button" class="btn btn-xs btn-default" onclick="viewProject(\'' + proId + '\')">查看</button> ';
+    row += '<button type="button" class="btn btn-xs" style="background-color:#2196F3;color:#fff;border-color:#1E88E5;" onclick="viewProject(\'' + proId + '\')">查看</button> ';
     if (!isAvoided) {
         row += '<button type="button" class="btn btn-xs btn-primary" onclick="saveScore(\'' + proId + '\', \'' + proSubType + '\')">保存</button>';
     }

@@ -2199,42 +2199,14 @@ function resetSurverProFilter() {
 
 // =========================================================================
 // 新增：导出分数功能（管理员和小组联络人可用）
-// 管理员可以选择导出全部或仅已淘汰的分数
-// 小组联络人只能导出本组未淘汰的分数
+// 直接导出全部的、未被评级淘汰的打分数据
 // =========================================================================
 function exportSurverScore() {
     var taskId = $("#taskId").val();
     if (!taskId) { layer.msg("任务 ID 为空"); return; }
 
-    // 读取角色标志
-    var isAssociationLeader = $("#isAssociationLeader").val() === '1';
-    var isSurverGroupContact = $("#isSurverGroupContact").val() === '1';
-
-    // 如果是管理员，弹出选择框让用户选择导出类型
-    if (isAssociationLeader) {
-        layer.open({
-            type: 1,
-            title: '导出分数',
-            area: ['400px', '200px'],
-            content: '<div style="padding:20px;">'
-                + '<p>请选择导出类型：</p>'
-                + '<div style="margin-top:10px;">'
-                + '<label style="margin-right:15px;"><input type="radio" name="exportType" value="all" checked> 导出全部（未淘汰）</label>'
-                + '<label><input type="radio" name="exportType" value="eliminated"> 仅导出已淘汰</label>'
-                + '</div>'
-                + '</div>',
-            btn: ['确定', '取消'],
-            yes: function(index) {
-                var exportType = $('input[name="exportType"]:checked').val();
-                var showEliminated = exportType === 'eliminated';
-                _doExportSurverScore(taskId, showEliminated);
-                layer.close(index);
-            }
-        });
-    } else {
-        // 小组联络人，直接导出未淘汰的分数
-        _doExportSurverScore(taskId, false);
-    }
+    // 直接导出全部未被淘汰的分数，不需要选择
+    _doExportSurverScore(taskId, false);
 }
 
 function _doExportSurverScore(taskId, showEliminated) {

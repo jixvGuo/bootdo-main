@@ -74,6 +74,8 @@ public class SurverProController extends BaseSurverController {
     private SurverSoftApplyProjectProfileService surverSoftApplyProjectProfileService;
     @Autowired
     private com.bootdo.cpe.service.SurverExpertEliminateService surverExpertEliminateService;
+    @Autowired
+    private com.bootdo.cpe.service.SurverExpertAvoidanceService surverExpertAvoidanceService;
 
     @RequiresPermissions("surveraward:to:prolist")
     @RequestMapping("/toProListMain")
@@ -146,6 +148,17 @@ public class SurverProController extends BaseSurverController {
                 String bindTaskId = expertBindings.get(0).getTaskId();
                 if (bindTaskId != null && !bindTaskId.isEmpty()) {
                     params.put("taskId", bindTaskId);
+                }
+                // 评审专家：触发自动回避检查
+                try {
+                    String expertCompany = expertBindings.get(0).getCompany();
+                    String taskIdForAvoid = expertBindings.get(0).getTaskId();
+                    if (StringUtils.isNotBlank(expertCompany) && StringUtils.isNotBlank(taskIdForAvoid)) {
+                        surverExpertAvoidanceService.autoAvoidByCompany(taskIdForAvoid, uid.intValue(), expertCompany);
+                        System.out.println("[勘察奖自动回避] 评级列表触发：专家单位[" + expertCompany + "]");
+                    }
+                } catch (Exception e) {
+                    System.err.println("[勘察奖自动回避] 评级列表触发失败: " + e.getMessage());
                 }
             }
         // 新增：勘察奖小组联络人(86) 仅看绑定分组下的项目

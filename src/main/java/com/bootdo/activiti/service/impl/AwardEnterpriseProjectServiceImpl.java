@@ -492,4 +492,9 @@ public class AwardEnterpriseProjectServiceImpl implements AwardEnterpriseProject
     public List<Map<String, Object>> listSurverEliminatedProjects(Map<String, Object> params) {
         return projectDao.listSurverEliminatedProjects(params);
     }
+
+    @Override
+    public List<Map<String, Object>> listAllSurverProjectsForAutoAvoid(Map<String, Object> params) {
+        return projectDao.listAllSurverProjectsForAutoAvoid(params);
+    }
 }
