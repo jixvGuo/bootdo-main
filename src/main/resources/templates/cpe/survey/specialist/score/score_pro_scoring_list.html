@@ -1,20 +1,19 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.w3.org/1999/xhtml" xmlns:shiro="http://www.w3.org/1999/xhtml">
-<!-- 专家打分列表页面 -->
 <meta charset="utf-8">
 <head th:include="include :: header"></head>
 <style>
     /* 回避行样式 */
     .avoided-row {
-        background-color: #f8d7da !important;
+        background-color: #fff3cd !important;
     }
     .avoided-row:hover {
-        background-color: #f5c6cb !important;
+        background-color: #ffeaa7 !important;
     }
     .avoided-row td {
-        color: #721c24;
+        color: #856404;
     }
-    .avoided-row .label-danger {
+    .avoided-row .label-warning {
         font-size: 10px;
         vertical-align: middle;
     }
@@ -229,7 +228,7 @@
 </div>
 
 <div th:include="include :: footer"></div>
-<script type="text/javascript" src="/js/appjs/cpe/surver/surver_scoring.js?v=1.6"></script>
+<script type="text/javascript" src="/js/appjs/cpe/surver/surver_scoring.js?v=1.4"></script>
 
 </body>
 </html>
