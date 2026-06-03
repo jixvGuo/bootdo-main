@@ -16,6 +16,10 @@
 					<button class="btn btn-primary" onclick="printDetailExcelPro()">
 						导出详情
 					</button>
+					<!-- ========== 临时上传组件 - 用完注释掉 ========== -->
+<!--					<button class="btn btn-warning btn-sm" onclick="openTmpUploadDialog()" style="margin-left:4px;">-->
+<!--						<i class="fa fa-upload"></i> 临时补传材料-->
+<!--					</button>-->
 					<button class="btn btn-warning" onclick="importCheckResult()" th:if="${isAssociationLeader}">
 						导入形式审查结果
 					</button>
@@ -434,7 +438,128 @@
 	}
 
 </script>
-
+<!-- ========== 临时上传组件 JS - 用完注释掉 ========== -->
+<script>
+var _tmpProId = '';
+function openTmpUploadDialog() {
+	_tmpProId = '';
+	var html = '<div style="padding:16px 20px;">'
+		+ '<div class="row" style="margin-bottom:10px;">'
+		+ '<div class="col-sm-6"><label>申报单位：</label><input type="text" id="_tmpCompany" class="form-control" placeholder="如：旺仔牛奶公司"></div>'
+		+ '<div class="col-sm-6"><label>项目名称：</label><input type="text" id="_tmpProName" class="form-control" placeholder="如：罐装牛奶喝瓶装牛奶哪个更好喝工程"></div>'
+		+ '</div>'
+		+ '<div style="text-align:right;margin-bottom:10px;">'
+		+ '<button class="btn btn-primary btn-sm" onclick="tmpSearchProject()"><i class="fa fa-search"></i> 查询</button>'
+		+ '</div>'
+		+ '<div id="_tmpSearchResult" style="display:none;padding:10px;background:#f0f0f0;border-radius:4px;margin-bottom:10px;">'
+		+ '<div id="_tmpProjectInfo"></div>'
+		+ '<div style="text-align:right;margin-top:8px;">'
+		+ '<button class="btn btn-success btn-sm" onclick="tmpConfirmProject()"><i class="fa fa-check"></i> 确认该项目</button>'
+		+ '</div>'
+		+ '</div>'
+		+ '<div id="_tmpUploadArea" style="display:none;padding:10px;background:#dff0d8;border-radius:4px;">'
+		+ '<div style="margin-bottom:8px;"><b>材料类型：</b>其他证明材料</div>'
+		+ '<input type="file" id="_tmpFile" multiple accept=".pdf,.doc,.docx,.jpg,.png" style="margin-bottom:8px;">'
+		+ '<div style="text-align:right;">'
+		+ '<button class="btn btn-warning btn-sm" onclick="tmpUploadDoc()"><i class="fa fa-upload"></i> 上传</button>'
+		+ '</div>'
+		+ '</div>'
+		+ '</div>';
+	layer.open({
+		type: 1,
+		title: '临时补传证明材料',
+		area: ['620px', '420px'],
+		shadeClose: false,
+		content: html
+	});
+}
+function tmpSearchProject() {
+	var company = ($('#_tmpCompany').val() || '').trim();
+	var proName = ($('#_tmpProName').val() || '').trim();
+	if (!company && !proName) { layer.msg('请输入申报单位或项目名称', {icon: 2}); return; }
+	_tmpProId = '';
+	$('#_tmpSearchResult').hide();
+	$('#_tmpUploadArea').hide();
+	var loadIdx = layer.load(1);
+	$.ajax({
+		url: '/surverPro/tmpSearchProject',
+		type: 'GET',
+		data: { company: company, proName: proName },
+		success: function(d) {
+			layer.close(loadIdx);
+			if (d.code !== 0) { layer.msg(d.msg || '查询失败', {icon: 2}); return; }
+			var list = d.list || [];
+			if (list.length === 0) {
+				layer.msg('未找到匹配的项目', {icon: 2});
+				return;
+			}
+			if (list.length === 1) {
+				var r = list[0];
+				_tmpProId = r.proId;
+				var info = '<table class="table table-condensed" style="margin-bottom:0;font-size:13px;">'
+					+ '<tr><td style="width:80px;color:#888;">项目编号</td><td>' + (r.proCode || '-') + '</td></tr>'
+					+ '<tr><td style="color:#888;">项目名称</td><td>' + (r.proName || '-') + '</td></tr>'
+					+ '<tr><td style="color:#888;">申报单位</td><td>' + (r.applyCompany || '-') + '</td></tr>'
+					+ '<tr><td style="color:#888;">申报账号</td><td>' + (r.declareAccount || '-') + '</td></tr>'
+					+ '</table>';
+				$('#_tmpProjectInfo').html(info);
+				$('#_tmpSearchResult').show();
+			} else {
+				var html = '<table class="table table-condensed table-hover" style="margin-bottom:0;font-size:13px;">'
+					+ '<thead><tr><th>项目编号</th><th>项目名称</th><th>申报单位</th><th>操作</th></tr></thead><tbody>';
+				for (var i = 0; i < list.length; i++) {
+					var r = list[i];
+					html += '<tr><td>' + (r.proCode||'-') + '</td><td>' + (r.proName||'-') + '</td><td>' + (r.applyCompany||'-') + '</td>'
+						+ '<td><button class="btn btn-success btn-xs" onclick="tmpPickProject(' + r.proId + ',\'' + (r.proCode||'') + '\',\'' + (r.proName||'').replace(/'/g,"\\'") + '\',\'' + (r.applyCompany||'').replace(/'/g,"\\'") + '\',\'' + (r.declareAccount||'') + '\')">选择</button></td></tr>';
+				}
+				html += '</tbody></table>';
+				$('#_tmpProjectInfo').html(html);
+				$('#_tmpSearchResult').show();
+			}
+		},
+		error: function() { layer.close(loadIdx); layer.msg('查询失败', {icon: 2}); }
+	});
+}
+function tmpPickProject(proId, proCode, proName, applyCompany, declareAccount) {
+	_tmpProId = proId;
+	var info = '<table class="table table-condensed" style="margin-bottom:0;font-size:13px;">'
+		+ '<tr><td style="width:80px;color:#888;">项目编号</td><td>' + proCode + '</td></tr>'
+		+ '<tr><td style="color:#888;">项目名称</td><td>' + proName + '</td></tr>'
+		+ '<tr><td style="color:#888;">申报单位</td><td>' + applyCompany + '</td></tr>'
+		+ '<tr><td style="color:#888;">申报账号</td><td>' + declareAccount + '</td></tr>'
+		+ '</table>';
+	$('#_tmpProjectInfo').html(info);
+}
+function tmpConfirmProject() {
+	if (!_tmpProId) { layer.msg('请先查询并找到项目', {icon: 2}); return; }
+	$('#_tmpSearchResult').hide();
+	$('#_tmpUploadArea').show();
+}
+function tmpUploadDoc() {
+	var files = $('#_tmpFile')[0].files;
+	if (!_tmpProId) { layer.msg('项目未确认', {icon: 2}); return; }
+	if (!files || files.length === 0) { layer.msg('请选择文件', {icon: 2}); return; }
+	var fd = new FormData();
+	for (var i = 0; i < files.length; i++) { fd.append('file[]', files[i]); }
+	fd.append('proId', _tmpProId);
+	fd.append('fileType', 'prove_other_data');
+	var loadIdx = layer.load(1);
+	$.ajax({
+		url: '/enterprise_pro/upload_doc',
+		type: 'POST',
+		data: fd,
+		processData: false,
+		contentType: false,
+		success: function(r) {
+			layer.close(loadIdx);
+			if (r.code === 0) { layer.msg('上传成功', {icon: 1}); $('#_tmpFile').val(''); }
+			else { layer.msg(r.msg || '上传失败', {icon: 2}); }
+		},
+		error: function() { layer.close(loadIdx); layer.msg('请求失败', {icon: 2}); }
+	});
+}
+</script>
+<!-- ========== 临时上传组件 JS END ========== -->
 
 </body>
 </html>

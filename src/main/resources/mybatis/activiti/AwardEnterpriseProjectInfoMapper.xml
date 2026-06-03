@@ -914,4 +914,28 @@
         ORDER BY pro.pro_sub_type, pro.pro_code
     </select>
 
+    <!-- 临时：按申报单位和项目名称搜索（无角色过滤） -->
+    <select id="searchByCompanyAndName" resultType="java.util.HashMap">
+        SELECT
+            pro.id AS proId,
+            pro.pro_code AS proCode,
+            pro.chengguo AS proName,
+            pro.pro_sub_type AS proSubType,
+            sd.name AS applyCompany,
+            su.username AS declareAccount
+        FROM ass_award_enterprise_project pro
+        JOIN sys_user su ON pro.create_uid = su.user_id
+        JOIN sys_dept sd ON su.dept_id = sd.dept_id
+        <where>
+            <if test="company != null and company != ''">
+                AND sd.name LIKE CONCAT('%', #{company}, '%')
+            </if>
+            <if test="proName != null and proName != ''">
+                AND pro.chengguo LIKE CONCAT('%', #{proName}, '%')
+            </if>
+        </where>
+        ORDER BY pro.id DESC
+        LIMIT 20
+    </select>
+
 </mapper>
